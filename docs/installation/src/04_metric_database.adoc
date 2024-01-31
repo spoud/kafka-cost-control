@@ -1,0 +1,26 @@
+== Metric database
+
+In order to store the metrics, we recommend using a timeserie database. Feel free to chose one that suits your needs. Be careful to chose one that is compatible with Kafka connect so you can easily transfer metrics from kafka to your database. In this example we will assume that you're using TimescaleDB because it's the one we provide kubernetes manifest for.
+
+=== Database Schema
+
+Feel free to adapt the partition size to fit your needs. In this example we put 1 day but please follow the link:https://docs.timescale.com/use-timescale/latest/hypertables/about-hypertables/#best-practices-for-time-partitioning[TimescaleDB documentation] to choose the right partition size for your use case.
+
+```sql
+CREATE TABLE "kafka_aggregated-table-friendly"
+(
+    "startTime"         TIMESTAMP        NOT NULL,
+    "endTime"           TIMESTAMP        NOT NULL,
+    "entityType"        VARCHAR          NOT NULL,
+    "initialMetricName" VARCHAR          NOT NULL,
+    "name"              VARCHAR          NOT NULL,
+    "value"             DOUBLE PRECISION NOT NULL,
+    "cost"              DOUBLE PRECISION NULL,
+    "tags"              JSONB            NOT NULL,
+    "context"           JSONB            NOT NULL,
+    PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
+);
+
+SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '1 day'));
+```
+

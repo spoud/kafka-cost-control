@@ -1,0 +1,26 @@
+// configure EN settings for asciidoc
+include::src/config.adoc[]
+
+= Kafka Cost Control installation
+:toc-title: Table of Contents
+
+// numbering from here on
+:numbered:
+
+<<<
+include::src/01_prerequisites.adoc[]
+
+<<<
+include::src/02_kafka_setup.adoc[]
+
+<<<
+include::src/03_kubernetes.adoc[]
+
+<<<
+include::src/04_metric_database.adoc[]
+
+<<<
+include::src/05_kafka_connect.adoc[]
+
+<<<
+include::src/06_grafana.adoc[]

@@ -1,0 +1,9 @@
+== Prerequisites
+
+This installation manual assumes that
+
+. You have a kafka cluster
+. You have a schema registry available
+. You have a kubernetes clusters
+.. that can reach kafka
+.. that can have volume

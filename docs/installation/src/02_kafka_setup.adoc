@@ -1,0 +1,38 @@
+== Topics and AVRO schemas
+
+These topics will need to be created.
+The documentation will show the default names, you can change them but don't forget to adapt the aggregator configuration.
+
+=== Reference AVRO schemas
+
+Some schemas will reference link:../../aggregator/src/main/avro/entity-type-enum.avsc[EntityType]. Please add it to your schema registry and reference it when needed.
+
+=== Topics
+
+[cols="1,1,1,1"]
+|===
+| Topic name | Clean up policy | Key| Value
+
+| context-data | compact | _String_ | link:../../aggregator/src/main/avro/context-data.avsc[ContextData]
+
+| pricing-rule | compact | _String_ | link:../../aggregator/src/main/avro/pricing-rule.avsc[PricingRule]
+
+| aggregated | delete | link:../../aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:../../aggregator/src/main/avro/aggregated-data-windowed.avsc[AggregatedDataWindowed]
+
+| aggregated-table-friendly
+| delete | link:../../aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:../../aggregator/src/main/avro/aggregated-data-table-friendly.avsc[AggregatedDataTableFriendly]
+
+|===
+
+==== Context data
+
+This topic will contain the additional information you wish to attach to the metrics. SEE TODO for more information. This topic is compacted and it is important that you take care of the key yourself. If you wish to delete a context-data you can set _null_ as payload (and provide the key you want to delete).
+
+==== Pricing rule
+This topic will contain the price of each metric. Be aware that most of the metric will be in _bytes_. So if you want for example to have a price of _1.0$_ per _GB_ you will need to set the price to _1.0/1024^3^_ = _0.000976276$_ per _byte_. The key should be the metric name. If you wish to remove a price value, send the payload _null_ with the key you want to delete. See TODO on how to use the API or the UI to set the price.
+
+==== Aggregated
+This topic will contain the enriched data. This is the result topic of the aggregator.
+
+==== Aggregated table friendly
+This is the exact same thing as _aggregated_ except there are no hashmap and other nested field. Everything has bee flattened. This topic make it easy to use Kafka Connect with a table database.
