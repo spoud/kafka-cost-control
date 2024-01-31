@@ -24,3 +24,6 @@ include::src/05_kafka_connect.adoc[]
 
 <<<
 include::src/06_grafana.adoc[]
+
+<<<
+include::src/07_telegraf.adoc[]
