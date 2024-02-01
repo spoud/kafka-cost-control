@@ -16,7 +16,7 @@ spec:
         - name: regcred
       containers:
         - name: kafka-connect
-          image: spoud/kafka-cost-control-exploration-connect:latest
+          image: spoud/kafka-cost-control-connect:latest
           imagePullPolicy: Always
           resources:
             limits:

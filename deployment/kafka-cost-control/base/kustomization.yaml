@@ -4,7 +4,6 @@ resources:
   - timescaledb.yaml
   - kafka-connect.yaml
   - grafana.yaml
-  - virtual-service.yaml
   - kafka-cost-control-ui.yaml
 
 secretGenerator:

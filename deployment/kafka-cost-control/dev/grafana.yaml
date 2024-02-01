@@ -1,9 +1,7 @@
-# TODO convert to ingress
-
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: grafana-virtualservice
+  name: grafana-ingress
 spec:
-  hosts:
-    - "kafka-cost-control-grafana.your-domain.com"
+  rules:
+    - host: "kcc-grafana.collaud7.collaud.me"

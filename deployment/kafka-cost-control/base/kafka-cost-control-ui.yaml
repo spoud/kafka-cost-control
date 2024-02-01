@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: kafka-cost-control-ui
-          image: spoud/kafka-cost-control-ui:latest
+          # TODO define final image
+          image: spoud/kafka-cost-control-exploration-ui:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80

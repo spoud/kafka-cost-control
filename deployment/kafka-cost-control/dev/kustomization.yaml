@@ -5,8 +5,9 @@ resources:
 namespace: kafka-cost-control
 
 patches:
-  - path: virtual-service.yaml
+  - path: aggregator.yaml
   - path: grafana.yaml
+  - path: kafka-cost-control-ui.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

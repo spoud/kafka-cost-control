@@ -54,7 +54,6 @@ spec:
         name: timescaledb-data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: "default"
         resources:
           requests:
             storage: 10Gi
