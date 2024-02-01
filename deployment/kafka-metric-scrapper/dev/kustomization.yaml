@@ -1,0 +1,10 @@
+kind: Kustomization
+resources:
+  - ../base
+
+namespace: kafka-cost-control-mgb-qual
+
+secretGenerator:
+- name: telegraf-secret
+  envs:
+  - .env

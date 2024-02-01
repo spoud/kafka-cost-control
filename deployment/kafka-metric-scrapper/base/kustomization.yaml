@@ -1,0 +1,11 @@
+kind: Kustomization
+resources:
+  - deployment.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: telegraf-config
+    files:
+      - telegraf-config.toml

@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka-cost-control
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kafka-cost-control
+  serviceName: "kafka-cost-control"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: kafka-cost-control
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        fsGroup: 185 # jboss
+      containers:
+        - name: kafka-cost-control
+          image: spoud/kafka-cost-control-aggregator:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 2Gi
+            requests:
+              cpu: 200m
+              memory: 1Gi
+          env:
+            - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
+              value: /home/jboss/kafka-stream/data/
+          envFrom:
+            - secretRef:
+                name: kafka-cost-control-secret
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 5000
+              name: jmx
+          volumeMounts:
+            - name: kstream-data
+              mountPath: /home/jboss/kafka-stream/
+  volumeClaimTemplates:
+    - metadata:
+        name: kstream-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "default"
+        resources:
+          requests:
+            storage: 1Gi
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: kafka-cost-control
+  name: kafka-cost-control-service
+spec:
+  ports:
+    - port: 8080
+      name: http
+      targetPort: 8080
+  selector:
+    k8s-app: kafka-cost-control

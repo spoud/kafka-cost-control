@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timescaledb
+spec:
+  selector:
+    matchLabels:
+      k8s-app: timescaledb
+  serviceName: "timescaledb"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: timescaledb
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: pgsql-data-permission-fix
+          image: busybox
+          command: [ "/bin/chmod","-R","777", "/data" ]
+          volumeMounts:
+            - name: timescaledb-data
+              mountPath: /data
+        - name: pgsql-lost-and-found-fix
+          image: busybox
+          command: [ "/bin/rm", "-Rf", "/data/lost+found", "||", "echo", "done" ]
+          volumeMounts:
+            - name: timescaledb-data
+              mountPath: /data
+      containers:
+        - name: timescaledb
+          image: timescale/timescaledb:latest-pg16
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 4Gi
+            requests:
+              cpu: 100m
+              memory: 1Gi
+          envFrom:
+            - secretRef:
+                name: timescaledb-secret
+          ports:
+            - containerPort: 5432
+              name: timescaledb
+          volumeMounts:
+            - name: timescaledb-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: timescaledb-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "default"
+        resources:
+          requests:
+            storage: 10Gi
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: timescaledb
+  name: timescaledb-service
+spec:
+  ports:
+    - port: 5432
+      name: timescaledb
+      targetPort: 5432
+  selector:
+    k8s-app: timescaledb

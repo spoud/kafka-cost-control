@@ -1,0 +1,23 @@
+kind: Kustomization
+resources:
+  - aggregator.yaml
+  - timescaledb.yaml
+  - kafka-connect.yaml
+  - grafana.yaml
+  - virtual-service.yaml
+  - kafka-cost-control-ui.yaml
+
+secretGenerator:
+  - name: timescaledb-secret
+    envs:
+      - .env
+  - name: kafka-connect-secret
+    envs:
+      - .env
+  - name: regcred
+    type: kubernetes.io/dockerconfigjson
+    files:
+      - .dockerconfigjson=.regcred
+
+generatorOptions:
+  disableNameSuffixHash: true
