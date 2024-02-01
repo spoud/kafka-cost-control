@@ -65,3 +65,21 @@ spec:
       targetPort: 8080
   selector:
     k8s-app: kafka-cost-control
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kafka-cost-control-ingress
+spec:
+  rules:
+    - host: "TO_BE_DEFINED_BY_OVERRIDE"
+      http:
+        paths:
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: kafka-cost-control
+                port:
+                  number: 8080

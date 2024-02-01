@@ -81,23 +81,19 @@ spec:
     k8s-app: grafana
 
 ---
-# TODO convert to ingress
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: grafana-virtualservice
+  name: grafana-ingress
 spec:
-  hosts:
-    - "TO_BE_DEFINED_BY_OVERRIDE"
-  gateways:
-    - "default/oauth-gateway"
-  http:
-    - name: "grafana"
-      match:
-        - uri:
-            prefix: /
-      route:
-        - destination:
-            host: grafana-service
-            port:
-              number: 3000
+  rules:
+    - host: "TO_BE_DEFINED_BY_OVERRIDE"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000

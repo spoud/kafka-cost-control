@@ -14,10 +14,6 @@ secretGenerator:
   - name: kafka-connect-secret
     envs:
       - .env
-  - name: regcred
-    type: kubernetes.io/dockerconfigjson
-    files:
-      - .dockerconfigjson=.regcred
 
 generatorOptions:
   disableNameSuffixHash: true
