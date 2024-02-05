@@ -1,0 +1,85 @@
+kafka:
+  application:
+    id: kafka-cost-control
+  bootstrap:
+    servers: localhost:9092
+  schema:
+    registry:
+      url: http://localhost:8081
+
+cc:
+  topics:
+    pricing-rules: pricing-rules
+    context-data: context-data
+    aggregated: aggregated
+    aggregated-table-friendly: aggregated-table-friendly
+    raw-data:
+      - metrics-raw-telegraf-env
+
+mp:
+  messaging:
+    connector:
+      smallrye-kafka:
+        schema:
+          registry:
+            url: ${kafka.schema.registry.url}
+
+    outgoing:
+      pricing-rules-out:
+        connector: smallrye-kafka
+        topic: ${cc.topics.pricing-rules}
+        apicurio:
+          registry:
+            auto:
+              register: true
+      context-data-out:
+        connector: smallrye-kafka
+        topic: ${cc.topics.context-data}
+        apicurio:
+          registry:
+            auto:
+              register: true
+
+avro:
+  codegen:
+    avsc:
+      imports: entity-type-enum.avsc
+
+quarkus:
+  kafka-streams:
+    application-id: ${kafka.application.id}
+    topics: ${cc.topics.raw-data}
+    state:
+      dir: /tmp/my-streams
+    default:
+      key:
+        serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+      value:
+        serde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+  security:
+    users:
+      embedded:
+        enabled: true
+        plain-text: true
+        users:
+          admin: kpwx06KsQ2Sbi7Tp2N2l
+        roles:
+          admin: ADMIN
+  http:
+    auth:
+      basic: true
+  smallrye-graphql:
+    schema-include-scalars: true
+    ui:
+      enable: true
+      root-path: /graphql-ui
+      always-include: true
+  log:
+    category:
+      "io.confluent":
+        level: WARN
+      "org.apache.kafka":
+        level: WARN
+      "io.spoud.kcc":
+        level: DEBUG
+

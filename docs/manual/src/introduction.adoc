@@ -9,3 +9,7 @@ At this point you should have access to the Kafka Cost Control UI and to the Gra
 Kafka cost control provides a graphql endpoint at: _<your-host>/graphql-ui_
 
 In addition, there is a ready to use GraphQL UI. You can access it by going to the following URL: _<your-host>/graphql-ui_
+
+==== Authorization
+
+TODO explain basic auth stuff

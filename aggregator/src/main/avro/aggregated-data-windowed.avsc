@@ -33,7 +33,8 @@
         },
         {
             "name": "value",
-            "type": "double"
+            "type": "double",
+            "doc": "Accumulated value of all metric events in this time window"
         },
         {
             "name": "cost",
