@@ -1,6 +1,6 @@
 === Kubernetes
 
-You can find all the deployment files in the link:../../deployment[deployment] folder. This folder use link:https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/[Kustomize] to simplify the deployment of multiple instances with some variations.
+You can find all the deployment files in the link:https://github.com/spoud/kafka-cost-control/tree/master/deployment[deployment] folder. This folder use link:https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/[Kustomize] to simplify the deployment of multiple instances with some variations.
 
 ==== Create namespace
 
@@ -26,7 +26,7 @@ vi .env
 ----
 Edit the environment file with the correct output topic, endpoints and credentials.
 
-Be sure to edit the *namespace* in the link:../../deployment/kafka-metric-scrapper/dev/kustomization.yaml[kustomization.yaml] file.
+Be sure to edit the *namespace* in the link:https://github.com/spoud/kafka-cost-control/tree/master/deployment/kafka-metric-scrapper/dev/kustomization.yaml[kustomization.yaml] file.
 
 Deploy the dev environment using kubectl
 
@@ -54,7 +54,7 @@ vi .env
 ----
 Edit the environment file with the correct credentials. The database password can be randomly generated. It will be used by kafka connect and grafana.
 
-Be sure to edit the *namespace* in the link:../../deployment/kafka-cost-control/dev/kustomization.yaml[kustomization.yaml] file.
+Be sure to edit the *namespace* in the link:https://github.com/spoud/kafka-cost-control/tree/master/deployment/kafka-cost-control/dev/kustomization.yaml[kustomization.yaml] file.
 
 You also may want to adapt the ingress files to use a proper hosts. You will need two hosts, one for grafana and one for the kafka cost control application.
 

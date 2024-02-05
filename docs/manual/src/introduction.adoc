@@ -1,6 +1,6 @@
 === Introduction
 
-This user manual will help you understand kafka Cost Control and how to use it propertly. This document assumes that you already have a running application. If not please see the link:../installation/[installation documentation].
+This user manual will help you understand kafka Cost Control and how to use it propertly. This document assumes that you already have a running application. If not please see the <<section-installation>> section.
 
 At this point you should have access to the Kafka Cost Control UI and to the Grafana Dashboard.
 

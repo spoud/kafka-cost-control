@@ -62,7 +62,3 @@ actor "User"
 ....
 
 
-=== Installation
-
-Please follow the installation instructions from the link:../installation/[installation folder].
-

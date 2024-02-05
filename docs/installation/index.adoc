@@ -1,5 +1,6 @@
 // configure EN settings for asciidoc
 
+[[section-installation]]
 == Installation
 
 <<<

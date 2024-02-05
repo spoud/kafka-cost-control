@@ -4,7 +4,7 @@ Kafka cost control uses internal topic to compute pricing. You will have to crea
 
 ==== Reference AVRO schemas
 
-Some schemas will reference link:../../aggregator/src/main/avro/entity-type-enum.avsc[EntityType]. Please add it to your schema registry and reference it when needed.
+Some schemas will reference link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/entity-type-enum.avsc[EntityType]. Please add it to your schema registry and reference it when needed.
 
 ==== Topics
 
@@ -12,14 +12,14 @@ Some schemas will reference link:../../aggregator/src/main/avro/entity-type-enum
 |===
 | Topic name | Clean up policy | Key| Value
 
-| context-data | compact | _String_ | link:../../aggregator/src/main/avro/context-data.avsc[ContextData]
+| context-data | compact | _String_ | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/context-data.avsc[ContextData]
 
-| pricing-rule | compact | _String_ | link:../../aggregator/src/main/avro/pricing-rule.avsc[PricingRule]
+| pricing-rule | compact | _String_ | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/pricing-rule.avsc[PricingRule]
 
-| aggregated | delete | link:../../aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:../../aggregator/src/main/avro/aggregated-data-windowed.avsc[AggregatedDataWindowed]
+| aggregated | delete | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/aggregated-data-windowed.avsc[AggregatedDataWindowed]
 
 | aggregated-table-friendly
-| delete | link:../../aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:../../aggregator/src/main/avro/aggregated-data-table-friendly.avsc[AggregatedDataTableFriendly]
+| delete | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/aggregated-data-table-friendly.avsc[AggregatedDataTableFriendly]
 
 | metrics-raw-telegraf-dev | delete | _None_ | _String_
 
