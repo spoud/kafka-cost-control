@@ -13,8 +13,6 @@ spec:
       labels:
         k8s-app: timescaledb
     spec:
-      imagePullSecrets:
-        - name: regcred
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: pgsql-data-permission-fix
@@ -40,9 +38,12 @@ spec:
             requests:
               cpu: 100m
               memory: 1Gi
-          envFrom:
-            - secretRef:
-                name: timescaledb-secret
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret-secret
+                  key: POSTGRES_PASSWORD
           ports:
             - containerPort: 5432
               name: timescaledb

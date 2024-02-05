@@ -6,13 +6,5 @@ resources:
   - grafana.yaml
   - kafka-cost-control-ui.yaml
 
-secretGenerator:
-  - name: timescaledb-secret
-    envs:
-      - .env
-  - name: kafka-connect-secret
-    envs:
-      - .env
-
 generatorOptions:
   disableNameSuffixHash: true

@@ -12,8 +12,6 @@ spec:
       labels:
         k8s-app: kafka-connect
     spec:
-      imagePullSecrets:
-        - name: regcred
       containers:
         - name: kafka-connect
           image: spoud/kafka-cost-control-connect:latest
@@ -58,9 +56,54 @@ spec:
               value: org.apache.kafka.connect.storage.StringConverter
             - name: CONNECT_VALUE_CONVERTER
               value: org.apache.kafka.connect.json.JsonConverter
-          envFrom:
-            - secretRef:
-                name: kafka-connect-secret
+
+            # Connect main connection
+            - name: CONNECT_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: CONNECT_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: KAFKA_SASL_JAAS_CONFIG
+            - name: CONNECT_SECURITY_PROTOCOL
+              value: SASL_SSL
+            - name: CONNECT_SASL_MECHANISM
+              value: PLAIN
+
+            # Connect consumer connection
+            - name: CONNECT_CONSUMER_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: CONNECT_CONSUMER_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: KAFKA_SASL_JAAS_CONFIG
+            - name: CONNECT_CONSUMER_SECURITY_PROTOCOL
+              value: SASL_SSL
+            - name: CONNECT_CONSUMER_SASL_MECHANISM
+              value: PLAIN
+
+            # Connect producer connection
+            - name: CONNECT_PRODUCER_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: CONNECT_PRODUCER_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: KAFKA_SASL_JAAS_CONFIG
+            - name: CONNECT_PRODUCER_SECURITY_PROTOCOL
+              value: SASL_SSL
+            - name: CONNECT_PRODUCER_SASL_MECHANISM
+              value: PLAIN
           ports:
             - containerPort: 8083
               name: http
