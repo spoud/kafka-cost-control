@@ -6,4 +6,5 @@ docs/**/*.html
 docs/**/*.css
 docs/**/*.svg
 docs/**/*.pdf
+docs/.asciidoctor
 

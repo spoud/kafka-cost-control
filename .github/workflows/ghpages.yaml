@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ master, main ]
 
-env:
-  PLANTUML_URL: https://plantuml.collaud.me
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,5 +17,5 @@ jobs:
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:
           pdf_build: true
-          asciidoctor_params: -r asciidoctor-plantuml
+          asciidoctor_params: -r asciidoctor-diagram
           source_dir: docs/ # default is .
