@@ -33,7 +33,7 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v5
-        working-directory: frontend/
         with:
+          context: frontend/
           push: true
           tags: spoud/kafka-cost-control-ui:latest
