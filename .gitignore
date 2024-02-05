@@ -1,3 +1,7 @@
 .idea/
-docs/**/*.html
 .env
+
+# ascii doc generated files
+docs/**/*.html
+docs/**/*.svg
+
