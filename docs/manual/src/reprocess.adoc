@@ -1,4 +1,4 @@
-== Reprocess
+=== Reprocess
 
 Reprocessing should only be used when you made a mistake, fixed it and want to reprocess the raw data. Reprocessing will induce a lag, meaning data will not be live for a little while. Depending on how much data you want to reprocess this can take minutes or hours. So be sure to know what you are doing. After the reprocessing is done, the data will be live again. Reprocessing will *NOT* lose data. They will just take a bit of time to appear live again.
 
@@ -15,14 +15,14 @@ The process is as follows:
 
 The metric database should be independent. This means it should be able to accept updates. Otherwise, you will need to clean the database yourself before a reprocessing.
 
-=== Using the UI
+==== Using the UI
 
 * Go to the _Others_ tab.
 * Choose a date for the start time of the reprocessing (empty means from the beginning of time). You can help yourself with the quick button on top.
 * Click on reprocess
 * Confirm the reprocessing
 
-==== Using Graphql
+===== Using Graphql
 [source,graphql]
 ----
 mutation reprocess {

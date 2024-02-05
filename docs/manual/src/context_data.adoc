@@ -1,4 +1,4 @@
-== Context data
+=== Context data
 
 Context data are a way to attach a context (attributes basically) to a kafka item (topic, principal, ...). Basically define a set of key/values for an item that match a regex. It is possible that one item match multiple regex (and thus multiple context), but in this case you have to be careful to not have conflicting key/values.
 
@@ -6,13 +6,13 @@ You can have as much key/values as you want. They will be used to sum up prices 
 
 The context data are stored in kafka in a compacted topic. The key is free for the user to choose.
 
-=== Listing existing context data
+==== Listing existing context data
 
-==== From the UI
+===== From the UI
 
 Simply go to the context tab of the UI. You should see all the context with their type, regex, validity time and key/values.
 
-==== Using Graphql
+===== Using Graphql
 
 [source,graphql]
 ----
@@ -32,15 +32,15 @@ query getContextData {
 }
 ----
 
-=== Setting context data
+==== Setting context data
 
 If you want to create a new context, you can omit the id if you want. If no id is set, the API will generate one for you using a UUID.
 If you use an id that is not yet in the system, this means you're creating a new context item.
 
-==== From the UI
+===== From the UI
 _Not available yet._
 
-==== Using Graphql
+===== Using Graphql
 [source,graphql]
 ----
 mutation saveContextData {
@@ -59,12 +59,12 @@ mutation saveContextData {
 }
 ----
 
-=== Removing context data
+==== Removing context data
 
-==== From the UI
+===== From the UI
 _Not available yet._
 
-==== Using Graphql
+===== Using Graphql
 [source,graphql]
 ----
 mutation deleteContextData {

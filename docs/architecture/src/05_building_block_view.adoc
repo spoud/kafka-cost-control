@@ -3,7 +3,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-building-block-view]]
 
 
-== Building Block View
+=== Building Block View
 
 ////
 .Content
@@ -40,7 +40,7 @@ See https://docs.arc42.org/section-5/[Building Block View] in the arc42 document
 ////
 
 
-=== Whitebox Overall System
+==== Whitebox Overall System
 
 ////
 Here you describe the decomposition of the overall system using the following white box template. It contains
@@ -149,7 +149,7 @@ Please prefer relevance over completeness. Specify important, surprising, risky,
 Leave out normal, simple, boring or standardized parts of your system
 ////
 
-=== PricingRules
+==== PricingRules
 
 [plantuml, target=pricingrules, format=svg]
 ....
@@ -170,7 +170,7 @@ queue pricing_rules <<Topic>>
 
 
 
-=== ContextProvider
+==== ContextProvider
 
 
 [plantuml, target=contextprovider, format=svg]
@@ -192,7 +192,7 @@ component Kafka {
 ....
 
 
-==== Context format
+===== Context format
 * metrics are defined in the core
 * a metric belongs to at least one of the dimensions
 ** topic
@@ -258,7 +258,7 @@ If naming conventions are very clear they could also be provided as a file / con
 INFO::
 Context objects will be started as AVRO messages. We use JSON as a representation here for simplicity.
 
-==== Context Lookup
+===== Context Lookup
 
 State stores in Kafka Streams will be used to construct lookup tables for the context.
 

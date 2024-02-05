@@ -1,7 +1,7 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-introduction-and-goals]]
-== Introduction and Goals
+=== Introduction and Goals
 ////
 Describes the relevant requirements and the driving forces that software architects and development team must consider.
 These include
@@ -24,7 +24,7 @@ Kafka Cost Control gives organizations transparency into the costs caused by app
 * allows defining rules for platform cost distribution over organizational units or applications
 * works for most organizations, no matter if they use Confluent Cloud, Kubernetes or on-prem installations
 
-=== Requirements Overview
+==== Requirements Overview
 ////
 .Contents
 Short description of the functional requirements, driving forces, extract (or abstract)
@@ -90,7 +90,7 @@ See https://docs.arc42.org/section-1/[Introduction and Goals] in the arc42 docum
 9. Ability to reprocess raw data in case a mistake was made. For example we see at the end of the month that an item was
 wrongly attributed to an OU. We should be able to correct this and reprocess the data.
 
-=== Quality Goals
+==== Quality Goals
 
 1. *Transferability / Extensibility*: Kafka Cost Control should be modular, so that company-specific extensions can be added. +
    A core layer should contain common base functionality.
@@ -119,7 +119,7 @@ If you as an architect do not know how the quality of your work will be judged..
 A table with quality goals and concrete scenarios, ordered by priorities
 ////
 
-=== Stakeholders
+==== Stakeholders
 
 ////
 .Contents

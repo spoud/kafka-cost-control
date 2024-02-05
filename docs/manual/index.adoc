@@ -1,11 +1,5 @@
 // configure EN settings for asciidoc
-include::src/config.adoc[]
-
-= Kafka Cost Control installation
-:toc-title: Table of Contents
-
-// numbering from here on
-:numbered:
+== User Manual
 
 <<<
 include::src/introduction.adoc[]

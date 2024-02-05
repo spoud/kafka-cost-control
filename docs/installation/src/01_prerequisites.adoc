@@ -1,4 +1,4 @@
-== Prerequisites
+=== Prerequisites
 
 This installation manual assumes that
 

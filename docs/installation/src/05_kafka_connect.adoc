@@ -1,9 +1,9 @@
-== Kafka connect
+=== Kafka connect
 To write data from the kafka metric topic to the timeserie database we will use Kafka Connect.
 
 Please refer to the kubenertes manifest to deploy a kafka connect cluster.
 
-=== Configuration of the connectors
+==== Configuration of the connectors
 Don't forget to adapt the hosts, users and password
 
 ```json
@@ -33,3 +33,5 @@ Don't forget to adapt the hosts, users and password
   }
 }
 ```
+
+TODO curl command to create the connector

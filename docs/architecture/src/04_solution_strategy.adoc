@@ -1,7 +1,7 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-solution-strategy]]
-== Solution Strategy
+=== Solution Strategy
 ////
 .Contents
 A short summary and explanation of the fundamental decisions and solution strategies, that shape system architecture. It includes
@@ -28,7 +28,7 @@ See https://docs.arc42.org/section-4/[Solution Strategy] in the arc42 documentat
 
 ////
 
-=== Used Technologies
+==== Used Technologies
 
 
 |===

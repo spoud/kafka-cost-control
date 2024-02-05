@@ -3,7 +3,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-deployment-view]]
 
 
-== Deployment View
+=== Deployment View
 
 [plantuml,target=deployment-view,format=svg]
 ....
@@ -62,7 +62,7 @@ actor "User"
 ....
 
 
-== Installation
+=== Installation
 
 Please follow the installation instructions from the link:../installation/[installation folder].
 

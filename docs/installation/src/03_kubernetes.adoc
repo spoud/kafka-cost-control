@@ -1,8 +1,8 @@
-== Kubernetes
+=== Kubernetes
 
 You can find all the deployment files in the link:../../deployment[deployment] folder. This folder use link:https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/[Kustomize] to simplify the deployment of multiple instances with some variations.
 
-=== Create namespace
+==== Create namespace
 
 Create a namespace for the application
 
@@ -11,7 +11,7 @@ Create a namespace for the application
 kubectl create namespace kafka-cost-control
 ----
 
-=== Kafka metric scrapper
+==== Kafka metric scrapper
 
 This part will be responsible to scrape kafka for relevant metrics. You will have to deploy one scrapper per kafka cluster. Depending on what metrics you want to provide you will need a user with read access to kafka metric but also kafka admin client. Read permission is enough ! You don't need a user with write permission.
 
@@ -38,7 +38,7 @@ kubectl apply -k dev
 
 Wait for the deployment to finish and check the output topic for metrics. You should receive new data every minute.
 
-=== Kafka cost control
+==== Kafka cost control
 
 For this part we will deploy the kafka stream application that is responsible to enrich the metrics, TimescaleDB for storing the metrics, kafka connect instance to sink the metric into the database, a grafana dashboard and a simple UI to define prices and contexts.
 
@@ -67,8 +67,4 @@ kubectl apply -k dev
 ----
 
 
-
-
-
-=== Set price and context and reprocess
 

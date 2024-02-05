@@ -1,7 +1,7 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-runtime-view]]
-== Runtime View
+=== Runtime View
 
 ////
 .Contents
@@ -35,7 +35,7 @@ See https://docs.arc42.org/section-6/[Runtime View] in the arc42 documentation.
 
 ////
 
-=== Metrics Ingestion from Confluent Cloud
+==== Metrics Ingestion from Confluent Cloud
 
 Process to gather and aggregate metrics from Confluent Cloud.
 
@@ -75,7 +75,7 @@ Telegraf -right-> "raw-metrics": produce
 @enduml
 ....
 
-=== Metrics using Kafka Admin API
+==== Metrics using Kafka Admin API
 
 Some information can be gathered from the Kafka Admin API. We will develop a simple application that connect to the Kafka Admin API and expose metrics as prometheus endpoint. We can then reuse Telegraf to publish those metrics to kafka.
 
@@ -96,12 +96,12 @@ Telegraf -right-> "raw-metrics": produce
 @enduml
 ....
 
-=== Other sources of metrics
+==== Other sources of metrics
 
 Anyone can publish to the raw metrics topic. The metrics should follow the telegraf format.
 Recommendation: use one topic per source of metrics. The MetricEnricher application will anyway consume multiple raw metric topics.
 
-=== Metrics Enrichment
+==== Metrics Enrichment
 
 [plantuml,target=runtime-enrich,format=svg]
 ....
@@ -133,18 +133,18 @@ MetricsProcessor -down-> "aggregated-metrics" : produce
 @enduml
 ....
 
-1. Metrics are consumed from all the raw data topics.
-1. Metrics are aggregated by the MetricsProcessor.
+. Metrics are consumed from all the raw data topics.
+. Metrics are aggregated by the MetricsProcessor.
 Here we:
  * aggregate by hours
  * attach context
  * attach pricing rule
-1. The aggregates are stored in the `aggregated-metrics` topic.
-1. The aggregated metrics are stored into the query database.
+. The aggregates are stored in the `aggregated-metrics` topic.
+. The aggregated metrics are stored into the query database.
 
 The storage procedure into the query database must be idempotent in order to reprocess the enrichment in case of reprocessing.
 
-==== Enrichment for topics
+===== Enrichment for topics
 
 .metric with topic name from confluent cloud
 [source,json]
@@ -165,7 +165,7 @@ The storage procedure into the query database must be idempotent in order to rep
 }
 ----
 
-==== Enrichment for principals
+===== Enrichment for principals
 
 .metric with principal id from confluent cloud
 [source,json]
@@ -187,7 +187,7 @@ The storage procedure into the query database must be idempotent in order to rep
 }
 ----
 
-=== Metrics Grouping
+==== Metrics Grouping
 
 - confluent_kafka_server_request_bytes by kafka_id (Cluster) and principal_id (User) for the type Produce as sum stored in produced_bytes
 - confluent_kafka_server_response_bytes by kafka_id (Cluster) and principal_id (User) for the type Fetch as sum stored in fetched_bytes

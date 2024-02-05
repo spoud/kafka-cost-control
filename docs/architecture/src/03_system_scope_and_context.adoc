@@ -1,7 +1,7 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-system-scope-and-context]]
-== System Scope and Context
+=== System Scope and Context
 
 Kafka Cost Control is a standalone application that needs to integrate into an existing IT landscape.
 
