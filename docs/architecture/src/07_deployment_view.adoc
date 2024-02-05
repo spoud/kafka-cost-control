@@ -5,87 +5,64 @@ ifndef::imagesdir[:imagesdir: ../images]
 
 == Deployment View
 
-////
-.Content
-The deployment view describes:
-
- 1. technical infrastructure used to execute your system, with infrastructure elements like geographical locations, environments, computers, processors, channels and net topologies as well as other infrastructure elements and
-
-2. mapping of (software) building blocks to that infrastructure elements.
-
-Often systems are executed in different environments, e.g. development environment, test environment, production environment. In such cases you should document all relevant environments.
-
-Especially document a deployment view if your software is executed as distributed system with more than one computer, processor, server or container or when you design and construct your own hardware processors and chips.
-
-From a software perspective it is sufficient to capture only those elements of an infrastructure that are needed to show a deployment of your building blocks. Hardware architects can go beyond that and describe an infrastructure to any level of detail they need to capture.
-
-.Motivation
-Software does not run without hardware.
-This underlying infrastructure can and will influence a system and/or some
-cross-cutting concepts. Therefore, there is a need to know the infrastructure.
-
-.Form
-
-Maybe a highest level deployment diagram is already contained in section 3.2. as
-technical context with your own infrastructure as ONE black box. In this section one can
-zoom into this black box using additional deployment diagrams:
-
-* UML offers deployment diagrams to express that view. Use it, probably with nested diagrams,
-when your infrastructure is more complex.
-* When your (hardware) stakeholders prefer other kinds of diagrams rather than a deployment diagram, let them use any kind that is able to show nodes and channels of the infrastructure.
+[plantuml,target=deployment-view,format=svg]
+....
+@startuml
+left to right direction
 
 
-.Further Information
+cloud Confluent{
+    component "KafkaAdminAPI"
+    component "MetricsEndpoint"
+}
 
-See https://docs.arc42.org/section-7/[Deployment View] in the arc42 documentation.
+frame MetricScrapper as "Metric Scrapper part" {
+    component "Telegraf-confluent-metric"
+    component "MetricAPIReader"
+    component "Telegraf-kafka-admin"
 
-////
+    "Telegraf-kafka-admin" -up-> "MetricAPIReader": scrape
+}
 
-=== Infrastructure Level 1
+frame KafkaCostControl {
+    component MetricsProcessor
+    component KafkaConnect
+    component ConfigurationUI
+    component Dashboard
+    database MetricDatabase
 
-////
-Describe (usually in a combination of diagrams, tables, and text):
+    "KafkaConnect" --> "MetricDatabase"
+    "ConfigurationUI" -up-> "MetricsProcessor": Graphql
+    "Dashboard" -up-> "MetricDatabase"
+}
 
-* distribution of a system to multiple locations, environments, computers, processors, .., as well as physical connections between them
-* important justifications or motivations for this deployment structure
-* quality and/or performance features of this infrastructure
-* mapping of software artifacts to elements of this infrastructure
+queue "raw-metrics-confluent"
+queue "raw-metrics-admin-api"
+queue "aggregated-metrics"
 
-For multiple environments or alternative deployments please copy and adapt this section of arc42 for all relevant environments.
-////
+actor "User"
 
-_**<Overview Diagram>**_
+"Telegraf-confluent-metric" -up-> "MetricsEndpoint": scrape
+"MetricAPIReader" -up-> "KafkaAdminAPI": pool
 
-Motivation::
+"Telegraf-confluent-metric" -down-> "raw-metrics-confluent": publish
+"Telegraf-kafka-admin" -down-> "raw-metrics-admin-api": publish
 
-_<explanation in text form>_
+"raw-metrics-confluent" --> "MetricsProcessor": consume
+"raw-metrics-admin-api" --> "MetricsProcessor": consume
 
-Quality and/or Performance Features::
+"MetricsProcessor" --> "aggregated-metrics": publish
 
-_<explanation in text form>_
+"aggregated-metrics" --> "KafkaConnect": sink
 
-Mapping of Building Blocks to Infrastructure::
-_<description of the mapping>_
+"User" -up-> "ConfigurationUI": use
+"User" -up-> "Dashboard": use
+
+@enduml
+....
 
 
-=== Infrastructure Level 2
+== Installation
 
-////
-Here you can include the internal structure of (some) infrastructure elements from level 1.
+Please follow the installation instructions from the link:../installation/[installation folder].
 
-Please copy the structure from level 1 for each selected element.
-////
-
-==== _<Infrastructure Element 1>_
-
-_<diagram + explanation>_
-
-==== _<Infrastructure Element 2>_
-
-_<diagram + explanation>_
-
-...
-
-==== _<Infrastructure Element n>_
-
-_<diagram + explanation>_

@@ -3,5 +3,7 @@
 
 # ascii doc generated files
 docs/**/*.html
+docs/**/*.css
 docs/**/*.svg
+docs/**/*.pdf
 

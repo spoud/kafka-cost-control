@@ -159,12 +159,12 @@ component PricingRules <<Kafka Streams App>> {
     [RuleEngine] --> [Metrics]: uses
     [RuleEngine] --> [RulesRepository]: reads
 }
-PricingRules -- "REST API"
+PricingRules -- "Graphql API"
 
 queue pricing_rules <<Topic>>
 
 [RulesRepository] --> pricing_rules: uses\n as storage
-[UI] -> "REST API"
+[UI] -> "Graphql API"
 @enduml
 ....
 
@@ -179,17 +179,15 @@ queue pricing_rules <<Topic>>
 component ContextProvider <<Kafka Streams App>> {
     [ContextRepository]
 }
-ContextProvider -- "REST API"
+ContextProvider -- "Graphql API"
 
 component Kafka {
-    queue topic_context <<topic>>
-    queue consumer_context <<topic>>
-    queue principal_context <<topic>>
+    queue context_data <<topic>>
 
 }
 
 [ContextRepository] --> Kafka: uses as\n storage
-[UI] -> "REST API"
+[UI] -> "Graphql API"
 @enduml
 ....
 
@@ -206,8 +204,11 @@ component Kafka {
 .topic context as JSON record in a topic, record key="car-claims"
 ----
 {
-  "type": "TOPIC_CONTEXT",
-  "topic_regex": "car-claims",
+  "creationTime": "2024-01-01T00:00:00Z",
+  "validFrom": "2024-01-01T00:00:00Z",
+  "validUntil": null,
+  "entityType": "TOPIC",
+  "regex": "car-claims",
   "context": {
     "project": "claims-processing",
     "organization_unit": "non-life-insurance",
@@ -220,8 +221,11 @@ component Kafka {
 .topic context rule as JSON record in a topic, record key="default-rule-since-2020"
 ----
 {
-  "type": "TOPIC_CONTEXT",
-  "topic_regex": "^([a-z0-9-]+)\\.([a-z0-9-]+)\\.([a-z0-9-]+)-.*$",
+  "creationTime": "2024-01-01T00:00:00Z",
+  "validFrom": "2024-01-01T00:00:00Z",
+  "validUntil": null,
+  "entityType": "TOPIC",
+  "regex": "^([a-z0-9-]+)\\.([a-z0-9-]+)\\.([a-z0-9-]+)-.*$",
   "context": {
     "tenant": "$1",
     "app_id": "$2",
@@ -238,8 +242,11 @@ If naming conventions are very clear they could also be provided as a file / con
 .principal context as JSON record in a topic, record key="cluster-id-principal-default-ctxt"
 ----
 {
-  "type": "PRINCIPAL_CONTEXT",
-  "principal_id": "u-4j9my2",
+  "creationTime": "2024-01-01T00:00:00Z",
+  "validFrom": "2024-01-01T00:00:00Z",
+  "validUntil": null,
+  "entityType": "PRINCIPAL",
+  "regex": "u-4j9my2",
   "context": {
     "project": "claims-processing",
     "organization_unit": "non-life-insurance",
@@ -255,18 +262,19 @@ Context objects will be started as AVRO messages. We use JSON as a representatio
 
 State stores in Kafka Streams will be used to construct lookup tables for the context.
 
+The key is a string and is a free value that can be set by the user. If no key is provided the API should create random unique key. The topic is compacted, meaning if we want to delete an item we can send a null payload with its key.
+
 .context lookup table
 |===
 |Key |Value
 
-|<type>_<cluster-id>_<principal_id>
-|<context-object>
+|<type>_<cluster-id>_<principal_id> |<context-object>
 
-|PRINCIPAL_lx1dfsg_u-4j9my2_2024-01-01
-|{"principal_id": "u-4j9my2","context": {...}}
+|PRINCIPAL_lx1dfsg_u-4j9my2_2024-01-01 |{..., "regex": "u-4j9my2","context": {...}}
+
+|b0bd9c9a-08e6-46c7-9f71-9eafe370da6c | <context-object>
 |===
 
 Once the table has been loaded, aggregated metrics can be enriched with a KTable - Streams join.
 
-INFO::
-In a later stage we will need to add the possibility to specify validity of such context objects (e.g. valid_from: 2024-01-01)
+

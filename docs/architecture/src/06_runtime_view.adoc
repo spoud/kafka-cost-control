@@ -59,48 +59,90 @@ end
 @enduml
 ....
 
-This can be implemented with a standard tool like Telegraf.
+Telegraf is used to poll data using Confluent prometheus endpoint.
+[plantuml,target=runtime-confluent-telegraf,format=svg]
+....
+@startuml
 
-It MUST be possible to use other sources of metrics and other scraping mechanisms.
+cloud ConfluentMetrics
+component Telegraf
+queue "raw-metrics"
+
+
+ConfluentMetrics <-right- Telegraf: poll prometheus endpoint
+Telegraf -right-> "raw-metrics": produce
+
+@enduml
+....
+
+=== Metrics using Kafka Admin API
+
+Some information can be gathered from the Kafka Admin API. We will develop a simple application that connect to the Kafka Admin API and expose metrics as prometheus endpoint. We can then reuse Telegraf to publish those metrics to kafka.
+
+[plantuml,target=runtime-kafka-admin-api,format=svg]
+....
+@startuml
+
+component Kafka
+component MetricAPIReader
+component Telegraf
+queue "raw-metrics"
+
+
+Kafka <-right- MetricAPIReader: poll using admin api
+MetricAPIReader <-right- Telegraf: poll prometheus endpoint
+Telegraf -right-> "raw-metrics": produce
+
+@enduml
+....
+
+=== Other sources of metrics
+
+Anyone can publish to the raw metrics topic. The metrics should follow the telegraf format.
+Recommendation: use one topic per source of metrics. The MetricEnricher application will anyway consume multiple raw metric topics.
 
 === Metrics Enrichment
 
 [plantuml,target=runtime-enrich,format=svg]
 ....
 @startuml
-component "MetricsProcessor (2 aggregate)" as MetricsAggregator
-component "MetricsProcessor (6 enrich)" as MetricsProcessor
-queue "raw-metrics"
+left to right direction
+
+    queue "raw-metrics-1"
+    queue "raw-metrics-n" #line.dashed
+
+queue "context-data"
+queue "pricing-rules-data"
 queue "aggregated-metrics"
-queue "enriched-metrics"
-database context
+component MetricsProcessor
+database "context"
+database "pricing-rules"
 database "query-database"
 
 
-"raw-metrics" -right-> [MetricsAggregator]: 1 consume
-MetricsAggregator -right-> "aggregated-metrics" : 3 produce
-"aggregated-metrics" -right-> [MetricsProcessor]: 4 consume
-[MetricsProcessor] -right-> "enriched-metrics": 7 produce
-[MetricsProcessor] -up-> context: 5 lookup
+"pricing-rules-data" -down-> "pricing-rules": populate
+"context-data" -down-> "context": populate
 
-"aggregated-metrics" -down-> "query-database": 8 sink
-"enriched-metrics" -down-> "query-database": 8 sink
+"raw-metrics-1" -down-> [MetricsProcessor]: consume
+"raw-metrics-n" -down-> [MetricsProcessor]: consume
+MetricsProcessor -left-> "context": lookup
+MetricsProcessor -right-> "pricing-rules": lookup
+MetricsProcessor -down-> "aggregated-metrics" : produce
+
+"aggregated-metrics" -down-> "query-database": sink
 @enduml
 ....
 
 1. Metrics are consumed from all the raw data topics.
-2. Metrics are aggregated by the MetricsAggregator.
-Here we build hourly and daily aggregates.
-The aggregates are made for each relevant grouping see below.
-3. The aggregates are stored in the `aggregated-metrics` topic.
-4. The aggregated metrics can be consumed by a customer specific metrics processor and enriched with additional information.
-This can be used to add customer specific information to the metrics.
-5. In order to add the customer specific information the metrics processor can use the context database or stream to look up the additional information.
-6. The logic to enrich the metrics is applied
-7. The enriched metrics are stored in the `enriched-metrics` topic.
-8. The enriched metrics are stored into the query database. (if no enrichment is needed the aggregated metrics are stored directly into the query database)
+1. Metrics are aggregated by the MetricsProcessor.
+Here we:
+ * aggregate by hours
+ * attach context
+ * attach pricing rule
+1. The aggregates are stored in the `aggregated-metrics` topic.
+1. The aggregated metrics are stored into the query database.
 
-The storage procedure into the query database must be idempotent in order to reprocess the enrichment in case of manual intervention.
+The storage procedure into the query database must be idempotent in order to reprocess the enrichment in case of reprocessing.
 
 ==== Enrichment for topics
 

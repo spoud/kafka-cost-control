@@ -35,17 +35,17 @@ include::src/06_runtime_view.adoc[]
 // 7. Deployment View
 include::src/07_deployment_view.adoc[]
 
-<<<
-// 8. Concepts
-include::src/08_concepts.adoc[]
-
-<<<
-// 9. Architecture Decisions
-include::src/09_architecture_decisions.adoc[]
-
-<<<
-// 10. Quality Requirements
-include::src/10_quality_requirements.adoc[]
+// <<<
+// // 8. Concepts
+// include::src/08_concepts.adoc[]
+//
+// <<<
+// // 9. Architecture Decisions
+// include::src/09_architecture_decisions.adoc[]
+//
+// <<<
+// // 10. Quality Requirements
+// include::src/10_quality_requirements.adoc[]
 
 <<<
 // 11. Technical Risks

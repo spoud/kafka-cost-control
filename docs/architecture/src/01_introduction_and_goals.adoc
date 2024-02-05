@@ -55,9 +55,10 @@ See https://docs.arc42.org/section-1/[Introduction and Goals] in the arc42 docum
 2. Management of associations between client applications, projects and organizational units (OU)
     * automatic recognition of running consumer groups
     * automatic detection of principals/clients
-    * creation, modification and deletion of projects and OUs
+    * creation, modification and deletion of contexts (projects and OUs)
     * interface to hook in custom logic for automatic assignment of clients to projects and OUs
     * manual assignment of auto-detected principals or consumer groups to projects and OUs
+    * context can change in time, each item should have a start and end date (optional). This means that an item (ex a topic) can switch ownership at any point in time
 
 3. Visualization of usage statistics
     * Costs and usage statistics can be broken down interactively
@@ -66,8 +67,9 @@ See https://docs.arc42.org/section-1/[Introduction and Goals] in the arc42 docum
     ** Detail View OU by application/principal/consumer-group/topic
     * Data must be made available in a format that can be used to display it with standard software (e.g. Kibana, Grafana, PowerBI), so that organizations can integrate it into an existing application landscape
     * provisioning of a lightweight default dashboard e.g. as a simple SPA, so that extra tooling is not mandatory to view the cost breakdown
+    * Items not yet classified should be easily identifiable, so we know what configuration is missing (for example a topic has no OU yet)
 
-4. Management of rules, that describe how costs are calculated
+4. Management of rules, that describe how costs are calculated (aka pricing rules)
 
 5. Management of rules, that describe how costs are calculated, e.g.
     * fixed rates for available metrics, i.e. CHF 0.15 per consumed GB
@@ -85,6 +87,9 @@ See https://docs.arc42.org/section-1/[Introduction and Goals] in the arc42 docum
 
 8. Export of end-of-month reports as CSV or Excel for further manual processing
 
+9. Ability to reprocess raw data in case a mistake was made. For example we see at the end of the month that an item was
+wrongly attributed to an OU. We should be able to correct this and reprocess the data.
+
 === Quality Goals
 
 1. *Transferability / Extensibility*: Kafka Cost Control should be modular, so that company-specific extensions can be added. +
@@ -97,7 +102,7 @@ See https://docs.arc42.org/section-1/[Introduction and Goals] in the arc42 docum
 image::01_2_iso-25010-topics-EN.drawio.png["Categories of Quality Requirements"]
 
 ////
-The top three (max five) quality goals for the architecture whose fulfillment is of highest importance to the major stakeholders. 
+The top three (max five) quality goals for the architecture whose fulfillment is of highest importance to the major stakeholders.
 We really mean quality goals for the architecture. Don't confuse them with project goals.
 They are not necessarily identical.
 
@@ -106,7 +111,7 @@ Consider this overview of potential topics (based upon the ISO 25010 standard):
 
 
 .Motivation
-You should know the quality goals of your most important stakeholders, since they will influence fundamental architectural decisions. 
+You should know the quality goals of your most important stakeholders, since they will influence fundamental architectural decisions.
 Make sure to be very concrete about these qualities, avoid buzzwords.
 If you as an architect do not know how the quality of your work will be judged...
 
@@ -135,9 +140,9 @@ These stakeholders determine the extent and the level of detail of your work and
 Table with role names, person names, and their expectations with respect to the architecture and its documentation.
 ////
 
-[options="header",cols="1,2,2"]
+[options="header",cols="1,4"]
 |===
-|Role/Name|Contact|Expectations
-| _<Role-1>_ | _<Contact-1>_ | _<Expectation-1>_
-| _<Role-2>_ | _<Contact-2>_ | _<Expectation-2>_
+|Role/Name|Expectations
+| _Kafka user_  | Should be able to see their usage. Should take ownership of resources.
+| _Management_  | Should have an overview of the costs and usage of Kafka.
 |===
