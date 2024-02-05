@@ -1,0 +1,19 @@
+mutation saveRule($metricName: String!, $baseCost: Float!, $costFactor: Float!) {
+    savePricingRule(
+        request: {metricName: $metricName, baseCost: $baseCost, costFactor: $costFactor}
+    ) {
+        creationTime
+        metricName
+        baseCost
+        costFactor
+    }
+}
+
+query pricingRules{
+    pricingRules{
+        creationTime
+        metricName
+        baseCost
+        costFactor
+    }
+}
