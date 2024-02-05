@@ -57,6 +57,18 @@ spec:
             - name: CONNECT_VALUE_CONVERTER
               value: org.apache.kafka.connect.json.JsonConverter
 
+            # Connect username and password
+            - name: CLUSTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: CLUSTER_API_KEY
+            - name: CLUSTER_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: CLUSTER_API_KEY
+
             # Connect main connection
             - name: CONNECT_BOOTSTRAP_SERVERS
               valueFrom:
@@ -64,10 +76,7 @@ spec:
                   name: kafka-cost-control-secret
                   key: KAFKA_BOOTSTRAP_SERVERS
             - name: CONNECT_SASL_JAAS_CONFIG
-              valueFrom:
-                secretKeyRef:
-                  name: kafka-cost-control-secret
-                  key: KAFKA_SASL_JAAS_CONFIG
+              value: org.apache.kafka.common.security.plain.PlainLoginModule required username='${CLUSTER_API_KEY}' password='${CLUSTER_API_SECRET}';
             - name: CONNECT_SECURITY_PROTOCOL
               value: SASL_SSL
             - name: CONNECT_SASL_MECHANISM
@@ -75,15 +84,9 @@ spec:
 
             # Connect consumer connection
             - name: CONNECT_CONSUMER_BOOTSTRAP_SERVERS
-              valueFrom:
-                secretKeyRef:
-                  name: kafka-cost-control-secret
-                  key: KAFKA_BOOTSTRAP_SERVERS
+              value: ${CONNECT_BOOTSTRAP_SERVERS}
             - name: CONNECT_CONSUMER_SASL_JAAS_CONFIG
-              valueFrom:
-                secretKeyRef:
-                  name: kafka-cost-control-secret
-                  key: KAFKA_SASL_JAAS_CONFIG
+              value: ${CONNECT_SASL_JAAS_CONFIG}
             - name: CONNECT_CONSUMER_SECURITY_PROTOCOL
               value: SASL_SSL
             - name: CONNECT_CONSUMER_SASL_MECHANISM
@@ -91,15 +94,9 @@ spec:
 
             # Connect producer connection
             - name: CONNECT_PRODUCER_BOOTSTRAP_SERVERS
-              valueFrom:
-                secretKeyRef:
-                  name: kafka-cost-control-secret
-                  key: KAFKA_BOOTSTRAP_SERVERS
+              value: ${CONNECT_BOOTSTRAP_SERVERS}
             - name: CONNECT_PRODUCER_SASL_JAAS_CONFIG
-              valueFrom:
-                secretKeyRef:
-                  name: kafka-cost-control-secret
-                  key: KAFKA_SASL_JAAS_CONFIG
+              value: ${CONNECT_SASL_JAAS_CONFIG}
             - name: CONNECT_PRODUCER_SECURITY_PROTOCOL
               value: SASL_SSL
             - name: CONNECT_PRODUCER_SASL_MECHANISM

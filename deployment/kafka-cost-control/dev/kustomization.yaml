@@ -2,7 +2,7 @@ kind: Kustomization
 resources:
   - ../base
 
-namespace: kafka-cost-control
+namespace: kafka-cost-control-dev
 
 patches:
   - path: aggregator.yaml

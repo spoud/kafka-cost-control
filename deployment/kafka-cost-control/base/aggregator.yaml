@@ -30,6 +30,8 @@ spec:
           env:
             - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
               value: /home/jboss/kafka-stream/data/
+            - name: QUARKUS_PROFILE
+              value: "ccloud"
           envFrom:
             - secretRef:
                 name: kafka-cost-control-secret
