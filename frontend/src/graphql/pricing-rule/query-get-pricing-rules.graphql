@@ -1,0 +1,8 @@
+query getPricingRules{
+  pricingRules{
+    creationTime
+    metricName
+    baseCost
+    costFactor
+  }
+}
