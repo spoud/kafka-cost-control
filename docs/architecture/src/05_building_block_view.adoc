@@ -119,35 +119,46 @@ a|
 
 |===
 
-
-////
-Insert your explanations of black boxes from level 1:
-
-If you use tabular form you will only describe your black boxes with name and
-responsibility according to the following schema:
-
-[cols="1,2" options="header"]
+==== MetricsScraper
+===== Confluent Cloud
+Confluent exposes many metrics in prometheus format.
+These will be scraped with telegraf.
+Some information are missing from the prometheus export endpoint and need to be fetched with custom queries/requests.
+This is done with a java application which exposes them as prometheus endpoint.
+Docs: https://docs.confluent.io/cloud/current/monitoring/metrics-api.html
+[%autowidth]
 |===
-| **Name** | **Responsibility**
-| _<black box 1>_ | _<Text>_
-| _<black box 2>_ | _<Text>_
+| Additional metric | endpoint/query
+| Partition count of a topic
+a|
+`AdminClient` to list all topics, partition count and replication factor
+| registered schemas for a topic
+a| http requests to schema registry needed.
+1. `GET {{schema_registry_url}}/schemas/`
+2. Group by topic and create gauge metric for schema count by topic
+WARNING:: Does not account for soft deleted topics in confluent cloud! Possible sanity check: sum of all schemas should equal total number of schemas reported by
+`https://api.telemetry.confluent.cloud/v2/metrics/cloud/descriptors/metrics?resource_type=schema_registry`
+If the sum is smaller, then soft deletes were made (using the max version number might yield a better result in this case).
+WARNING:: If a non default naming strategy is used for subjects, then linking schemas/subjects to topics is not possible for all schemas.
+a|
 |===
-
-
-
-If you use a list of black box descriptions then you fill in a separate black box template for every important building block .
-Its headline is the name of the black box.
-////
-
-
-
-////
-Here you can specify the inner structure of (some) building blocks from level 1 as white boxes.
-
-You have to decide which building blocks of your system are important enough to justify such a detailed description.
-Please prefer relevance over completeness. Specify important, surprising, risky, complex or volatile building blocks.
-Leave out normal, simple, boring or standardized parts of your system
-////
+[plantuml, target=, format=svg]
+....
+@startuml
+'left to right direction
+component Telegraf {
+}
+component ConfluentCloudScraper
+ConfluentCloudScraper -up- prometheusEndpoint
+ConfluentCloudScraper -> metricsAPI : collect additional information
+component ConfluentCloud
+ConfluentCloud - metricsAPI
+ConfluentCloud - broker
+Telegraf -> broker: push to output topic/s
+Telegraf --> metricsAPI: scrape metrics
+Telegraf --> prometheusEndpoint: scrape metrics
+@enduml
+....
 
 ==== PricingRules
 

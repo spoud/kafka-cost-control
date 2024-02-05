@@ -59,6 +59,9 @@ public class MetricEnricher {
                 configProperties.topicRawData(),
                 Consumed.with(Serdes.String(), serdes.getRawTelegrafSerde()).withName("raw-telegraf"));
 
+        // TODO: principal count per project/cost center
+        // TODO: consumer count per project/cost center
+
         telegrafDataStream
                 .peek(
                         (key, value) -> metricRepository.addMetricName(value.name(), value.timestamp()),
