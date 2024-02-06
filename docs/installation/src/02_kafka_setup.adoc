@@ -14,7 +14,7 @@ Some schemas will reference link:https://github.com/spoud/kafka-cost-control/tre
 
 | context-data | compact | _String_ | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/context-data.avsc[ContextData]
 
-| pricing-rule | compact | _String_ | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/pricing-rule.avsc[PricingRule]
+| pricing-rules | compact | _String_ | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/pricing-rule.avsc[PricingRule]
 
 | aggregated | delete | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/aggregated-data-key.avsc[AggregatedDataKey] | link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/aggregated-data-windowed.avsc[AggregatedDataWindowed]
 
