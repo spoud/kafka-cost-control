@@ -2,10 +2,10 @@
   "name": "kafka-cost-control-sample-data",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "run": "node index.js"
   },
-  "author": "",
+  "author": "SPOUD AG",
   "license": "ISC"
 }

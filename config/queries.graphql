@@ -17,3 +17,33 @@ query pricingRules{
         costFactor
     }
 }
+
+mutation saveContextData ($id: String!, $validFrom: DateTime, $validUntil: DateTime, $entityType: EntityType!, $regex: String!, $context: [Entry_String_StringInput!]!) {
+    saveContextData(
+        request: {id: $id, validFrom: $validFrom, validUntil: $validUntil, entityType: $entityType, regex: $regex, context: $context}
+    ) {
+        id
+        creationTime
+        entityType
+        regex
+        context {
+            key
+            value
+        }
+    }
+}
+
+query contextData {
+    contextData {
+        id
+        creationTime
+        validFrom
+        validUntil
+        entityType
+        regex
+        context {
+            key
+            value
+        }
+    }
+}

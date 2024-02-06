@@ -10,7 +10,7 @@ import java.util.Map;
 
 @RegisterForReflection
 public record ContextDataSaveRequest(
-        String id, Instant validFrom, Instant validUntil, @NonNull EntityType entityType, @NonNull String regex, @NonNull Map<String, String> context) {
+        String id, Instant validFrom, Instant validUntil, @NonNull EntityType entityType, @NonNull String regex, @NonNull Map<@NonNull String, @NonNull String> context) {
   public ContextData toAvro() {
     return new ContextData(Instant.now(), validFrom, validUntil, entityType, regex, context);
   }
