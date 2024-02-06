@@ -5,6 +5,9 @@
 include::src/introduction.adoc[]
 
 <<<
+include::src/config_samples.adoc[]
+
+<<<
 include::src/pricing_rules.adoc[]
 
 <<<
