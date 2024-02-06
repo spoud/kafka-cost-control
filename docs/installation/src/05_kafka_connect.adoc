@@ -34,4 +34,24 @@ Don't forget to adapt the hosts, users and password
 }
 ```
 
-TODO curl command to create the connector
+To configure the connector, you can simply create a kubernetes tunnel to the running kafka connect service.
+[source,shell]
+----
+kubectl -n <namespace> port-forward service/kafka-connect-service 8083:8083
+----
+
+Then in another terminal you can use the curl command to create the connector.
+Don't forget to edit the different users and passwords required (kafka, schema registry and database)
+
+[source,shell]
+----
+curl -X POST -H "Content-Type: application/json" --data @kafka-connect-config.json http://localhost:8083/connectors
+----
+
+You can check the status of the connectors with the following command:
+[source,shell]
+----
+curl -X GET http://localhost:8083/connectors/kafka-cost-control-aggregated/status | jq .
+----
+
+The status should be running

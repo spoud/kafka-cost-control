@@ -2,13 +2,13 @@
 
 You can find all the deployment files in the link:https://github.com/spoud/kafka-cost-control/tree/master/deployment[deployment] folder. This folder use link:https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/[Kustomize] to simplify the deployment of multiple instances with some variations.
 
-The kubernetes deployment is in two parts. One part is the kafka control software (processing, ui, dashboard, etc.) and the other part is the kafka metric scrapper. You may have multiple kafka metric scrapper deployment (one per kafka cluster for example), but you should need only one kafka cost control deployment.
+The kubernetes deployment is in two parts. One part is the *kafka control software* (processing, ui, dashboard, etc.) and the other part is the *kafka metric scrapper*. You may have multiple kafka metric scrapper deployment (one per kafka cluster for example), but you should need only one kafka cost control deployment.
 
 ==== Kafka metric scrapper
 
 This part will be responsible to scrape kafka for relevant metrics. Depending on what metrics you want to provide you will need a user with read access to kafka metric but also kafka admin client. Read permission is enough ! You don't need a user with write permission.
 
-This documentation will assume that you use the `dev/` folder, but you can configure as much Kustomize folders as you want.
+This documentation will assume that you use the `dev/` folder, but you can configure as much Kustomize folders as you want. The `dev/` folder is a good starting point if you have confluent cluster running.
 
 Copy the environment sample file:
 [,shell]

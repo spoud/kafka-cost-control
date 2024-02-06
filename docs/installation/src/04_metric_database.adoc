@@ -25,3 +25,8 @@ CREATE TABLE "kafka_aggregated-table-friendly"
 SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '1 day'));
 ----
 
+if you want to run the script above you can run it with the interactive cli.
+[source,shell]
+----
+kubectl exec -it -n <namespace> timescaledb-0 -- psql -U postgres -d postgres
+----
