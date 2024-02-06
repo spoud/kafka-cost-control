@@ -7,15 +7,15 @@ import {routes} from './tab-pricing-rules.route';
 
 
 @NgModule({
-  declarations: [
-    PricingRulesListComponent
-  ],
-  imports: [
-    CommonModule,
-    RouterModule.forChild(routes),
+    declarations: [
+        PricingRulesListComponent
+    ],
+    imports: [
+        CommonModule,
+        RouterModule.forChild(routes),
 
-    MaterialModule,
-  ]
+        MaterialModule,
+    ]
 })
 export class TabPricingRulesModule {
 }

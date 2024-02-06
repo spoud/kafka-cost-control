@@ -3,8 +3,8 @@ import {PricingRulesListComponent} from './pricing-rules-list/pricing-rules-list
 
 
 export const routes: Routes = [
-  {
-    path: '',
-    component: PricingRulesListComponent,
-  },
+    {
+        path: '',
+        component: PricingRulesListComponent,
+    },
 ];
