@@ -2,9 +2,9 @@ name: GitHub Pages Publish
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -19,3 +19,4 @@ jobs:
           pdf_build: true
           asciidoctor_params: -r asciidoctor-diagram
           source_dir: docs/ # default is .
+          post_build: 'find . -name "*.png" -name "*.svg" | xargs git add -f'

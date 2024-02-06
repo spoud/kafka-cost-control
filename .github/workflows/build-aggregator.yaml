@@ -2,9 +2,11 @@ name: Build aggregator
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
+    paths: ['aggregator/**']
   pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
+    paths: ['aggregator/**']
 
 jobs:
   build:
