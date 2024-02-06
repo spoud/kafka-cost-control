@@ -19,4 +19,4 @@ jobs:
           pdf_build: true
           asciidoctor_params: -r asciidoctor-diagram
           source_dir: docs/ # default is .
-          post_build: 'find . -name "*.png" -name "*.svg" | xargs git add -f'
+          post_build: 'find . -name "*.svg" | xargs git add -f'
