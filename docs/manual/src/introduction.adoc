@@ -13,3 +13,4 @@ In addition, there is a ready to use GraphQL UI. You can access it by going to t
 ==== Authorization
 
 TODO explain basic auth stuff
+TODO explain the localstorage trick

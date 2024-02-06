@@ -1,7 +1,7 @@
 version: '3.0'
 services:
   kcc:
-    image: spoud/kafka-cost-control-aggregator:latest
+    image: spoud/kafka-cost-control:latest
     build:
       context: .
       dockerfile: src/main/docker/Dockerfile.jvm

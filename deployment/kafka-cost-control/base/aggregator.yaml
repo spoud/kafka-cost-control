@@ -18,7 +18,7 @@ spec:
         fsGroup: 185 # jboss
       containers:
         - name: kafka-cost-control
-          image: spoud/kafka-cost-control-aggregator:latest
+          image: spoud/kafka-cost-control:latest
           imagePullPolicy: Always
           resources:
             limits:
@@ -38,11 +38,25 @@ spec:
           ports:
             - containerPort: 8080
               name: http
-            - containerPort: 5000
-              name: jmx
           volumeMounts:
             - name: kstream-data
               mountPath: /home/jboss/kafka-stream/
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: 8080
+              scheme: HTTP
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+              scheme: HTTP
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+              scheme: HTTP
+
   volumeClaimTemplates:
     - metadata:
         name: kstream-data

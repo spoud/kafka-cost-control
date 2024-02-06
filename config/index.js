@@ -34,7 +34,7 @@ const {values} = parseArgs({
 });
 
 function printUsageAndExit() {
-    console.log("Usage: node index.js --url <url> --user <username> --password <password> --verbose");
+    console.log("Usage: node index.js --url <url-including-graph-path> --user <username> --password <password> --verbose");
     process.exit(1);
 }
 
@@ -73,7 +73,7 @@ async function sendRequest(operationName, variables) {
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": "Basic "+basicAuth
+            "Authorization": "Basic " + basicAuth
         },
         body: JSON.stringify({operationName, query: queries, variables}),
     })
@@ -88,7 +88,9 @@ async function updatePricingRule() {
         printVerbose('Metric updated', row.metricName);
     }
     printNormal('done updating pricing rules');
-    return sendRequest("pricingRules", {});
+    if (values.verbose) {
+        return sendRequest("pricingRules", {});
+    }
 }
 
 async function updateContextdata() {
@@ -98,7 +100,9 @@ async function updateContextdata() {
         printVerbose('Context data updated', row.id);
     }
     printNormal('done updating context data');
-    return sendRequest("contextData", {});
+    if (values.verbose) {
+        return sendRequest("contextData", {});
+    }
 }
 
 async function main() {

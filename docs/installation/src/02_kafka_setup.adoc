@@ -6,6 +6,7 @@ Kafka cost control uses internal topic to compute pricing. You will have to crea
 
 Some schemas will reference link:https://github.com/spoud/kafka-cost-control/tree/master/aggregator/src/main/avro/entity-type-enum.avsc[EntityType]. Please add it to your schema registry and reference it when needed.
 
+[[section-topics]]
 ==== Topics
 
 [cols="1,1,1,1"]
