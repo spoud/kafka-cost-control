@@ -3,10 +3,9 @@ name: Build frontend
 on:
   push:
     branches: [ master ]
-    paths: ['frontend/**']
   pull_request:
     branches: [ master ]
-    paths: ['frontend/**']
+    paths: [ 'frontend/**' ]
 
 jobs:
   build:
@@ -27,12 +26,24 @@ jobs:
         working-directory: frontend/
         run: npm run build
 
+      - name: Upload aggregator
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/
+
   publish:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/master'
 
     steps:
+      
+      - name: Download aggregator
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:

@@ -3,7 +3,6 @@ name: Build aggregator
 on:
   push:
     branches: [ master ]
-    paths: ['aggregator/**']
   pull_request:
     branches: [ master ]
     paths: ['aggregator/**']
