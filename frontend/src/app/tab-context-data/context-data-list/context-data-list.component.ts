@@ -4,6 +4,7 @@ import {ContextDataEntity} from '../../../generated/graphql/types';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSort, Sort} from '@angular/material/sort';
 import {MatTableDataSource} from '@angular/material/table';
+import {MatSnackBar} from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-context-data-list',
@@ -20,11 +21,14 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
   public displayedColumns: string[] = ['creationTime', 'validFrom', 'validUntil', 'entityType', 'regex', 'context'];
 
-  constructor(private contextDataService: GetContextDatasGQL, private _liveAnnouncer: LiveAnnouncer) {
+  constructor(private contextDataService: GetContextDatasGQL, private _liveAnnouncer: LiveAnnouncer, private _snackBar: MatSnackBar) {
   }
 
   ngOnInit(): void {
-    this.contextDataService.fetch().subscribe(value => this.dataSource.data = value.data.contextData);
+    this.contextDataService.fetch().subscribe({
+      next: value => this.dataSource.data = value.data.contextData,
+      error: err => this._snackBar.open("Could not load context data. " + err.message, "close")
+    });
   }
 
   ngAfterViewInit() {
