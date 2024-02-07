@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 public class TelegrafDataWrapper {
 
@@ -35,10 +37,15 @@ public class TelegrafDataWrapper {
             Map<String, String> context = new HashMap<>();
             // This is the join with regex
             contextData.forEach(cache -> {
-                if (cache.matches(metric, telegrafData.timestamp())) {
-                    // TODO add to a list instead of overriding the context
-                    context.putAll(cache.getContextData().getContext());
-                }
+                cache.matches(metric, telegrafData.timestamp())
+                        .filter(Matcher::matches)// only if there is a match
+                        .ifPresent(matcher -> {
+                            // TODO add to a list instead of overriding the context
+                            context.putAll(cache.getContextData().getContext().entrySet().stream()
+                                    // replace all the regex variable in the value
+                                    .map(entry -> Map.entry(entry.getKey(), matcher.replaceAll(entry.getValue())))
+                                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (l, r) -> r)));
+                        });
             });
             return new AggregatedDataInfo(metric.type(), metric.objectName(), context);
         });

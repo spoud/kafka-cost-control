@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MetricEnricherTest {
@@ -342,6 +343,29 @@ class MetricEnricherTest {
                 new AggregatedDataKey(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes"),
                 new AggregatedDataWindowed(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes", 11.0, null, tags, Map.of())
         ));
+    }
+
+    @Test
+    void should_replace_regex_in_context() {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "^([a-z0-9-_]+)\\.([a-z0-9-_]+)\\.([a-z0-9-_]+)\\.([a-z0-9-_]+)$",
+                        Map.of("stage", "$1"
+                                , "app", "$2"
+                                , "subject", "$3"
+                                , "version", "$4")));
+        rawTelegrafDataTopic.pipeInput("1", generateTopicRawTelegraf("stage_name.app_name.subject-name.v1", 1.0));
+        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getContext()).containsEntry("stage", "stage_name");
+        assertThat(list.get(0).getContext()).containsEntry("app", "app_name");
+        assertThat(list.get(0).getContext()).containsEntry("subject", "subject-name");
+        assertThat(list.get(0).getContext()).containsEntry("version", "v1");
     }
 
     private RawTelegrafData generateTopicRawTelegraf(String topicName, double value) {
