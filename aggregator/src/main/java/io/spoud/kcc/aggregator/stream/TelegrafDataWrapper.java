@@ -1,5 +1,6 @@
 package io.spoud.kcc.aggregator.stream;
 
+import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.data.EntityType;
@@ -41,7 +42,15 @@ public class TelegrafDataWrapper {
                             // TODO add to a list instead of overriding the context
                             context.putAll(cache.getContextData().getContext().entrySet().stream()
                                     // replace all the regex variable in the value
-                                    .map(entry -> Map.entry(entry.getKey(), matcher.replaceAll(entry.getValue())))
+                                    .map(entry -> {
+                                        try {
+                                            return Map.entry(entry.getKey(), matcher.replaceAll(entry.getValue()));
+                                        } catch (IndexOutOfBoundsException ex) {
+                                            Log.warnv(ex, "Unable to replace regex variable for the entry \"{0}\" with the regex \"{1}\" and the context \"{2}={3}\"",
+                                                    metric.objectName(), cache.getContextData().getRegex(), entry.getKey(), entry.getValue());
+                                            return entry;
+                                        }
+                                    })
                                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (l, r) -> r)));
                         });
             });
