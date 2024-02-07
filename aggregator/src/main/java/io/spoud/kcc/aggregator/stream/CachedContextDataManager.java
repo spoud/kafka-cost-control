@@ -66,11 +66,15 @@ public class CachedContextDataManager {
             this.pattern = Pattern.compile(contextData.getRegex(), Pattern.CASE_INSENSITIVE);
         }
 
-        public Optional<Matcher> matches(Metric metric, Instant timestamp) {
-            if(contextData.getEntityType().equals(metric.type())
-                    && isInContextDataTimeRange(timestamp, contextData)){
-                return Optional.of(pattern.matcher(metric.objectName()));
-            }else{
+        /**
+         * Get the Matcher object, but only if the current metric is eligible and satisfy the regex
+         */
+        public Optional<Matcher> getMatcher(Metric metric, Instant timestamp) {
+            if (contextData.getEntityType().equals(metric.type())
+                    && isInContextDataTimeRange(timestamp, contextData)) {
+                return Optional.of(pattern.matcher(metric.objectName()))
+                        .filter(Matcher::matches);// only if there is a match;
+            } else {
                 return Optional.empty();
             }
         }

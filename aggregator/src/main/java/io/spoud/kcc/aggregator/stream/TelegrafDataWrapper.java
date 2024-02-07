@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
 public class TelegrafDataWrapper {
@@ -37,8 +36,7 @@ public class TelegrafDataWrapper {
             Map<String, String> context = new HashMap<>();
             // This is the join with regex
             contextData.forEach(cache -> {
-                cache.matches(metric, telegrafData.timestamp())
-                        .filter(Matcher::matches)// only if there is a match
+                cache.getMatcher(metric, telegrafData.timestamp())
                         .ifPresent(matcher -> {
                             // TODO add to a list instead of overriding the context
                             context.putAll(cache.getContextData().getContext().entrySet().stream()
