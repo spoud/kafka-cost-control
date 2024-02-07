@@ -39,13 +39,13 @@ spec:
             - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
               value: "3"
             - name: CONNECT_CONFIG_STORAGE_TOPIC
-              value: kcc-exploration-connect-configs
+              value: kafka-cost-control-connect-configs
             - name: CONNECT_OFFSET_STORAGE_PARTITIONS
               value: "1"
             - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
               value: "3"
             - name: CONNECT_OFFSET_STORAGE_TOPIC
-              value: kcc-exploration-connect-offsets
+              value: kafka-cost-control-connect-offsets
             - name: CONNECT_STATUS_STORAGE_PARTITIONS
               value: "1"
             - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
