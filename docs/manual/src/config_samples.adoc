@@ -1,6 +1,6 @@
 === Config samples
 
-If you want to quickly get started, you can create pricing rules and context data using the link:https://github.com/spoud/kafka-cost-control/tree/master/config[config sample folder]. All you need is node JS 20+.
+If you want to quickly get started, you can create pricing rules and context data using the link:https://github.com/spoud/kafka-cost-control/tree/master/config-sample[config sample folder]. All you need is node JS 20+.
 
 Be sure to edit the files `pricing-rules.json` and `context-data.json` to match your environment.
 

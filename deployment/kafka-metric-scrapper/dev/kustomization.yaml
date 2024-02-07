@@ -4,6 +4,9 @@ resources:
 
 namespace: kafka-cost-control-mgb-qual
 
+generatorOptions:
+  disableNameSuffixHash: true
+
 secretGenerator:
 - name: telegraf-secret
   envs:
