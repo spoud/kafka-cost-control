@@ -24,7 +24,7 @@
     <ng-container matColumnDef="context">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Context</th>
         <td mat-cell *matCellDef="let element">
-            <app-map-display [entries]="element.context"/>
+            <app-key-value-list [entries]="element.context"/>
         </td>
     </ng-container>
 

@@ -49,6 +49,7 @@ type PricingRuleEntity {
 "Query root"
 type Query {
   contextData: [ContextDataEntity!]!
+  currentUser: String!
   metricNames: [MetricNameEntity!]!
   pricingRules: [PricingRuleEntity!]!
 }
@@ -56,6 +57,7 @@ type Query {
 enum EntityType {
   PRINCIPAL
   TOPIC
+  UNKNOWN
 }
 
 "Scalar for BigDecimal"
@@ -72,7 +74,7 @@ input ContextDataDeleteRequestInput {
 }
 
 input ContextDataSaveRequestInput {
-  context: [Entry_String_StringInput]!
+  context: [Entry_String_StringInput!]!
   entityType: EntityType!
   id: String
   regex: String!

@@ -2,7 +2,7 @@ import {Component} from '@angular/core';
 import {ReprocessDialogComponent} from "../reprocess-dialog/reprocess-dialog.component";
 import {MatDialog} from "@angular/material/dialog";
 import {ReprocessGQL} from "../../../generated/graphql/sdk";
-import {MatSnackBar} from "@angular/material/snack-bar";
+import {MatSnackBar, MatSnackBarModule} from "@angular/material/snack-bar";
 import {ApolloError} from '@apollo/client';
 import {filter, mergeMap} from 'rxjs';
 import {FormsModule} from '@angular/forms';
@@ -10,6 +10,7 @@ import {MatButton} from '@angular/material/button';
 import {MatDatepickerModule} from '@angular/material/datepicker';
 import {MatInputModule} from '@angular/material/input';
 import {provideNativeDateAdapter} from '@angular/material/core';
+import {MatCardModule} from '@angular/material/card';
 
 @Component({
     standalone: true,
@@ -24,6 +25,8 @@ import {provideNativeDateAdapter} from '@angular/material/core';
         MatButton,
         MatDatepickerModule,
         MatInputModule,
+        MatSnackBarModule,
+        MatCardModule
     ],
     providers: [
         provideNativeDateAdapter()

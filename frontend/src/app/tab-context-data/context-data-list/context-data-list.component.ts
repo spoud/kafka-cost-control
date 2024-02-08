@@ -3,9 +3,9 @@ import {GetContextDatasGQL} from '../../../generated/graphql/sdk';
 import {ContextDataEntity} from '../../../generated/graphql/types';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
-import {MatTable, MatTableDataSource, MatTableModule} from '@angular/material/table';
+import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {MatSnackBar} from '@angular/material/snack-bar';
-import {MapDisplayComponent} from '../../common/map-display/map-display.component';
+import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
 
 @Component({
     standalone: true,
@@ -13,9 +13,10 @@ import {MapDisplayComponent} from '../../common/map-display/map-display.componen
     templateUrl: './context-data-list.component.html',
     styleUrl: './context-data-list.component.scss',
     imports: [
-        MapDisplayComponent,
         MatTableModule,
-        MatSortModule
+        MatSortModule,
+
+        KeyValueListComponent,
     ]
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
