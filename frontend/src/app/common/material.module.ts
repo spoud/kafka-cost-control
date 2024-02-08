@@ -11,28 +11,28 @@ import {MatButtonModule} from "@angular/material/button";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
 
 @NgModule({
-  declarations: [],
-  imports: [
-    CommonModule,
+    declarations: [],
+    imports: [
+        CommonModule,
 
-    MatTableModule,
-    MatSortModule,
+        MatTableModule,
+        MatSortModule,
 
-    MapDisplayComponent,
-  ],
-  exports: [
-    MatTableModule,
-    MatSortModule,
+        MapDisplayComponent,
+    ],
+    exports: [
+        MatTableModule,
+        MatSortModule,
 
-    MatFormFieldModule,
-    MatDatepickerModule,
-    MatInputModule,
-    MatButtonModule,
-    MatSnackBarModule,
+        MatFormFieldModule,
+        MatDatepickerModule,
+        MatInputModule,
+        MatButtonModule,
+        MatSnackBarModule,
 
-    MapDisplayComponent,
-  ],
-  providers: [provideNativeDateAdapter()],
+        MapDisplayComponent,
+    ],
+    providers: [provideNativeDateAdapter()],
 })
 export class MaterialModule {
 }

@@ -3,8 +3,8 @@ import {OthersComponent} from './others/others.component';
 
 
 export const routes: Routes = [
-  {
-    path: '',
-    component: OthersComponent,
-  },
+    {
+        path: '',
+        component: OthersComponent,
+    },
 ];

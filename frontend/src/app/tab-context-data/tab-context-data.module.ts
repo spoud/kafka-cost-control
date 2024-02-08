@@ -7,15 +7,15 @@ import {routes} from './tab-context-data.route';
 
 
 @NgModule({
-  declarations: [
-    ContextDataListComponent
-  ],
-  imports: [
-    CommonModule,
-    RouterModule.forChild(routes),
+    declarations: [
+        ContextDataListComponent
+    ],
+    imports: [
+        CommonModule,
+        RouterModule.forChild(routes),
 
-    MaterialModule,
-  ]
+        MaterialModule,
+    ]
 })
 export class TabContextDataModule {
 }
