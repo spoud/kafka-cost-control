@@ -1,8 +1,9 @@
-import generatedFragments from '../generated/graphql/fragments';
-import {NgModule} from '@angular/core';
+import {Provider} from '@angular/core';
+import {Apollo, APOLLO_OPTIONS} from 'apollo-angular';
 import {ApolloClientOptions, createHttpLink, InMemoryCache} from '@apollo/client/core';
-import {APOLLO_OPTIONS, ApolloModule} from 'apollo-angular';
 import {setContext} from '@apollo/client/link/context';
+import generatedFragments from '../generated/graphql/fragments';
+
 
 const httpLink = createHttpLink({
     uri: '/graphql',
@@ -35,20 +36,17 @@ export function createApollo(): ApolloClientOptions<any> {
     };
 }
 
-@NgModule({
-    imports: [
-        ApolloModule
-    ],
-    providers: [
+export function provideGraphql(): Provider[] {
+    return [
+
         {
             provide: APOLLO_OPTIONS,
             useFactory: createApollo,
             deps: [],
         },
-    ],
-})
-export class GraphQLModule {
-    constructor() {
-
-    }
+        {
+            provide: Apollo,
+            useClass: Apollo
+        }
+    ];
 }
