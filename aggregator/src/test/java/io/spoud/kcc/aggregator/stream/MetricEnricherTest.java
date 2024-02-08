@@ -1,4 +1,4 @@
-package io.spoud.kcc.aggregator.stream;
+ package io.spoud.kcc.aggregator.stream;
 
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 import io.quarkus.logging.Log;
@@ -342,6 +342,87 @@ class MetricEnricherTest {
                 new AggregatedDataKey(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes"),
                 new AggregatedDataWindowed(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes", 11.0, null, tags, Map.of())
         ));
+    }
+
+    @Test
+    void should_replace_regex_in_context() {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "^([a-z0-9-_]+)\\.([a-z0-9-_]+)\\.([a-z0-9-_]+)\\.([a-z0-9-_]+)$",
+                        Map.of("stage", "$1"
+                                , "app", "$2"
+                                , "subject", "$3"
+                                , "version", "$4")));
+        rawTelegrafDataTopic.pipeInput("1", generateTopicRawTelegraf("stage_name.app_name.subject-name.v1", 1.0));
+        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getContext()).containsEntry("stage", "stage_name");
+        assertThat(list.get(0).getContext()).containsEntry("app", "app_name");
+        assertThat(list.get(0).getContext()).containsEntry("subject", "subject-name");
+        assertThat(list.get(0).getContext()).containsEntry("version", "v1");
+    }
+
+    @Test
+    void should_ignore_regex_replacement_issue() {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "stage_(.+)",
+                        Map.of("stage", "$1"
+                                , "app", "$2"
+                                , "subject", "$3"
+                                , "version", "$4")));
+        rawTelegrafDataTopic.pipeInput("1", generateTopicRawTelegraf("stage_name.app_name.subject-name.v1", 1.0));
+        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getContext()).containsEntry("stage", "name.app_name.subject-name.v1");
+        assertThat(list.get(0).getContext()).containsEntry("app", "$2");
+        assertThat(list.get(0).getContext()).containsEntry("subject", "$3");
+        assertThat(list.get(0).getContext()).containsEntry("version", "$4");
+    }
+
+    @Test
+    void should_replace_multiple_regex() {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "berne-parkings.*",
+                        Map.of("app", "bern-parking"
+                                , "domain", "bern-parking"
+                                , "cu", "spoud")));
+
+        contextDataStore.put(
+                "id2",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        ".*(avro|xml|json).*",
+                        Map.of("format", "$1")));
+
+        rawTelegrafDataTopic.pipeInput("1", generateTopicRawTelegraf("berne-parkings-json", 1.0));
+
+        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getContext()).containsEntry("format", "json");
+        assertThat(list.get(0).getContext()).containsEntry("app", "bern-parking");
+        assertThat(list.get(0).getContext()).containsEntry("domain", "bern-parking");
+        assertThat(list.get(0).getContext()).containsEntry("cu", "spoud");
+
     }
 
     private RawTelegrafData generateTopicRawTelegraf(String topicName, double value) {

@@ -10,10 +10,8 @@ import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -68,10 +66,17 @@ public class CachedContextDataManager {
             this.pattern = Pattern.compile(contextData.getRegex(), Pattern.CASE_INSENSITIVE);
         }
 
-        public boolean matches(Metric metric, Instant timestamp) {
-            return contextData.getEntityType().equals(metric.type())
-                    && isInContextDataTimeRange(timestamp, contextData)
-                    && pattern.matcher(metric.objectName()).matches();
+        /**
+         * Get the Matcher object, but only if the current metric is eligible and satisfy the regex
+         */
+        public Optional<Matcher> getMatcher(Metric metric, Instant timestamp) {
+            if (contextData.getEntityType().equals(metric.type())
+                    && isInContextDataTimeRange(timestamp, contextData)) {
+                return Optional.of(pattern.matcher(metric.objectName()))
+                        .filter(Matcher::matches);// only if there is a match;
+            } else {
+                return Optional.empty();
+            }
         }
 
         private boolean isInContextDataTimeRange(Instant timestamp, ContextData contextData) {
