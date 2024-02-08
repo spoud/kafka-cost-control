@@ -7,6 +7,7 @@ import java.util.List;
 
 @Builder
 public class TestConfigProperties implements CostControlConfigProperties {
+    private String adminPassword;
     private String topicAggregatedTableFriendly;
     private List<String> rawTopics;
     private String applicationId;
@@ -14,6 +15,11 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private String topicContextData;
     private List<String> topicRawData;
     private String topicAggregated;
+
+    @Override
+    public String adminPassword() {
+        return adminPassword;
+    }
 
     @Override
     public List<String> rawTopics() {

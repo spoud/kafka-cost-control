@@ -11,6 +11,10 @@ import java.util.List;
 @ConfigMapping(prefix = "cc")
 public interface CostControlConfigProperties {
 
+    @WithName("admin-password")
+    @NotNull
+    String adminPassword();
+
     @WithName("topics.raw-data")
     @NotNull
     List<String> rawTopics();
