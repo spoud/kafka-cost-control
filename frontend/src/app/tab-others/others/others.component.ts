@@ -7,10 +7,18 @@ import {ApolloError} from '@apollo/client';
 import {filter, mergeMap} from 'rxjs';
 import {FormsModule} from '@angular/forms';
 import {MatButton} from '@angular/material/button';
-import {MatDatepickerModule} from '@angular/material/datepicker';
-import {MatInputModule} from '@angular/material/input';
+import {MatDatepicker, MatDatepickerModule, MatDatepickerToggle} from '@angular/material/datepicker';
+import {MatInput, MatInputModule} from '@angular/material/input';
 import {provideNativeDateAdapter} from '@angular/material/core';
-import {MatCardModule} from '@angular/material/card';
+import {
+    MatCard,
+    MatCardActions,
+    MatCardContent,
+    MatCardHeader,
+    MatCardModule,
+    MatCardTitle
+} from '@angular/material/card';
+import {MatFormField, MatHint, MatLabel} from '@angular/material/form-field';
 
 @Component({
     standalone: true,

@@ -2,7 +2,6 @@ import {Component} from '@angular/core';
 import {MatButton} from "@angular/material/button";
 import {MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle} from "@angular/material/dialog";
 import {FormControl, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {MatDatepicker, MatDatepickerInput, MatDatepickerToggle} from '@angular/material/datepicker';
 import {MatFormField, MatHint, MatLabel, MatSuffix} from '@angular/material/form-field';
 import {MatInput} from '@angular/material/input';
 import {BasicAuthServiceService} from '../../services/basic-auth-service.service';
@@ -19,12 +18,7 @@ import {DialogRef} from '@angular/cdk/dialog';
         MatButton,
         MatDialogTitle,
         MatDialogContent,
-        MatDialogActions,
-        MatDialogClose,
         FormsModule,
-        MatDatepicker,
-        MatDatepickerInput,
-        MatDatepickerToggle,
         MatFormField,
         MatHint,
         MatInput,

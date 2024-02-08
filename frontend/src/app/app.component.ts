@@ -2,9 +2,9 @@ import {Component, computed, Signal} from '@angular/core';
 import {Router, RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 import {CommonModule} from '@angular/common';
 import {MatTabsModule} from '@angular/material/tabs';
-import {MatToolbarModule} from '@angular/material/toolbar';
-import {MatIconModule} from '@angular/material/icon';
-import {MatButtonModule} from '@angular/material/button';
+import {MatToolbar, MatToolbarModule} from '@angular/material/toolbar';
+import {MatIcon, MatIconModule} from '@angular/material/icon';
+import {MatButton, MatButtonModule} from '@angular/material/button';
 import {BasicAuthServiceService} from './services/basic-auth-service.service';
 import {MatTooltip} from '@angular/material/tooltip';
 import {MatDialog} from '@angular/material/dialog';
@@ -21,17 +21,14 @@ interface Link {
     templateUrl: './app.component.html',
     styleUrl: './app.component.scss',
     imports: [
-        CommonModule,
-
-
         RouterLink,
         RouterLinkActive,
         RouterOutlet,
 
         MatTabsModule,
-        MatToolbarModule,
-        MatIconModule,
-        MatButtonModule,
+        MatToolbar,
+        MatIcon,
+        MatButton,
         MatTooltip
     ],
 })

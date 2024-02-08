@@ -17,6 +17,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
+            "statsJson": true,
             "outputPath": "dist/kafka-cost-control-frontend",
             "index": "src/index.html",
             "browser": "src/main.ts",
