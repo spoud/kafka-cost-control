@@ -2,7 +2,7 @@ import {AfterViewInit, Component, OnInit, ViewChild} from '@angular/core';
 import {GetPricingRulesGQL} from '../../../generated/graphql/sdk';
 import {PricingRuleEntity} from '../../../generated/graphql/types';
 import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
-import {MatTable, MatTableDataSource, MatTableModule} from '@angular/material/table';
+import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSnackBar} from '@angular/material/snack-bar';
 

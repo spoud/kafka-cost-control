@@ -14,7 +14,7 @@ export class BasicAuthServiceService {
     private _authenticated = signal(false);
 
     constructor(private _additionalHeaders: AdditionalHeadersService, private _loginTest: LoginTestGQL) {
-        let basicAuthHash = this.getBasicAuthHash();
+        const basicAuthHash = this.getBasicAuthHash();
         if (basicAuthHash != null) {
             // we assume that if a hash is present, the user is logged in, we do not
             this._authenticated.set(true);

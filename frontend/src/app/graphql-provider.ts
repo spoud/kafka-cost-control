@@ -21,7 +21,7 @@ function authLink(additionalHeadersService: AdditionalHeadersService): ApolloLin
     });
 }
 
-export function createApollo(additionalHeadersService: AdditionalHeadersService): ApolloClientOptions<any> {
+export function createApollo(additionalHeadersService: AdditionalHeadersService): ApolloClientOptions<unknown> {
     return {
         link: authLink(additionalHeadersService).concat(httpLink),
         cache: new InMemoryCache({

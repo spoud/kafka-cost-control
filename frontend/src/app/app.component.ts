@@ -1,10 +1,9 @@
 import {Component, computed, Signal} from '@angular/core';
-import {Router, RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
-import {CommonModule} from '@angular/common';
+import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 import {MatTabsModule} from '@angular/material/tabs';
-import {MatToolbar, MatToolbarModule} from '@angular/material/toolbar';
-import {MatIcon, MatIconModule} from '@angular/material/icon';
-import {MatButton, MatButtonModule} from '@angular/material/button';
+import {MatToolbar} from '@angular/material/toolbar';
+import {MatIcon} from '@angular/material/icon';
+import {MatButton} from '@angular/material/button';
 import {BasicAuthServiceService} from './services/basic-auth-service.service';
 import {MatTooltip} from '@angular/material/tooltip';
 import {MatDialog} from '@angular/material/dialog';
@@ -34,7 +33,7 @@ interface Link {
 })
 export class AppComponent {
     isAuthenticated: Signal<boolean>;
-    navLinksSignal = computed(() => {
+    navLinksSignal: Signal<Link[]> = computed(() => {
         const list = [
             {path: '/context-data', label: 'Context Data'},
             {path: '/pricing-rules', label: 'Pricing Rules'},
@@ -46,7 +45,7 @@ export class AppComponent {
         return list;
     })
 
-    constructor(private _router: Router, private _dialog: MatDialog, private _authService: BasicAuthServiceService) {
+    constructor(private _dialog: MatDialog, private _authService: BasicAuthServiceService) {
         this.isAuthenticated = _authService.authenticated();
     }
 

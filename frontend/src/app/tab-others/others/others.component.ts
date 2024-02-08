@@ -7,18 +7,10 @@ import {ApolloError} from '@apollo/client';
 import {filter, mergeMap} from 'rxjs';
 import {FormsModule} from '@angular/forms';
 import {MatButton} from '@angular/material/button';
-import {MatDatepicker, MatDatepickerModule, MatDatepickerToggle} from '@angular/material/datepicker';
-import {MatInput, MatInputModule} from '@angular/material/input';
+import {MatDatepickerModule} from '@angular/material/datepicker';
+import {MatInputModule} from '@angular/material/input';
 import {provideNativeDateAdapter} from '@angular/material/core';
-import {
-    MatCard,
-    MatCardActions,
-    MatCardContent,
-    MatCardHeader,
-    MatCardModule,
-    MatCardTitle
-} from '@angular/material/card';
-import {MatFormField, MatHint, MatLabel} from '@angular/material/form-field';
+import {MatCardModule} from '@angular/material/card';
 
 @Component({
     standalone: true,
@@ -52,8 +44,8 @@ export class OthersComponent {
 
         dialogRef.afterClosed().pipe(
             filter(result => result),
-            mergeMap(value => {
-                let startTime = this.startTime?.toISOString();
+            mergeMap(_value => {
+                const startTime = this.startTime?.toISOString();
                 this._snackBar.open("Reprocessing started", "close", {
                     duration: 5000,
                 });
