@@ -41,4 +41,6 @@ This is the exact same thing as _aggregated_ except there are no hashmap and oth
 
 ===== Metrics raw telegraf
 You can have multiple raw topics. For example one per environment or one per kafka cluster. The topic name is up to you, just don't forget to configure it properly when you deploy telegraf (see Kubernetes section).
-
+Give some special consideration to the `retention.ms` setting for the raw metrics topics. For example, if you want to distribute the cost of your monthly bill based on the raw metrics scraped over the course of the
+month then it is a good idea to retain the scraped data for more than 30 days. This gives people time to ask questions about their bill and also gives the opportunity to reprocess the metrics with new pricing rules/contexts
+if needed.
