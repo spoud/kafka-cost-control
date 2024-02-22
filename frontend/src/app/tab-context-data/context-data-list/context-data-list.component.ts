@@ -2,14 +2,22 @@ import {AfterViewInit, Component, OnInit, ViewChild} from '@angular/core';
 import {GetContextDatasGQL} from '../../../generated/graphql/sdk';
 import {ContextDataEntity} from '../../../generated/graphql/types';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
-import {MatSort, Sort} from '@angular/material/sort';
-import {MatTableDataSource} from '@angular/material/table';
+import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
+import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
 
 @Component({
+    standalone: true,
     selector: 'app-context-data-list',
     templateUrl: './context-data-list.component.html',
-    styleUrl: './context-data-list.component.scss'
+    styleUrl: './context-data-list.component.scss',
+    imports: [
+        MatTableModule,
+        MatSortModule,
+
+        KeyValueListComponent,
+    ]
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
 

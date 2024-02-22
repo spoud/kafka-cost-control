@@ -1,15 +1,20 @@
 import {AfterViewInit, Component, OnInit, ViewChild} from '@angular/core';
 import {GetPricingRulesGQL} from '../../../generated/graphql/sdk';
 import {PricingRuleEntity} from '../../../generated/graphql/types';
-import {MatSort, Sort} from '@angular/material/sort';
-import {MatTableDataSource} from '@angular/material/table';
+import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
+import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSnackBar} from '@angular/material/snack-bar';
 
 @Component({
+    standalone: true,
     selector: 'app-pricing-rules-list',
     templateUrl: './pricing-rules-list.component.html',
-    styleUrl: './pricing-rules-list.component.scss'
+    styleUrl: './pricing-rules-list.component.scss',
+    imports: [
+        MatTableModule,
+        MatSortModule
+    ]
 })
 export class PricingRulesListComponent implements OnInit, AfterViewInit {
 

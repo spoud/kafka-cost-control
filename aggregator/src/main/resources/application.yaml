@@ -8,6 +8,7 @@ kafka:
       url: http://localhost:8081
 
 cc:
+  admin-password: admin
   topics:
     pricing-rules: pricing-rules
     context-data: context-data
@@ -62,7 +63,7 @@ quarkus:
         enabled: true
         plain-text: true
         users:
-          admin: kpwx06KsQ2Sbi7Tp2N2l
+          admin: ${cc.admin-password}
         roles:
           admin: ADMIN
   http:
