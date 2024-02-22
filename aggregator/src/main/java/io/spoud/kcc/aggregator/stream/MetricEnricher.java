@@ -3,9 +3,12 @@ package io.spoud.kcc.aggregator.stream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
 import io.spoud.kcc.data.*;
@@ -34,6 +37,7 @@ public class MetricEnricher {
     private final CachedContextDataManager cachedContextDataManager;
     private final CostControlConfigProperties configProperties;
     private final SerdeFactory serdes;
+    private final GaugeRepository gaugeRepository;
 
     @Produces
     public Topology metricEnricherTopology() {
@@ -90,6 +94,16 @@ public class MetricEnricher {
                         value.getEndTime(),
                         value.getEntityType(),
                         value.getName(), value.getInitialMetricName()), Named.as("rekey-to-metric-name"))
+                .peek((key, value) -> {
+                    try {
+                        var tags = Tags.of(value.getContext().entrySet().stream()
+                                .map(e -> Tag.of(e.getKey(), e.getValue()))
+                                .toList());
+                        gaugeRepository.updateGauge("kcc_" + value.getInitialMetricName(), tags, value.getValue());
+                    } catch (Exception e) {
+                        Log.warnv("Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags(), e);
+                    }
+                })
                 .to(
                         configProperties.topicAggregated(),
                         Produced.with(serdes.getAggregatedKeySerde(), serdes.getAggregatedWindowedSerde()).withName("output-topic"));
