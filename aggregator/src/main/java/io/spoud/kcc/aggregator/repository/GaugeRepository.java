@@ -7,14 +7,14 @@ import io.micrometer.core.instrument.Tags;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Store all the metric values (gauges) observed while running the application. */
 @RequiredArgsConstructor
 @ApplicationScoped
 public class GaugeRepository {
-    private final Map<GaugeKey, AtomicDouble> gauges = new HashMap<>();
+    private final Map<GaugeKey, AtomicDouble> gauges = new ConcurrentHashMap<>();
     private final MeterRegistry meterRegistry;
 
     public void updateGauge(String name, Tags tags, double value) {
