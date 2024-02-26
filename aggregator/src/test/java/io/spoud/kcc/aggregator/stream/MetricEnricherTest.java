@@ -5,6 +5,7 @@ import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
+import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
 import io.spoud.kcc.data.*;
@@ -76,7 +77,7 @@ class MetricEnricherTest {
         final CachedContextDataManager cachedContextDataManager = new CachedContextDataManager(contextDataRepository);
         Properties kafkaProperties = createKafkaProperties();
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory);
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, Mockito.mock(GaugeRepository.class));
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
