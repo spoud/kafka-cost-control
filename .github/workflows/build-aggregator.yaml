@@ -30,6 +30,7 @@ jobs:
         with:
           name: aggregator
           path: aggregator/
+          retention-days: 1
 
   publish:
     runs-on: ubuntu-latest
