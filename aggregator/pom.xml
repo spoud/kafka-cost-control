@@ -12,11 +12,11 @@
         <skipITs>true</skipITs>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.6.4</quarkus.platform.version>
+        <quarkus.platform.version>3.7.4</quarkus.platform.version>
 
         <maven.compiler.release>17</maven.compiler.release>
         <compiler-plugin.version>3.11.0</compiler-plugin.version>
-        <surefire-plugin.version>3.1.2</surefire-plugin.version>
+        <surefire-plugin.version>3.2.5</surefire-plugin.version>
         <kafka.version>3.5.1</kafka.version>
         <confluent.platform.version>7.6.0</confluent.platform.version>
     </properties>
