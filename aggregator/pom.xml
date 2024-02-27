@@ -15,7 +15,7 @@
         <quarkus.platform.version>3.7.4</quarkus.platform.version>
 
         <maven.compiler.release>17</maven.compiler.release>
-        <compiler-plugin.version>3.11.0</compiler-plugin.version>
+        <compiler-plugin.version>3.12.1</compiler-plugin.version>
         <surefire-plugin.version>3.2.5</surefire-plugin.version>
         <kafka.version>3.5.1</kafka.version>
         <confluent.platform.version>7.5.1</confluent.platform.version>
