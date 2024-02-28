@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
@@ -68,17 +69,11 @@ public class SchemaRegistryScraper {
     }
 
 
-    private static Map<String, Integer> countSchemasPerTopic(Set<Schema> schemas) {
+    private static Map<String, Long> countSchemasPerTopic(Set<Schema> schemas) {
         // TODO: this will not work with subjects that use a non default naming strategy
-        Map<String, Integer> grouped = new HashMap<>();
-        for (Schema schema : schemas) {
-            if (grouped.containsKey(schema.topic())) {
-                grouped.put(schema.topic(), grouped.get(schema.topic()) + 1);
-            } else {
-                grouped.put(schema.topic(), 1);
-            }
-        }
-        return grouped;
+        return schemas.stream()
+                .filter(Schema::isTopicSchema)
+                .collect(Collectors.groupingBy(Schema::topic, Collectors.counting()));
     }
 
 

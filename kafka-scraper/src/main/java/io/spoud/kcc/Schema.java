@@ -12,4 +12,8 @@ public record Schema(
     public boolean isKey() {
         return subject.endsWith("-key");
     }
+
+    public boolean isTopicSchema() {
+        return subject.endsWith("-value") || subject.endsWith("-key");
+    }
 }

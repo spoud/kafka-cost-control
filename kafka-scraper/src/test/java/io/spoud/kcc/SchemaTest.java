@@ -1,6 +1,5 @@
 package io.spoud.kcc;
 
-import io.spoud.kcc.Schema;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +13,11 @@ class SchemaTest {
     @DisplayName("should extract topic name from subject")
     void shouldExtractTopicName() {
         var schema = new Schema("some-topic-name-value-key", 2);
+        assertThat(schema.isTopicSchema()).isTrue();
+        assertThat(schema.topic()).isEqualTo("some-topic-name-value");
+
+        schema = new Schema("some-topic-name-value-value", 1);
+        assertThat(schema.isTopicSchema()).isTrue();
         assertThat(schema.topic()).isEqualTo("some-topic-name-value");
     }
 }
