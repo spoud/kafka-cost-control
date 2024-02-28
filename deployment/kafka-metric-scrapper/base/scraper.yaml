@@ -19,6 +19,16 @@ spec:
         - name: kafka-cost-control-scraper
           image: spoud/kafka-cost-control-scraper:latest
           imagePullPolicy: Always
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+              scheme: HTTP
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+              scheme: HTTP
           resources:
             limits:
               cpu: 500m
