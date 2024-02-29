@@ -2,6 +2,7 @@ package io.spoud.kcc;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.scheduler.Scheduler;
 import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +24,7 @@ class SchemaRegistryScraperTest {
 
     @BeforeEach
     void setUp() {
-        registry = spy(mock(MockMeterRegistry.class));
+        registry = spy(new SimpleMeterRegistry());
         schemaRegistryService = mock(SchemaRegistryService.class);
 
         scheduler = mock(Scheduler.class);

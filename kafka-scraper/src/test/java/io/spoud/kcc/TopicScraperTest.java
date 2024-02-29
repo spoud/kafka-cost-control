@@ -2,6 +2,7 @@ package io.spoud.kcc;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.scheduler.Scheduler;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeTopicsResult;
@@ -10,6 +11,7 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -31,7 +33,7 @@ class TopicScraperTest {
     @BeforeEach
     void setUp() {
         adminClient = mock(AdminClient.class);
-        registry = spy(mock(MockMeterRegistry.class));
+        registry = spy(new SimpleMeterRegistry());
 
         scheduler = mock(Scheduler.class);
         jobDefinition = mock(Scheduler.JobDefinition.class);
@@ -47,6 +49,7 @@ class TopicScraperTest {
     }
 
     @Test
+    @DisplayName("should schedule task with configured interval")
     void scheduleTask() {
         var topicScraper = new TopicScraper(adminClient, registry, scheduler, configProperties);
         topicScraper.scheduleTask();
@@ -55,6 +58,7 @@ class TopicScraperTest {
     }
 
     @Test
+    @DisplayName("should correctly count partitions per topic")
     void fetchTopicInformation() throws ExecutionException, InterruptedException, TimeoutException {
         var topicScraper = new TopicScraper(adminClient, registry, scheduler, configProperties);
         var topicDescription = mock(TopicDescription.class);
