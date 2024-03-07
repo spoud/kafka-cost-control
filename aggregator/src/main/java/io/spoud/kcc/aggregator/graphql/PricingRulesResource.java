@@ -7,7 +7,6 @@ import io.spoud.kcc.aggregator.graphql.data.PricingRuleDeleteRequest;
 import io.spoud.kcc.aggregator.graphql.data.PricingRuleSaveRequest;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.repository.PricingRulesRepository;
-import io.spoud.kcc.aggregator.stream.KafkaStreamManager;
 import io.spoud.kcc.data.PricingRule;
 import jakarta.annotation.security.PermitAll;
 import lombok.RequiredArgsConstructor;

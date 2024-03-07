@@ -9,16 +9,6 @@ import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -28,6 +18,15 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.streams.KafkaStreams;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Singleton
 @RequiredArgsConstructor
@@ -83,13 +82,11 @@ public class KafkaStreamManager {
                     Log.warnv(
                             "Attempt {0}: Unable to reset offset for consumer group \"{1}\", consumer group is certainly still attached, waiting a little bit before retrying",
                             i, applicationId);
-                    try {
-                        Thread.sleep(5_000);
-                    }catch (InterruptedException ex){
-                        Thread.currentThread().interrupt();
-                    }
+                    Thread.sleep(5_000);
                 }
             }
+        }catch (InterruptedException ex){
+            Thread.currentThread().interrupt();
         } catch (ExecutionException ex) {
             Log.errorv(ex, "Unable to reset offsets for consumer-group {0}", applicationId);
         }
