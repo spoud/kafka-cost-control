@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: kafka-cost-control-scraper
-          image: spoud/kafka-cost-control-scraper:native
+          image: spoud/kafka-cost-control-scraper:latest-native
           imagePullPolicy: Always
           env:
             - name: KAFKA_SECURITY_PROTOCOL
