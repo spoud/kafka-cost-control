@@ -83,10 +83,14 @@ public class KafkaStreamManager {
                     Log.warnv(
                             "Attempt {0}: Unable to reset offset for consumer group \"{1}\", consumer group is certainly still attached, waiting a little bit before retrying",
                             i, applicationId);
-                    Thread.sleep(5_000);
+                    try {
+                        Thread.sleep(5_000);
+                    }catch (InterruptedException ex){
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
-        } catch (InterruptedException | ExecutionException ex) {
+        } catch (ExecutionException ex) {
             Log.errorv(ex, "Unable to reset offsets for consumer-group {0}", applicationId);
         }
 
