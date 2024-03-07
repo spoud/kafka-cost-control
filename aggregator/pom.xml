@@ -16,6 +16,9 @@
 
         <sonar.organization>spoud</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>
+            **/target/jacoco-report/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
 
         <maven.compiler.release>21</maven.compiler.release>
         <compiler-plugin.version>3.12.1</compiler-plugin.version>
@@ -121,6 +124,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-test-security</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jacoco</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
