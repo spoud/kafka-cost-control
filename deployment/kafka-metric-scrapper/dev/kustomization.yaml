@@ -8,6 +8,9 @@ generatorOptions:
   disableNameSuffixHash: true
 
 secretGenerator:
-- name: telegraf-secret
-  envs:
-  - .env
+  - name: telegraf-secret
+    envs:
+      - .env-telegraf
+  - name: kafka-cost-control-scraper-secret
+    envs:
+      - .env-scraper
