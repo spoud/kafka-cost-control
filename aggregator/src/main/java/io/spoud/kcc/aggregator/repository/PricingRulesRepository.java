@@ -70,7 +70,7 @@ public class PricingRulesRepository {
         return list;
     }
 
-    public <T> ReadOnlyKeyValueStore<String, PricingRule> getStore() {
+    public ReadOnlyKeyValueStore<String, PricingRule> getStore() {
         while (true) {
             try {
                 return kafkaStreams.store(

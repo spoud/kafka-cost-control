@@ -42,12 +42,6 @@ public class KafkaStreamManager {
     @ConfigProperty(name = "kafka.application.id")
     String applicationId;
 
-    void onStart(@Observes StartupEvent event) {
-    }
-
-    void onShutdown(@Observes ShutdownEvent event) {
-    }
-
     public void reprocess(Instant startTime) {
         Log.infov("Reprocessing requested for time {0}, stopping kafka stream", startTime);
         KafkaStreams.CloseOptions closeOptions = new KafkaStreams.CloseOptions()

@@ -73,7 +73,8 @@ public class CachedContextDataManager {
             if (contextData.getEntityType().equals(metric.type())
                     && isInContextDataTimeRange(timestamp, contextData)) {
                 return Optional.of(pattern.matcher(metric.objectName()))
-                        .filter(Matcher::matches);// only if there is a match;
+                        // only if there is a match
+                        .filter(Matcher::matches);
             } else {
                 return Optional.empty();
             }
