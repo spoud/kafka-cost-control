@@ -2,6 +2,7 @@ package io.spoud.kcc.aggregator.stream.config;
 
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import io.spoud.kcc.aggregator.stream.container.SchemaRegistryContainer;
+
 import java.util.Map;
 
 public class SchemaRegistryResource implements QuarkusTestResourceLifecycleManager {

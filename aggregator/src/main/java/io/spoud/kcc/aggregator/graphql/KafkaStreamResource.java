@@ -2,11 +2,12 @@ package io.spoud.kcc.aggregator.graphql;
 
 import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.stream.KafkaStreamManager;
-import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.NonNull;
+
+import java.time.Instant;
 
 @GraphQLApi
 @RequiredArgsConstructor

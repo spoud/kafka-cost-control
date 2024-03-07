@@ -22,7 +22,6 @@ import java.util.UUID;
 @ApplicationScoped
 public class ContextDataRepository {
 
-
     private final Emitter<Record<String, ContextData>> contextEmitter;
     private final KafkaStreams kafkaStreams;
 
@@ -65,7 +64,7 @@ public class ContextDataRepository {
         return list;
     }
 
-    public <T> ReadOnlyKeyValueStore<String, ContextData> getStore() {
+    public ReadOnlyKeyValueStore<String, ContextData> getStore() {
         while (true) {
             try {
                 return kafkaStreams.store(StoreQueryParameters.fromNameAndType(MetricEnricher.CONTEXT_DATA_TABLE_NAME, QueryableStoreTypes.keyValueStore()));

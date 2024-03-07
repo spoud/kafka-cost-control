@@ -1,9 +1,5 @@
 package io.spoud.kcc.aggregator.stream.utils;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-
 import io.spoud.kcc.aggregator.stream.serialization.JSONSerde;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -13,6 +9,10 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 
 public class KafkaTestUtils {
 

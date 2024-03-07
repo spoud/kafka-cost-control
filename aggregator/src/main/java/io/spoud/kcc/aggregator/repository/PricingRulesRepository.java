@@ -1,31 +1,22 @@
 package io.spoud.kcc.aggregator.repository;
 
 import io.quarkus.logging.Log;
-import io.smallrye.reactive.messaging.kafka.IncomingKafkaRecord;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.aggregator.data.PricingRuleEntity;
 import io.spoud.kcc.aggregator.stream.MetricEnricher;
-import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.PricingRule;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-
-import java.util.*;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StoreQueryParameters;
 import org.apache.kafka.streams.errors.InvalidStateStoreException;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.QueryableStoreTypes;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.eclipse.microprofile.reactive.messaging.Message;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @ApplicationScoped
 public class PricingRulesRepository {
@@ -79,7 +70,7 @@ public class PricingRulesRepository {
         return list;
     }
 
-    public <T> ReadOnlyKeyValueStore<String, PricingRule> getStore() {
+    public ReadOnlyKeyValueStore<String, PricingRule> getStore() {
         while (true) {
             try {
                 return kafkaStreams.store(

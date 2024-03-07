@@ -9,16 +9,6 @@ import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -28,6 +18,15 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.streams.KafkaStreams;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Singleton
 @RequiredArgsConstructor
@@ -42,12 +41,6 @@ public class KafkaStreamManager {
 
     @ConfigProperty(name = "kafka.application.id")
     String applicationId;
-
-    void onStart(@Observes StartupEvent event) {
-    }
-
-    void onShutdown(@Observes ShutdownEvent event) {
-    }
 
     public void reprocess(Instant startTime) {
         Log.infov("Reprocessing requested for time {0}, stopping kafka stream", startTime);
@@ -86,7 +79,9 @@ public class KafkaStreamManager {
                     Thread.sleep(5_000);
                 }
             }
-        } catch (InterruptedException | ExecutionException ex) {
+        }catch (InterruptedException ex){
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException ex) {
             Log.errorv(ex, "Unable to reset offsets for consumer-group {0}", applicationId);
         }
 

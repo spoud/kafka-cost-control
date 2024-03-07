@@ -2,9 +2,7 @@ package io.spoud.kcc.aggregator;
 
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithName;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
 

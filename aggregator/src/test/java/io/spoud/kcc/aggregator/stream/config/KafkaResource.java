@@ -1,9 +1,10 @@
 package io.spoud.kcc.aggregator.stream.config;
 
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
-import java.util.Map;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import java.util.Map;
 
 public class KafkaResource implements QuarkusTestResourceLifecycleManager {
 

@@ -2,12 +2,13 @@ package io.spoud.kcc.aggregator.stream.serialization;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.io.IOException;
-import java.util.Map;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
+
+import java.io.IOException;
+import java.util.Map;
 
 public class JSONSerde<T> implements Serializer<T>, Deserializer<T>, Serde<T> {
     private static final ObjectMapper OBJECT_MAPPER;
