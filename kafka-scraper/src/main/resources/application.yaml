@@ -7,6 +7,11 @@ kafka:
     registry:
       url: http://localhost:8081
 quarkus:
+  kafka:
+    snappy:
+      enabled: true
+  native:
+    container-build: true
   rest-client:
     schema-registry-api:
       url: ${kafka.schema.registry.url}

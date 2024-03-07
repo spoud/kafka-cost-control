@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.mockito.Mockito.*;
 
@@ -31,7 +32,7 @@ class SchemaRegistryScraperTest {
         jobDefinition = mock(Scheduler.JobDefinition.class);
         when(scheduler.newJob(anyString())).thenReturn(jobDefinition);
         when(jobDefinition.setInterval(anyString())).thenReturn(jobDefinition);
-        when(jobDefinition.setAsyncTask(any())).thenReturn(jobDefinition);
+        when(jobDefinition.setAsyncTask(any(Function.class))).thenReturn(jobDefinition);
 
         configProperties = mock(ScraperConfigProperties.class);
         when(configProperties.srEnabled()).thenReturn(true);

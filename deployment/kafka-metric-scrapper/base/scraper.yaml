@@ -17,8 +17,19 @@ spec:
     spec:
       containers:
         - name: kafka-cost-control-scraper
-          image: spoud/kafka-cost-control-scraper:latest
+          image: spoud/kafka-cost-control-scraper:native
           imagePullPolicy: Always
+          env:
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_SSL
+            - name: KAFKA_SASL_MECHANISM
+              value: PLAIN
+            - name: KAFKA_SASL_JAAS_CONFIG
+              value: org.apache.kafka.common.security.plain.PlainLoginModule required username="${CLUSTER_API_KEY}" password="${CLUSTER_API_SECRET}";
+            - name: KAFKA_BASIC_AUTH_CREDENTIALS_SOURCE
+              value: USER_INFO
+            - name: KAFKA_BASIC_AUTH_USER_INFO
+              value: ${SCHEMA_REGISTRY_API_KEY}:${SCHEMA_REGISTRY_API_SECRET}
           livenessProbe:
             httpGet:
               path: /q/health/live

@@ -14,16 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with maven
+      - name: Build and test
         working-directory: kafka-scraper/
         run: mvn --batch-mode clean package
+
+      - name: Build native
+        working-directory: kafka-scraper/
+        run: mvn --batch-mode package -DskipTests -Pnative
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -49,10 +53,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push jvm image
         uses: docker/build-push-action@v5
         with:
           context: kafka-scraper/
           file: kafka-scraper/src/main/docker/Dockerfile.jvm
           push: true
-          tags: spoud/kafka-cost-control-scraper:latest
+          tags: spoud/kafka-cost-control-scraper:latest-jvm
+
+      - name: Build and push native
+        uses: docker/build-push-action@v5
+        with:
+          context: kafka-scraper/
+          file: kafka-scraper/src/main/docker/Dockerfile.native-micro
+          push: true
+          tags: spoud/kafka-cost-control-scraper:latest-native
