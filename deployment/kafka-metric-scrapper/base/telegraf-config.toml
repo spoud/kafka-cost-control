@@ -18,6 +18,13 @@
     urls = ${INPUT_URLS}
     username = "${INPUT_CONFLUENT_METRICS_API_KEY}"
     password = "${INPUT_CONFLUENT_METRICS_API_SECRET}"
+    [inputs.prometheus.tags]
+        source="confluent-metric-api"
+
+[[inputs.prometheus]]
+    urls = ["http://kafka-cost-control-scraper-service:8080/q/metrics"]
+    [inputs.prometheus.tags]
+        source="kafka-metric-scrapper"
 
 [[outputs.kafka]]
     brokers = ${OUTPUT_BROKERS}
