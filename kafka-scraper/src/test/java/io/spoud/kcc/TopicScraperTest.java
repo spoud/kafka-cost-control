@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 import static org.mockito.Mockito.*;
 
@@ -39,7 +40,7 @@ class TopicScraperTest {
         jobDefinition = mock(Scheduler.JobDefinition.class);
         when(scheduler.newJob(anyString())).thenReturn(jobDefinition);
         when(jobDefinition.setInterval(anyString())).thenReturn(jobDefinition);
-        when(jobDefinition.setTask(any())).thenReturn(jobDefinition);
+        when(jobDefinition.setTask(any(Consumer.class))).thenReturn(jobDefinition);
 
         configProperties = mock(ScraperConfigProperties.class);
         when(configProperties.srEnabled()).thenReturn(true);

@@ -6,14 +6,16 @@
   <artifactId>kcc-kafka-scraper</artifactId>
   <version>1.0-SNAPSHOT</version>
   <properties>
-    <compiler-plugin.version>3.11.0</compiler-plugin.version>
-    <maven.compiler.release>17</maven.compiler.release>
+    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <skipITs>true</skipITs>
+
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-    <quarkus.platform.version>3.6.8</quarkus.platform.version>
-    <skipITs>true</skipITs>
+    <quarkus.platform.version>3.8.1</quarkus.platform.version>
+
+    <compiler-plugin.version>3.11.0</compiler-plugin.version>
     <surefire-plugin.version>3.1.2</surefire-plugin.version>
   </properties>
   <dependencyManagement>
@@ -70,6 +72,15 @@
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-health</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.microprofile.rest.client</groupId>
+      <artifactId>microprofile-rest-client-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
       <scope>test</scope>
     </dependency>
@@ -84,16 +95,12 @@
       <version>3.24.2</version>
       <scope>test</scope>
     </dependency>
-      <dependency>
-          <groupId>org.mockito</groupId>
-          <artifactId>mockito-core</artifactId>
-          <version>3.12.4</version>
-          <scope>test</scope>
-      </dependency>
-    <dependency>
-      <groupId>org.eclipse.microprofile.rest.client</groupId>
-      <artifactId>microprofile-rest-client-api</artifactId>
-    </dependency>
+  <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>3.12.4</version>
+      <scope>test</scope>
+  </dependency>
   </dependencies>
   <build>
     <plugins>
