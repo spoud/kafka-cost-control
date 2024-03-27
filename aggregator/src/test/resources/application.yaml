@@ -8,3 +8,8 @@ quarkus:
     state:
       # Randomize folder so we get a clean state every time
       dir: /tmp/kafka-stream-${quarkus.uuid}
+
+cc:
+  metrics:
+    aggregations:
+      confluent_kafka_server_retained_bytes: max

@@ -38,6 +38,7 @@ public class MetricEnricher {
     private final CostControlConfigProperties configProperties;
     private final SerdeFactory serdes;
     private final GaugeRepository gaugeRepository;
+    private final MetricReducer metricReducer;
 
     @Produces
     public Topology metricEnricherTopology() {
@@ -81,11 +82,7 @@ public class MetricEnricher {
                         Named.as("unique-key-for-windowing"))
                 .groupByKey(Grouped.as("group-by-key"))
                 .windowedBy(tumblingWindow)
-                .reduce((left, right) -> {
-                    double valueSum = left.getValue() + right.getValue();
-                    right.setValue(valueSum);
-                    return right;
-                }, Named.as("sum-aggregated-value-by-window"))
+                .reduce(metricReducer, Named.as("sum-aggregated-value-by-window"))
                 .toStream(Named.as("convert-window-to-stream"))
                 .map(MetricEnricher::mapToWindowedAggregate, Named.as("map-to-windowed-aggregated-data"))
                 .leftJoin(pricingRulesTable, this::addPriceToWindowedMetric, Joined.as("join-pricing-rule"))
