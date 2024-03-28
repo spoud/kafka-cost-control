@@ -83,4 +83,5 @@ quarkus:
         level: WARN
       "io.spoud.kcc":
         level: DEBUG
-
+  container-image:
+    build: true
