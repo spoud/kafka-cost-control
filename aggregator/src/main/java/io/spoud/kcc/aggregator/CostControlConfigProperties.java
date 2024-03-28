@@ -5,6 +5,7 @@ import io.smallrye.config.WithName;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
+import java.util.Map;
 
 @ConfigMapping(prefix = "cc")
 public interface CostControlConfigProperties {
@@ -31,4 +32,7 @@ public interface CostControlConfigProperties {
 
     @WithName("topics.aggregated-table-friendly")
     String topicAggregatedTableFriendly();
+
+    @WithName("metrics.aggregations")
+    Map<String, String> metricsAggregations();
 }

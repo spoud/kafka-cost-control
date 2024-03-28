@@ -1,12 +1,14 @@
 package io.spoud.kcc.aggregator.stream;
 
+import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.data.AggregatedData;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.streams.kstream.Reducer;
-import org.eclipse.microprofile.config.ConfigProvider;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 
 /**
@@ -16,8 +18,9 @@ import java.util.function.BiFunction;
  * AggregatedData instances by summing their values.
  */
 @ApplicationScoped
+@RequiredArgsConstructor
 public class MetricReducer implements Reducer<AggregatedData> {
-    private static final String AGGREGATION_TYPE_CONFIG_TEMPLATE = "cc.metrics.aggregations.%s";
+    private final CostControlConfigProperties configProperties;
 
     @Override
     public AggregatedData apply(AggregatedData left, AggregatedData right) {
@@ -28,8 +31,8 @@ public class MetricReducer implements Reducer<AggregatedData> {
                     .formatted(left.getInitialMetricName(), right.getInitialMetricName()));
         }
         var metricName = left.getInitialMetricName();
-        var aggregationType = ConfigProvider.getConfig()
-                .getOptionalValue(AGGREGATION_TYPE_CONFIG_TEMPLATE.formatted(metricName), String.class)
+        var aggregationType = Optional.ofNullable(configProperties.metricsAggregations())
+                .map(m -> m.get(metricName))
                 .map(String::toUpperCase)
                 .map(type -> {
                     try {

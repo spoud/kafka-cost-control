@@ -74,6 +74,7 @@ class MetricEnricherTest {
                 .topicPricingRules(TOPIC_PRICING_RULES)
                 .topicRawData(List.of(TOPIC_RAW_TELEGRAF))
                 .topicContextData(TOPIC_CONTEXT_DATA)
+                .metricsAggregations(Map.of("confluent_kafka_server_retained_bytes", "max"))
                 .build();
         metricRepository = new MetricNameRepository();
         ContextDataRepository contextDataRepository = Mockito.mock(ContextDataRepository.class);
@@ -81,7 +82,7 @@ class MetricEnricherTest {
         final CachedContextDataManager cachedContextDataManager = new CachedContextDataManager(contextDataRepository);
         Properties kafkaProperties = createKafkaProperties();
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
-        metricReducer = Mockito.spy(new MetricReducer());
+        metricReducer = Mockito.spy(new MetricReducer(configProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
         MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, Mockito.mock(GaugeRepository.class), metricReducer);
