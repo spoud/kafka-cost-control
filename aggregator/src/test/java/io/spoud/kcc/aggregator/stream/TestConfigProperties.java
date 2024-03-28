@@ -4,6 +4,7 @@ import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import lombok.Builder;
 
 import java.util.List;
+import java.util.Map;
 
 @Builder
 public class TestConfigProperties implements CostControlConfigProperties {
@@ -15,6 +16,7 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private String topicContextData;
     private List<String> topicRawData;
     private String topicAggregated;
+    private Map<String, String> metricsAggregations;
 
     @Override
     public String adminPassword() {
@@ -49,5 +51,10 @@ public class TestConfigProperties implements CostControlConfigProperties {
     @Override
     public String topicAggregatedTableFriendly() {
         return topicAggregatedTableFriendly;
+    }
+
+    @Override
+    public Map<String, String> metricsAggregations() {
+        return metricsAggregations;
     }
 }

@@ -20,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -47,6 +49,8 @@ class MetricEnricherTest {
     private TestOutputTopic<AggregatedDataKey, AggregatedDataWindowed> aggregatedTopic;
     private TestOutputTopic<AggregatedDataKey, AggregatedDataTableFriendly> aggregatedTableFriendlyTopic;
     private MetricNameRepository metricRepository;
+    private MetricReducer metricReducer;
+    private ResultCaptor<AggregatedData> reducerResult;
 
     @NotNull
     private static Properties createKafkaProperties() {
@@ -70,6 +74,7 @@ class MetricEnricherTest {
                 .topicPricingRules(TOPIC_PRICING_RULES)
                 .topicRawData(List.of(TOPIC_RAW_TELEGRAF))
                 .topicContextData(TOPIC_CONTEXT_DATA)
+                .metricsAggregations(Map.of("confluent_kafka_server_retained_bytes", "max"))
                 .build();
         metricRepository = new MetricNameRepository();
         ContextDataRepository contextDataRepository = Mockito.mock(ContextDataRepository.class);
@@ -77,7 +82,10 @@ class MetricEnricherTest {
         final CachedContextDataManager cachedContextDataManager = new CachedContextDataManager(contextDataRepository);
         Properties kafkaProperties = createKafkaProperties();
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, Mockito.mock(GaugeRepository.class));
+        metricReducer = Mockito.spy(new MetricReducer(configProperties));
+        reducerResult = new ResultCaptor<>();
+        Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, Mockito.mock(GaugeRepository.class), metricReducer);
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
@@ -169,6 +177,58 @@ class MetricEnricherTest {
         assertThat(aggregatedTableFriendly.getEntityType()).isEqualTo(EntityType.TOPIC);
         assertThat(aggregatedTableFriendly.getTags())
                 .isEqualTo("{\"env\":\"dev\",\"topic\":\"spoud_topic_1\"}");
+    }
+
+    @Test
+    void should_reduce_to_max() {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "spoud_.*",
+                        Map.of("cost-unit", "my-cost-unit")));
+
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_retained_bytes", "spoud_topic_1", 15.0));
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_retained_bytes", "spoud_topic_1", 33.0));
+
+        assertThat(aggregatedTableFriendlyTopic.getQueueSize()).isEqualTo(2);
+        final AggregatedDataTableFriendly aggregatedTableFriendly =
+                aggregatedTableFriendlyTopic.readValuesToList().get(1);
+        assertThat(aggregatedTableFriendly.getValue()).isEqualTo(33.0);
+        Mockito.verify(metricReducer, Mockito.times(1)).apply(
+                Mockito.argThat((AggregatedData data) -> Double.compare(data.getValue(), 15.0) == 0),
+                Mockito.argThat((AggregatedData data) -> Double.compare(data.getValue(), 33.0) == 0)
+        );
+        assertThat(reducerResult.value.getValue()).isEqualTo(33.0); // we have configured the reducer to take the max value (see application.yaml)
+    }
+
+    @Test
+    void should_reduce_to_sum() {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "spoud_.*",
+                        Map.of("cost-unit", "my-cost-unit")));
+
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_sent_bytes", "spoud_topic_1", 15.0));
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_sent_bytes", "spoud_topic_1", 33.0));
+
+        assertThat(aggregatedTableFriendlyTopic.getQueueSize()).isEqualTo(2);
+        final AggregatedDataTableFriendly aggregatedTableFriendly =
+                aggregatedTableFriendlyTopic.readValuesToList().get(1);
+        assertThat(aggregatedTableFriendly.getValue()).isEqualTo(48.0);
+        Mockito.verify(metricReducer, Mockito.times(1)).apply(
+                Mockito.argThat((AggregatedData data) -> Double.compare(data.getValue(), 15.0) == 0),
+                Mockito.argThat((AggregatedData data) -> Double.compare(data.getValue(), 48.0) == 0) // The reducer should write the sum of the two values into the second argument
+        );
+        assertThat(reducerResult.value.getValue()).isEqualTo(48.0); // we have not provided any aggregation config for this metric, so it should sum by default
     }
 
     @Test
@@ -431,9 +491,13 @@ class MetricEnricherTest {
     }
 
     private RawTelegrafData generateTopicRawTelegraf(Instant time, String topicName, double value) {
+        return generateTopicRawTelegraf(time, "confluent_kafka_server_sent_bytes", topicName, value);
+    }
+
+    private RawTelegrafData generateTopicRawTelegraf(Instant time, String metricName, String topicName, double value) {
         return new RawTelegrafData(
                 time,
-                "confluent_kafka_server_sent_bytes",
+                metricName,
                 Map.of("gauge", value),
                 Map.of("env", "dev", "topic", topicName));
     }
@@ -456,5 +520,15 @@ class MetricEnricherTest {
 
     private ReadOnlyKeyValueStore<String, ContextData> apply(String name) {
         return testDriver.getKeyValueStore(name);
+    }
+
+    private class ResultCaptor<T> implements Answer {
+        public T value;
+
+        @Override
+        public T answer(InvocationOnMock invocation) throws Throwable {
+            value = (T) invocation.callRealMethod();
+            return value;
+        }
     }
 }
