@@ -4,8 +4,9 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @QuarkusIntegrationTest
-public class AppStartsTestIT {
+class AppStartsTestIT {
     @Test
-    public void should_start_in_container() {
+    void should_start_in_container() {
+        // no assertion, just make sure the application is able to launch inside the container
     }
 }
