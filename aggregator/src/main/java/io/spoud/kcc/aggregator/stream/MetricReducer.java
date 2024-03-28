@@ -22,16 +22,8 @@ import java.util.function.BiFunction;
 public class MetricReducer implements Reducer<AggregatedData> {
     private final CostControlConfigProperties configProperties;
 
-    @Override
-    public AggregatedData apply(AggregatedData left, AggregatedData right) {
-        if (!Objects.equals(left.getInitialMetricName(), right.getInitialMetricName())) {
-            throw new IllegalArgumentException("""
-                    MetricReducer can only be applied to data with the same metric name,
-                    but got left metric name: %s and right metric name: %s"""
-                    .formatted(left.getInitialMetricName(), right.getInitialMetricName()));
-        }
-        var metricName = left.getInitialMetricName();
-        var aggregationType = Optional.ofNullable(configProperties.metricsAggregations())
+    public AggregationType getAggregationType(String metricName) {
+        return Optional.ofNullable(configProperties.metricsAggregations())
                 .map(m -> m.get(metricName))
                 .map(String::toUpperCase)
                 .map(type -> {
@@ -44,7 +36,18 @@ public class MetricReducer implements Reducer<AggregatedData> {
                     }
                 })
                 .orElse(AggregationType.SUM);
-        double combined = aggregationType.combine(left.getValue(), right.getValue());
+    }
+
+    @Override
+    public AggregatedData apply(AggregatedData left, AggregatedData right) {
+        if (!Objects.equals(left.getInitialMetricName(), right.getInitialMetricName())) {
+            throw new IllegalArgumentException("""
+                    MetricReducer can only be applied to data with the same metric name,
+                    but got left metric name: %s and right metric name: %s"""
+                    .formatted(left.getInitialMetricName(), right.getInitialMetricName()));
+        }
+        var metricName = left.getInitialMetricName();
+        double combined = getAggregationType(metricName).combine(left.getValue(), right.getValue());
         right.setValue(combined);
         return right;
     }
