@@ -17,4 +17,7 @@ kafka:
     registry:
       url:
 
-
+cc:
+  metrics:
+    aggregations:
+      confluent_kafka_server_retained_bytes: max
