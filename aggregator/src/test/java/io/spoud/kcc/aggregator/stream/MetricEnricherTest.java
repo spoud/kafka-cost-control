@@ -76,13 +76,13 @@ class MetricEnricherTest {
                 .topicContextData(TOPIC_CONTEXT_DATA)
                 .metricsAggregations(Map.of("confluent_kafka_server_retained_bytes", "max"))
                 .build();
-        metricRepository = new MetricNameRepository();
+        metricReducer = Mockito.spy(new MetricReducer(configProperties));
+        metricRepository = new MetricNameRepository(metricReducer);
         ContextDataRepository contextDataRepository = Mockito.mock(ContextDataRepository.class);
 
         final CachedContextDataManager cachedContextDataManager = new CachedContextDataManager(contextDataRepository);
         Properties kafkaProperties = createKafkaProperties();
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
-        metricReducer = Mockito.spy(new MetricReducer(configProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
         MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, Mockito.mock(GaugeRepository.class), metricReducer);
@@ -337,6 +337,9 @@ class MetricEnricherTest {
         assertThat(metricNames)
                 .extracting(MetricNameEntity::lastSeen)
                 .contains(topic.timestamp(), principal.timestamp());
+        assertThat(metricNames)
+                .extracting(MetricNameEntity::aggregationType)
+                .containsExactly("SUM", "SUM");
     }
 
     @Test
