@@ -77,7 +77,7 @@ public class KafkaStreamManager {
         Quarkus.asyncExit();
     }
 
-    @Retry(maxDuration = 5L, durationUnit = ChronoUnit.MINUTES,
+    @Retry(maxRetries = -1, maxDuration = 5L, durationUnit = ChronoUnit.MINUTES,
             delay = 5L, delayUnit = ChronoUnit.SECONDS, retryOn = {ExecutionException.class})
     public void alterStreamsAppOffsets(AdminClient adminClient, Map<TopicPartition, OffsetAndMetadata> toOffset) throws ExecutionException, InterruptedException {
         try {
