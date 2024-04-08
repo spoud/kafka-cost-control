@@ -2,14 +2,9 @@ package io.spoud.kcc.aggregator.stream;
 
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Quarkus;
-import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.StartupEvent;
 import io.smallrye.common.annotation.Identifier;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
-import jakarta.enterprise.event.Observes;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -18,9 +13,11 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.streams.KafkaStreams;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.faulttolerance.Retry;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -29,18 +26,20 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Singleton
-@RequiredArgsConstructor
 public class KafkaStreamManager {
-
     private final CostControlConfigProperties configProperties;
     private final KafkaStreams kafkaStreams;
+    private final Map<String, Object> kafkaConfig;
+    private final String applicationId;
 
-    @Inject
-    @Identifier("default-kafka-broker")
-    Map<String, Object> kafkaConfig;
-
-    @ConfigProperty(name = "kafka.application.id")
-    String applicationId;
+    public KafkaStreamManager(CostControlConfigProperties configProperties, KafkaStreams kafkaStreams,
+                              @Identifier("default-kafka-broker") Map<String, Object> kafkaConfig,
+                              @ConfigProperty(name = "kafka.application.id") String applicationId) {
+        this.configProperties = configProperties;
+        this.kafkaStreams = kafkaStreams;
+        this.kafkaConfig = kafkaConfig;
+        this.applicationId = applicationId;
+    }
 
     public void reprocess(Instant startTime) {
         Log.infov("Reprocessing requested for time {0}, stopping kafka stream", startTime);
@@ -67,19 +66,8 @@ public class KafkaStreamManager {
                             .map(entry -> entry.getKey() + ":" + entry.getValue().offset())
                             .collect(Collectors.joining(",")));
 
-            // try for 5min to reset the offsets
-            for (int i = 1; i <= 60; i++) {
-                try {
-                    adminClient.alterConsumerGroupOffsets(applicationId, toOffset).all().get();
-                    break;
-                } catch (ExecutionException ex1) {
-                    Log.warnv(
-                            "Attempt {0}: Unable to reset offset for consumer group \"{1}\", consumer group is certainly still attached, waiting a little bit before retrying",
-                            i, applicationId);
-                    Thread.sleep(5_000);
-                }
-            }
-        }catch (InterruptedException ex){
+            alterStreamsAppOffsets(adminClient, toOffset);
+        } catch (InterruptedException ex){
             Thread.currentThread().interrupt();
         } catch (ExecutionException ex) {
             Log.errorv(ex, "Unable to reset offsets for consumer-group {0}", applicationId);
@@ -87,10 +75,18 @@ public class KafkaStreamManager {
 
         Log.infov("Killing app so it reboots and reprocesses everything");
         Quarkus.asyncExit();
+    }
 
-        // DOESN'T WORK
-        //    Log.infov("Restarting the kafka stream application");
-        //    kafkaStreams.start();
+    @Retry(maxDuration = 5L, durationUnit = ChronoUnit.MINUTES,
+            delay = 5L, delayUnit = ChronoUnit.SECONDS, retryOn = {ExecutionException.class})
+    public void alterStreamsAppOffsets(AdminClient adminClient, Map<TopicPartition, OffsetAndMetadata> toOffset) throws ExecutionException, InterruptedException {
+        try {
+            adminClient.alterConsumerGroupOffsets(applicationId, toOffset).all().get();
+        } catch (ExecutionException ex) {
+            Log.warnv("Failed attempt to reset offset for consumer group \"{0}\": {1} (will retry)",
+                    applicationId, ex.getCause().getMessage());
+            throw ex;
+        }
     }
 
     private Map<TopicPartition, OffsetAndMetadata> getOffsetForGivenTime(
