@@ -8,6 +8,9 @@ include::src/introduction.adoc[]
 include::src/config_samples.adoc[]
 
 <<<
+include::src/cost_control_config.adoc[]
+
+<<<
 include::src/pricing_rules.adoc[]
 
 <<<
