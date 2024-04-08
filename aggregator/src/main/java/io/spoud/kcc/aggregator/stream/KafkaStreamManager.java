@@ -17,6 +17,7 @@ import org.eclipse.microprofile.faulttolerance.Retry;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -76,13 +77,13 @@ public class KafkaStreamManager {
         Quarkus.asyncExit();
     }
 
-    @Retry(maxDuration = 5L * 60_000L, delay = 5_000L, retryOn = {ExecutionException.class})
+    @Retry(maxDuration = 5L, durationUnit = ChronoUnit.MINUTES,
+            delay = 5L, delayUnit = ChronoUnit.SECONDS, retryOn = {ExecutionException.class})
     public void alterStreamsAppOffsets(AdminClient adminClient, Map<TopicPartition, OffsetAndMetadata> toOffset) throws ExecutionException, InterruptedException {
         try {
             adminClient.alterConsumerGroupOffsets(applicationId, toOffset).all().get();
         } catch (ExecutionException ex) {
-            // print the error before retrying
-            Log.warnv("Failed attempt to reset offset for consumer group \"{0}\": {1}",
+            Log.warnv("Failed attempt to reset offset for consumer group \"{0}\": {1} (will retry)",
                     applicationId, ex.getCause().getMessage());
             throw ex;
         }
