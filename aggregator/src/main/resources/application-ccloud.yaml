@@ -16,5 +16,3 @@ kafka:
   schema:
     registry:
       url:
-
-

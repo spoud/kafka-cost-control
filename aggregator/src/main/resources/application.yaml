@@ -9,6 +9,9 @@ kafka:
 
 cc:
   admin-password: admin
+  metrics:
+    aggregations:
+      confluent_kafka_server_retained_bytes: max
   topics:
     pricing-rules: pricing-rules
     context-data: context-data
