@@ -68,7 +68,7 @@ public class TopicScraper {
     private void createGaugeMetric(TopicDescription topicDescription) {
         this.registry.gauge(
                 GAUGE_NAME,
-                singletonList(Tag.of("name", topicDescription.name())),
+                singletonList(Tag.of("topic", topicDescription.name())),
                 topicDescription.partitions().size()
         );
     }

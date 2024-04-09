@@ -34,7 +34,7 @@ public class KafkaClients {
     @Singleton
     public MeterFilter addCommonTags(AdminClient adminClient) throws ExecutionException, InterruptedException, TimeoutException {
         var clusterId = adminClient.describeCluster().clusterId().get(10, TimeUnit.SECONDS);
-        return MeterFilter.commonTags(Arrays.asList(Tag.of("cluster_id", clusterId)));
+        return MeterFilter.commonTags(Arrays.asList(Tag.of("kafka_id", clusterId)));
     }
 
 
