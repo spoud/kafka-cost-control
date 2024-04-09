@@ -72,6 +72,6 @@ class TopicScraperTest {
         when(topicDescription.partitions()).thenReturn(List.of(mock(TopicPartitionInfo.class)));
         when(topicDescription.name()).thenReturn("topic1");
         topicScraper.fetchTopicInformation();
-        verify(registry, times(1)).gauge("kafka.topic.partition.count", List.of(Tag.of("name", "topic1")), 1);
+        verify(registry, times(1)).gauge("kafka.topic.partition.count", List.of(Tag.of("topic", "topic1")), 1);
     }
 }
