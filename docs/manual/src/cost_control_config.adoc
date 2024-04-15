@@ -1,0 +1,33 @@
+=== Configuring your cost control application
+
+Your cost control instance can be configured either by setting environment variables,
+or (if you are using one of the provided container images) by mounting an `application.properties` file at
+`/deployments/config/application.properties`:
+
+```
+# inside your application.properties
+quarkus.profile=ccloud
+```
+
+==== Configuring aggregation types
+
+In cost control, each metric is associated with an aggregation type. The aggregation type determines how multiple measurements
+within a time window are combined to produce a single value. Possible aggregation types are `SUM` and `MAX`.
+If no aggregation type is specified for a metric, then `SUM` will be used.
+To specify an aggregation type for a metric, add a line to your `application.properties` file like this:
+
+```
+# inside your application.properties
+cc.metrics.aggregations.<metric-name>=max
+```
+
+For example, to aggregate retained byte measurements using the `MAX` aggregation type, add the following line to your `application.properties` file:
+
+```
+cc.metrics.aggregations.confluent_kafka_server_retained_bytes=max
+```
+
+Note that these settings may only be set in an `application.properties` file, and not via environment variables.
+This is due to the fact that Quarkus cannot unambiguously map environment variable names to property names if said
+property names contain user-defined parts (like `confluent_kafka_server_retained_bytes` in the example above).
+For more information, see https://quarkus.io/guides/config-reference#environment-variables[the relevant section of the Quarkus documentation].
