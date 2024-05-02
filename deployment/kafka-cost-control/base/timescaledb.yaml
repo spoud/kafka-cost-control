@@ -34,10 +34,10 @@ spec:
           resources:
             limits:
               cpu: 4000m
-              memory: 4Gi
+              memory: 1Gi
             requests:
               cpu: 100m
-              memory: 1Gi
+              memory: 0.5Gi
           env:
             - name: POSTGRES_PASSWORD
               valueFrom:
