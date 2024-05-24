@@ -1,6 +1,8 @@
  package io.spoud.kcc.aggregator.stream;
 
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
@@ -49,6 +51,7 @@ class MetricEnricherTest {
     private TestOutputTopic<AggregatedDataKey, AggregatedDataWindowed> aggregatedTopic;
     private TestOutputTopic<AggregatedDataKey, AggregatedDataTableFriendly> aggregatedTableFriendlyTopic;
     private MetricNameRepository metricRepository;
+    private GaugeRepository gaugeRepository;
     private MetricReducer metricReducer;
     private ResultCaptor<AggregatedData> reducerResult;
 
@@ -78,6 +81,7 @@ class MetricEnricherTest {
                 .build();
         metricReducer = Mockito.spy(new MetricReducer(configProperties));
         metricRepository = new MetricNameRepository(metricReducer);
+        gaugeRepository = new GaugeRepository(new SimpleMeterRegistry());
         ContextDataRepository contextDataRepository = Mockito.mock(ContextDataRepository.class);
 
         final CachedContextDataManager cachedContextDataManager = new CachedContextDataManager(contextDataRepository);
@@ -85,7 +89,7 @@ class MetricEnricherTest {
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, Mockito.mock(GaugeRepository.class), metricReducer);
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, gaugeRepository, metricReducer);
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
@@ -149,6 +153,30 @@ class MetricEnricherTest {
         assertThat(aggregated.getInitialMetricName()).isEqualTo("confluent_kafka_server_sent_bytes");
         assertThat(aggregated.getEntityType()).isEqualTo(EntityType.TOPIC);
         assertThat(aggregated.getTags()).containsEntry("env", "dev");
+    }
+
+    @Test
+    void gauges_should_not_overlap() throws InterruptedException {
+        contextDataStore.put(
+                "id1",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "spoud_.*",
+                        Map.of("cost-unit", "my-cost-unit")));
+        Thread.sleep(1000);
+
+        // generate metrics for two different topics that will be mapped to the same context
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 1.5));
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_2", 2.5));
+
+        // make sure that each topic spawns its own gauge even if they share the same context
+        assertThat(gaugeRepository.getGaugeValues()).containsKeys(
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "env", "dev", "topic", "spoud_topic_1")),
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "env", "dev", "topic", "spoud_topic_2"))
+        );
     }
 
     @Test
