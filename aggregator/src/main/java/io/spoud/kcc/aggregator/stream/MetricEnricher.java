@@ -24,6 +24,7 @@ import org.apache.kafka.streams.kstream.*;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -93,8 +94,8 @@ public class MetricEnricher {
                         value.getName(), value.getInitialMetricName()), Named.as("rekey-to-metric-name"))
                 .peek((key, value) -> {
                     try {
-                        var tags = Tags.of(value.getContext().entrySet().stream()
-                                .map(e -> Tag.of(e.getKey(), e.getValue()))
+                        var tags = Tags.of(Stream.concat(value.getContext().keySet().stream(), value.getTags().keySet().stream())
+                                .map(k -> Tag.of(k, value.getContext().getOrDefault(k, value.getTags().get(k))))
                                 .toList());
                         gaugeRepository.updateGauge("kcc_" + value.getInitialMetricName(), tags, value.getValue());
                     } catch (Exception e) {
