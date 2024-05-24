@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import jakarta.enterprise.context.ApplicationScoped;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
@@ -26,5 +27,11 @@ public class GaugeRepository {
         }).set(value);
     }
 
-    private record GaugeKey(String name, Tags tags) {}
+    public Map<GaugeKey, Double> getGaugeValues() {
+        var result = new ConcurrentHashMap<GaugeKey, Double>();
+        gauges.forEach((key, value) -> result.put(key, value.get()));
+        return result;
+    }
+
+    public record GaugeKey(String name, Tags tags) {}
 }
