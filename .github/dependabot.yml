@@ -19,5 +19,6 @@ updates:
         patterns:
           - "@angular*"
         update-types:
+          - "major"
           - "minor"
           - "patch"
