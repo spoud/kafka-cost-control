@@ -37,7 +37,7 @@
     "@angular-eslint/eslint-plugin-template": "17.4.1",
     "@angular-eslint/schematics": "18.0.1",
     "@angular-eslint/template-parser": "17.4.1",
-    "@angular/cli": "^17.3.7",
+    "@angular/cli": "^18.0.3",
     "@angular/compiler-cli": "^17.3.9",
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/fragment-matcher": "^5.0.2",
