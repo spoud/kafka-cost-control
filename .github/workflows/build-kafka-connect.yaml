@@ -3,6 +3,8 @@ name: Build Kafka connect
 on:
   push:
     branches: [ master ]
+    tags:
+      - '*'
     paths: ['kafka-connect/**']
 
 jobs:
@@ -18,9 +20,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push latest
+        if: github.ref == 'refs/heads/master'
         uses: docker/build-push-action@v5
         with:
           context: kafka-connect/
           push: true
           tags: spoud/kafka-cost-control-connect:latest
+
+      - name: Build and push tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: docker/build-push-action@v5
+        with:
+          context: kafka-connect/
+          push: true
+          tags: spoud/kafka-cost-control-connect:${{ github.ref_name }}
