@@ -39,8 +39,8 @@ Releases are made through git tags using semantic versioning. Where `MAJOR.MINOR
 - `MINOR` version when you add functionality in a backwards compatible manner, and
 - `PATCH` version when you make backwards compatible bug fixes or dependencies update.
 
-To create a release you should push a tag to the master branch. For example
+To create a release you should push a tag starting with `v`to the master branch. For example
 ```bash
-git tag 0.1.2
+git tag v0.1.2
 git push --tags
 ```
