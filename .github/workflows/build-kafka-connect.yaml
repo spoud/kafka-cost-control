@@ -41,4 +41,4 @@ jobs:
         with:
           context: kafka-connect/
           push: true
-          tags: spoud/kafka-cost-control-connect:${VERSION}
+          tags: spoud/kafka-cost-control-connect:${{ env.VERSION }}

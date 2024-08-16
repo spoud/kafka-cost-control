@@ -70,7 +70,7 @@ jobs:
           context: kafka-scraper/
           file: kafka-scraper/src/main/docker/Dockerfile.jvm
           push: true
-          tags: spoud/kafka-cost-control-scraper:${VERSION}-jvm
+          tags: spoud/kafka-cost-control-scraper:${{ env.VERSION }}-jvm
 
       - name: Build and push tagged native image
         if: startsWith(github.ref, 'refs/tags/')
@@ -79,4 +79,4 @@ jobs:
           context: kafka-scraper/
           file: kafka-scraper/src/main/docker/Dockerfile.native-micro
           push: true
-          tags: spoud/kafka-cost-control-scraper:${VERSION}-native
+          tags: spoud/kafka-cost-control-scraper:${{ env.VERSION }}-native

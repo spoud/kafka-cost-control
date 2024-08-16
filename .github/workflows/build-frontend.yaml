@@ -79,4 +79,4 @@ jobs:
         with:
           context: frontend/
           push: true
-          tags: spoud/kafka-cost-control-ui:${VERSION}
+          tags: spoud/kafka-cost-control-ui:${{ env.VERSION }}
