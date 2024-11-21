@@ -27,13 +27,13 @@ public class ContextDataResource {
 
     @Authenticated
     @Mutation("saveContextData")
-    public @NonNull ContextDataEntity savePricingRule(ContextDataSaveRequest request) {
+    public @NonNull ContextDataEntity saveContextData(ContextDataSaveRequest request) {
         return contextDataRepository.save(request.id(), request.toAvro());
     }
 
     @Authenticated
     @Mutation("deleteContextData")
-    public ContextDataEntity deletePricingRule(ContextDataDeleteRequest request) {
+    public ContextDataEntity deleteContextData(ContextDataDeleteRequest request) {
         return contextDataRepository.deleteContext(request.id());
     }
 }
