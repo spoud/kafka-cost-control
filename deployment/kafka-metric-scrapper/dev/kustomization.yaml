@@ -1,6 +1,7 @@
 kind: Kustomization
 resources:
   - ../base
+  - scraper.yaml
 
 namespace: kafka-cost-control-mgb-qual
 
@@ -14,3 +15,8 @@ secretGenerator:
   - name: kafka-cost-control-scraper-secret
     envs:
       - .env-scraper
+
+configMapGenerator:
+  - name: telegraf-config
+    files:
+      - telegraf-config.toml
