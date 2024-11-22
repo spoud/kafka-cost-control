@@ -28,13 +28,12 @@ import org.apache.avro.generic.GenericData;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
@@ -45,7 +44,7 @@ import static org.assertj.core.api.Assertions.fail;
 @TestProfile(DefaultTestProfile.class)
 @QuarkusTestResource(KafkaCompanionResource.class)
 @QuarkusTest
-class KafkaTopicReconcilerTest {
+class OperatorTest {
     @Inject
     KubernetesClient client;
 
@@ -57,6 +56,9 @@ class KafkaTopicReconcilerTest {
 
     @Inject
     KafkaTopicReconciler topicReconciler;
+
+    @Inject
+    KafkaUserReconciler userReconciler;
 
     @Inject
     CacheManager cacheManager;
@@ -81,31 +83,31 @@ class KafkaTopicReconcilerTest {
         final String GROUP_KEY = config.contextAnnotationPrefix() + config.userIdContextAnnotation();
 
         // create some topics
-        addKafkaTopic(TOPIC_NAME, TOPIC_APP);
-        addKafkaTopic(HIDDEN_TOPIC_NAME, TOPIC_APP);
+        addKafkaTopic(getTopicInstance(TOPIC_NAME, TOPIC_APP));
+        addKafkaTopic(getTopicInstance(HIDDEN_TOPIC_NAME, TOPIC_APP));
         // create a KafkaUser resource with permission to read from the topic
-        addUserWithPermissions("my-reader", Map.of(GROUP_KEY, GROUP_READER), AclResourcePatternType.LITERAL,
+        addKafkaUser(getUserInstance("my-reader", Map.of(GROUP_KEY, GROUP_READER), AclResourcePatternType.LITERAL,
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
+                List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE)));
         // create a KafkaUser resource only with permission to write to the topic (no read permission)
-        addUserWithPermissions("my-writer", Map.of(GROUP_KEY, GROUP_WRITER), AclResourcePatternType.LITERAL,
+        addKafkaUser(getUserInstance("my-writer", Map.of(GROUP_KEY, GROUP_WRITER), AclResourcePatternType.LITERAL,
                 TOPIC_NAME, List.of(AclOperation.WRITE, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.READ, AclOperation.ALTER, AclOperation.DELETE));
+                List.of(AclOperation.READ, AclOperation.ALTER, AclOperation.DELETE)));
         // create kafka user only with permissions to describe the topic (no read/write permission)
-        addUserWithPermissions("my-describer", Map.of(GROUP_KEY, GROUP_DESCRIBER), AclResourcePatternType.PREFIX,
+        addKafkaUser(getUserInstance("my-describer", Map.of(GROUP_KEY, GROUP_DESCRIBER), AclResourcePatternType.PREFIX,
                 TOPIC_NAME, List.of(AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.DELETE));
+                List.of(AclOperation.DELETE)));
         // create kafka user with all permissions
-        addUserWithPermissions("my-admin", Map.of(GROUP_KEY, GROUP_ADMIN), AclResourcePatternType.PREFIX,
+        addKafkaUser(getUserInstance("my-admin", Map.of(GROUP_KEY, GROUP_ADMIN), AclResourcePatternType.PREFIX,
                 TOPIC_NAME, List.of(AclOperation.ALL),
-                List.of());
+                List.of()));
         // create kafka users with no permissions
-        addUserWithPermissions("dummy", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
+        addKafkaUser(getUserInstance("dummy", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
                 TOPIC_NAME, List.of(AclOperation.READ), // even though read is allowed, the deny ALL rule should take precedence
-                List.of(AclOperation.ALL));
-        addUserWithPermissions("dummy2", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
+                List.of(AclOperation.ALL)));
+        addKafkaUser(getUserInstance("dummy2", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
                 TOPIC_NAME, List.of(AclOperation.READ), // even though read is allowed, the deny READ rule should take precedence
-                List.of(AclOperation.READ));
+                List.of(AclOperation.READ)));
 
         // invalidate all caches
         cacheManager.getCacheNames().stream()
@@ -115,7 +117,43 @@ class KafkaTopicReconcilerTest {
     }
 
     @Test
-    void reconcileAllResources() {
+    @DisplayName("Test that a KafkaUser reconciliation triggers reconciliation of all topics")
+    void testUserChangeTriggersTopicReconciliation() throws Exception {
+        var username = "another-reader";
+        var anotherGroup = UUID.randomUUID().toString();
+        var annotations = Map.of(config.contextAnnotationPrefix() + config.userIdContextAnnotation(), anotherGroup);
+        var user = getUserInstance(username, annotations, AclResourcePatternType.LITERAL,
+                TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
+                List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
+        addKafkaUser(user);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(1000); // wait for the consumer to be ready
+                userReconciler.reconcile(user, Mockito.mock(Context.class));
+            } catch (Exception e) {
+                fail(e);
+            }
+        });
+
+        // make sure that both topics are reconciled
+        var records = kafkaCompanion.consumeWithDeserializers(
+                        StringDeserializer.class, KafkaAvroDeserializer.class
+                ).fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
+                .getRecords();
+
+        // make sure that the context of TOPIC_NAME now contains a new reader
+        var record = records.stream()
+                .filter(r -> TOPIC_NAME.equals(((GenericData.Record) r.value()).get("regex")))
+                .findFirst()
+                .orElseThrow();
+        assertThatContextRecordMatchesTopic(record, getTopicInstance(TOPIC_NAME, TOPIC_APP),
+                List.of(GROUP_ADMIN, GROUP_READER, anotherGroup), List.of(GROUP_ADMIN, GROUP_WRITER));
+    }
+
+    @Test
+    @DisplayName("Test that a KafkaTopic reconciliation produces a context for each topic")
+    void testReconcileAllTopics() {
         kafkaCompanion.setCommonClientConfig(Map.of("auto.offset.reset", "latest"));
 
         CompletableFuture.runAsync(() -> {
@@ -135,7 +173,8 @@ class KafkaTopicReconcilerTest {
     }
 
     @Test
-    void reconcile() throws Exception {
+    @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
+    void testReconcileSingleTopic() throws Exception {
         var context = Mockito.mock(Context.class);
         Mockito.when(context.getClient()).thenReturn(client);
         kafkaCompanion.setCommonClientConfig(Map.of("auto.offset.reset", "latest"));
@@ -143,7 +182,7 @@ class KafkaTopicReconcilerTest {
         CompletableFuture.runAsync(() -> {
             try {
                 Thread.sleep(1000); // wait for the consumer to be ready
-                topicReconciler.reconcile(createKafkaTopic(TOPIC_NAME, TOPIC_APP), context);
+                topicReconciler.reconcile(getTopicInstance(TOPIC_NAME, TOPIC_APP), context);
             } catch (Exception e) {
                 fail(e);
             }
@@ -154,7 +193,7 @@ class KafkaTopicReconcilerTest {
                 ).fromTopics(config.contextDataTopic()).awaitNextRecord(Duration.ofSeconds(5))
                 .getFirstRecord();
 
-        assertThatContextRecordMatchesTopic(record, createKafkaTopic(TOPIC_NAME, TOPIC_APP),
+        assertThatContextRecordMatchesTopic(record, getTopicInstance(TOPIC_NAME, TOPIC_APP),
                 List.of(GROUP_ADMIN, GROUP_READER), List.of(GROUP_ADMIN, GROUP_WRITER));
     }
 
@@ -171,55 +210,56 @@ class KafkaTopicReconcilerTest {
         assertThat(ctx.get(TOPIC_APP_KEY)).isEqualTo(TOPIC_APP);
     }
 
-    void addUserWithPermissions(String username,
-                                Map<String, String> annotations, AclResourcePatternType patternType,
-                                String resourceName, List<AclOperation> allowedOperations,
-                                List<AclOperation> deniedOperations) {
+    void addKafkaUser(KafkaUser u) {
         client.resources(KafkaUser.class)
                 .inNamespace(config.namespace())
-                .resource(new KafkaUserBuilder()
-                        .withNewMetadata()
-                        .withName(username)
-                        .withAnnotations(annotations)
-                        .endMetadata()
-                        .withNewSpec()
-                        .withAuthorization(
-                                new KafkaUserAuthorizationSimpleBuilder()
-                                        .addNewAcl()
-                                        .withOperations(allowedOperations)
-                                        .withType(AclRuleType.ALLOW)
-                                        .withResource(
-                                                new AclRuleTopicResourceBuilder()
-                                                        .withPatternType(patternType)
-                                                        .withName(resourceName)
-                                                        .build()
-                                        )
-                                        .endAcl()
-                                        .addNewAcl()
-                                        .withOperations(deniedOperations)
-                                        .withType(AclRuleType.DENY)
-                                        .withResource(
-                                                new AclRuleTopicResourceBuilder()
-                                                        .withPatternType(patternType)
-                                                        .withName(resourceName)
-                                                        .build()
-                                        )
-                                        .endAcl()
-                                        .build()
-                        )
-                        .endSpec()
-                        .build()
-                ).createOr(NonDeletingOperation::update);
+                .resource(u).createOr(NonDeletingOperation::update);
     }
 
-    void addKafkaTopic(String topicName, String appName) {
+    KafkaUser getUserInstance(String username, Map<String, String> annotations, AclResourcePatternType patternType,
+                              String resourceName, List<AclOperation> allowedOperations, List<AclOperation> deniedOperations) {
+        return new KafkaUserBuilder()
+                .withNewMetadata()
+                .withName(username)
+                .withAnnotations(annotations)
+                .endMetadata()
+                .withNewSpec()
+                .withAuthorization(
+                        new KafkaUserAuthorizationSimpleBuilder()
+                                .addNewAcl()
+                                .withOperations(allowedOperations)
+                                .withType(AclRuleType.ALLOW)
+                                .withResource(
+                                        new AclRuleTopicResourceBuilder()
+                                                .withPatternType(patternType)
+                                                .withName(resourceName)
+                                                .build()
+                                )
+                                .endAcl()
+                                .addNewAcl()
+                                .withOperations(deniedOperations)
+                                .withType(AclRuleType.DENY)
+                                .withResource(
+                                        new AclRuleTopicResourceBuilder()
+                                                .withPatternType(patternType)
+                                                .withName(resourceName)
+                                                .build()
+                                )
+                                .endAcl()
+                                .build()
+                )
+                .endSpec()
+                .build();
+    }
+
+    void addKafkaTopic(KafkaTopic t) {
         client.resources(KafkaTopic.class)
                 .inNamespace(config.namespace())
-                .resource(createKafkaTopic(topicName, appName))
+                .resource(t)
                 .createOr(NonDeletingOperation::update);
     }
 
-    KafkaTopic createKafkaTopic(String topicName, String appName) {
+    KafkaTopic getTopicInstance(String topicName, String appName) {
         return new KafkaTopicBuilder()
                 .withNewMetadata()
                 .withName(topicName)
