@@ -17,6 +17,7 @@ import java.time.Instant;
 
 @ApplicationScoped
 public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
+    public static final String CONTEXT_CHANNEL = "context-data-out";
 
     private final KubernetesClient client;
     private final ContextExtractor contextExtractor;
@@ -26,7 +27,7 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
     public KafkaTopicReconciler(KubernetesClient client,
                                 ContextExtractor contextExtractor,
                                 OperatorConfig config,
-                                @Channel("context-data-out") Emitter<Record<String, ContextData>> contextEmitter) {
+                                @Channel(CONTEXT_CHANNEL) Emitter<Record<String, ContextData>> contextEmitter) {
         this.client = client;
         this.config = config;
         this.contextExtractor = contextExtractor;
