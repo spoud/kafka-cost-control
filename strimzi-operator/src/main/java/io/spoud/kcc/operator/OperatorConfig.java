@@ -3,8 +3,9 @@ package io.spoud.kcc.operator;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
+import jakarta.validation.constraints.NotBlank;
 
-@ConfigMapping(prefix = "kcc.strimzi.operator")
+@ConfigMapping(prefix = "cc.strimzi.operator")
 public interface OperatorConfig {
     /**
      * Namespace where the operator watches for resources.
@@ -50,4 +51,12 @@ public interface OperatorConfig {
     @WithName("readers-context-key")
     @WithDefault("readers")
     String readersContextKey();
+
+    /**
+     * Topic to which context data is published. Should be the same topic
+     * as the one consumed by the Aggregator service (the Kafka Streams app)
+     */
+    @WithName("topics.context-data")
+    @NotBlank
+    String contextDataTopic();
 }

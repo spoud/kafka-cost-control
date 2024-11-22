@@ -1,0 +1,53 @@
+cc:
+  strimzi:
+    operator:
+      topics:
+        context-data: context-data
+
+quarkus:
+  http:
+    port: 8090
+  # jandex indexing for external dependencies
+  index-dependency:
+    strimzi:
+      group-id: io.strimzi
+      artifact-id: api
+  # watch only the namespace where kafka resources are deployed
+  operator-sdk:
+    namespaces: ${cc.strimzi.operator.namespace}
+    # reconcile when annotations change
+    generation-aware: false
+    crd:
+      # no need to apply CRDs, expect that Strimzi is already installed
+      apply: false
+  container-image:
+    build: true
+
+avro:
+  codegen:
+    avsc:
+      imports: entity-type-enum.avsc
+
+kafka:
+  schema:
+    registry:
+
+mp:
+  messaging:
+    connector:
+      smallrye-kafka:
+        schema:
+          registry:
+
+    outgoing:
+      context-data-out:
+        connector: smallrye-kafka
+        topic: ${cc.strimzi.operator.topics.context-data}
+        value:
+          serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+        key:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+        apicurio:
+          registry:
+            auto:
+              register: true
