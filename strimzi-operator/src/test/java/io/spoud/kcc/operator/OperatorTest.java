@@ -126,7 +126,6 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaUser reconciliation triggers reconciliation of all topics")
-    @Order(1)
     void testUserChangeTriggersTopicReconciliation() throws Exception {
         var username = "another-reader";
         var anotherGroup = UUID.randomUUID().toString();
@@ -155,7 +154,6 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces a context for each topic")
-    @Order(2)
     void testReconcileAllTopics() {
         delayedAsyncRun(topicReconciler::reconcileAllTopics);
 
@@ -169,7 +167,6 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
-    @Order(0)
     void testReconcileSingleTopic() throws Exception {
         var topicToReconcile = getTopicInstance(TOPIC_NAME, TOPIC_APP);
         delayedAsyncRun(() -> topicReconciler.reconcile(topicToReconcile, Mockito.mock(Context.class)));
