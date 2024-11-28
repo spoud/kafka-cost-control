@@ -21,7 +21,7 @@ public class KafkaUserReconciler implements Reconciler<KafkaUser> {
     @Override
     @CacheInvalidateAll(cacheName = CACHE_NAME) // Invalidate the cache of KafkaUserRepository
     public UpdateControl<KafkaUser> reconcile(KafkaUser kafkaUser, Context<KafkaUser> context) throws Exception {
-        kafkaTopicReconciler.reconcileAllResources(); // regenerate contexts since user permissions may have changed
+        kafkaTopicReconciler.reconcileAllTopics(); // regenerate contexts since user permissions may have changed
         return UpdateControl.noUpdate();
     }
 }

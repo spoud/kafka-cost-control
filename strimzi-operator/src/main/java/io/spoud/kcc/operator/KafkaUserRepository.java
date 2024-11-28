@@ -19,6 +19,14 @@ public class KafkaUserRepository {
         this.config = config;
     }
 
+    /**
+     * Get all Kafka users in the configured namespace. See {@link OperatorConfig#namespace()} for the namespace
+     * that will be used. To avoid unnecessary calls to the Kubernetes API, the result is cached.
+     * The cache is supposed to be invalidated whenever a KafkaUser resource is created, updated or deleted.
+     * See {@link KafkaUserReconciler} for the cache invalidation.
+     *
+     * @return a collection of KafkaUser resources
+     */
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
         return client.resources(KafkaUser.class).inNamespace(config.namespace()).list().getItems();

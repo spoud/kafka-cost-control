@@ -34,7 +34,7 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
         this.contextEmitter = contextEmitter;
     }
 
-    private void reconcileSingleResource(KafkaTopic t) {
+    private void reconcileSingleTopic(KafkaTopic t) {
         var context = contextExtractor.getContextOfTopic(t);
         Log.debugv("Resource context: {0}", context);
         // publish the context to a Kafka topic
@@ -54,17 +54,20 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
         });
     }
 
-    public void reconcileAllResources() {
+    /**
+     * Recalculate and publish contexts for all Kafka topics.
+     */
+    public void reconcileAllTopics() {
         client.resources(KafkaTopic.class)
                 .inNamespace(config.namespace())
                 .list()
                 .getItems()
-                .forEach(this::reconcileSingleResource);
+                .forEach(this::reconcileSingleTopic);
     }
 
     @Override
     public UpdateControl<KafkaTopic> reconcile(KafkaTopic t, Context<KafkaTopic> context) throws Exception {
-        reconcileSingleResource(t);
+        reconcileSingleTopic(t);
         return UpdateControl.noUpdate();
     }
 }

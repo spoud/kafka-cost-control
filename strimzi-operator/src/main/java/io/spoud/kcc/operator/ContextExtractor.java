@@ -18,6 +18,14 @@ public class ContextExtractor {
         this.config = config;
     }
 
+    /**
+     * Collect context information from arbitrary Kubernetes resources by looking at annotations.
+     * The context is extracted from annotations that start with the configured context annotation prefix.
+     * See {@link OperatorConfig#contextAnnotationPrefix()}.
+     *
+     * @param resource the Kubernetes resource
+     * @return a map of context key-value pairs
+     */
     public Map<String, String> getContextOfResource(HasMetadata resource) {
         // iterate over all annotations of a resource (e.g. KafkaTopic) and extract the annotations that start with "spoud.io/kcc-context."
         // The key of the annotation is the context key and the value is the context value.
@@ -32,6 +40,16 @@ public class ContextExtractor {
         return context;
     }
 
+    /**
+     * Collect context information from a KafkaTopic resource as well as from Kafka users that have access to the topic.
+     * The context is extracted from annotations that start with the configured context annotation prefix.
+     * See {@link OperatorConfig#contextAnnotationPrefix()}. Certain context keys are reserved for the list of readers and writers.
+     * See {@link OperatorConfig#readersContextKey()} and {@link OperatorConfig#writersContextKey()}.
+     * These keys are populated by reading the context of Kafka users that have access to the topic.
+     *
+     * @param topic the KafkaTopic resource
+     * @return a map of context key-value pairs
+     */
     public Map<String, String> getContextOfTopic(KafkaTopic topic) {
         var topicName = topic.getMetadata().getName();
         var context = getContextOfResource(topic);

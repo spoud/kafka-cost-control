@@ -159,7 +159,7 @@ class OperatorTest {
         CompletableFuture.runAsync(() -> {
             try {
                 Thread.sleep(1000); // wait for the consumer to be ready
-                topicReconciler.reconcileAllResources();
+                topicReconciler.reconcileAllTopics();
             } catch (Exception e) {
                 fail(e);
             }
