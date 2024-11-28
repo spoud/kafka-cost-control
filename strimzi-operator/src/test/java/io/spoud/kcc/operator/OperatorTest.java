@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.cache.Cache;
 import io.quarkus.cache.CacheManager;
+import io.quarkus.logging.Log;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -35,12 +36,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 @WithKubernetesTestServer(port = 64444)
 @TestProfile(DefaultTestProfile.class)
@@ -117,11 +119,13 @@ class OperatorTest {
                 .flatMap(Optional::stream)
                 .forEach(Cache::invalidateAll);
 
-        // wipe the topic
-        if (kafkaCompanion.topics().list().contains(config.contextDataTopic())) {
-            kafkaCompanion.topics().clear(config.contextDataTopic());
-        } else {
-            kafkaCompanion.topics().create(config.contextDataTopic(), 1);
+        // wipe the topic if it exists
+        try {
+            if (kafkaCompanion.topics().list().contains(config.contextDataTopic())) {
+                kafkaCompanion.topics().clear(config.contextDataTopic());
+            }
+        } catch (Exception e) {
+            Log.warn("Failed to clear the topic", e);
         }
     }
 
