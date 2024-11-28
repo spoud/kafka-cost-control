@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.cache.Cache;
 import io.quarkus.cache.CacheManager;
+import io.quarkus.logging.Log;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -120,6 +121,8 @@ class OperatorTest {
                 .map(cacheManager::getCache)
                 .flatMap(Optional::stream)
                 .forEach(Cache::invalidateAll);
+
+        kafkaCompanion.setCommonClientConfig(Map.of("auto.offset.reset", "latest"));
     }
 
     @Test
@@ -138,7 +141,6 @@ class OperatorTest {
         var records = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
                 )
-                .withOffsetReset(OffsetResetStrategy.LATEST)
                 .fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
                 .getRecords();
 
@@ -160,7 +162,6 @@ class OperatorTest {
         kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
                 )
-                .withOffsetReset(OffsetResetStrategy.LATEST)
                 .fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
                 .getRecords();
     }
@@ -168,16 +169,16 @@ class OperatorTest {
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
     void testReconcileSingleTopic() throws Exception {
-        delayedAsyncRun(() -> topicReconciler.reconcile(getTopicInstance(TOPIC_NAME, TOPIC_APP), Mockito.mock(Context.class)));
+        var topicToReconcile = getTopicInstance(TOPIC_NAME, TOPIC_APP);
+        delayedAsyncRun(() -> topicReconciler.reconcile(topicToReconcile, Mockito.mock(Context.class)));
 
         var record = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
                 )
-                .withOffsetReset(OffsetResetStrategy.LATEST)
                 .fromTopics(config.contextDataTopic()).awaitNextRecord(Duration.ofSeconds(5))
                 .getFirstRecord();
 
-        assertThatContextRecordMatchesTopic(record, getTopicInstance(TOPIC_NAME, TOPIC_APP),
+        assertThatContextRecordMatchesTopic(record, topicToReconcile,
                 List.of(GROUP_ADMIN, GROUP_READER), List.of(GROUP_ADMIN, GROUP_WRITER));
     }
 
@@ -186,6 +187,9 @@ class OperatorTest {
         assertThat(record.value()).isInstanceOf(GenericData.Record.class);
         var value = (GenericData.Record) record.value();
         var ctx = (Map<String, String>) value.get("context");
+
+        Log.infov("Received Context: ", ctx);
+        Log.infov("Regex: ", value.get("regex"));
 
         assertThat(topic.getMetadata().getName()).matches(Pattern.compile((String) value.get("regex")));
         assertThat(value.get("entityType").toString()).isEqualTo("TOPIC");
