@@ -122,7 +122,7 @@ class OperatorTest {
         // wipe the topic if it exists
         try {
             if (kafkaCompanion.topics().list().contains(config.contextDataTopic())) {
-                kafkaCompanion.topics().clear(config.contextDataTopic());
+                kafkaCompanion.topics().delete(config.contextDataTopic());
             }
         } catch (Exception e) {
             Log.warn("Failed to clear the topic", e);
