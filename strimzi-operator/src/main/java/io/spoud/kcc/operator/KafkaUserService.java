@@ -15,12 +15,25 @@ public class KafkaUserService {
         this.kafkaUserRepository = kafkaUserRepository;
     }
 
+    /**
+     * Get all Kafka users that have ACLs allowing them to read from the given topic.
+     * Considers both literal and prefix ACLs.
+     *
+     * @param topicName the name of the topic
+     * @return the Kafka users that have read access to the topic
+     */
     public Collection<KafkaUser> getReadersOfTopic(String topicName) {
         return kafkaUserRepository.getAllUsers().stream()
                 .filter(user -> canPerformOperationOnTopic(user, AclOperation.READ, topicName))
                 .toList();
     }
 
+    /**
+     * Get all Kafka users that have ACLs allowing them to write to the given topic.
+     * Considers both literal and prefix ACLs.
+     * @param topicName the name of the topic
+     * @return the Kafka users that have write access to the topic
+     */
     public Collection<KafkaUser> getWritersOfTopic(String topicName) {
         return kafkaUserRepository.getAllUsers().stream()
                 .filter(user -> canPerformOperationOnTopic(user, AclOperation.WRITE, topicName))
@@ -39,14 +52,17 @@ public class KafkaUserService {
 
     private Collection<AclRule> getRulesForTopicName(Collection<AclRule> rules, String topicName) {
         return rules.stream()
-                .filter(rule -> ruleAppliesTopic(rule, topicName))
+                .filter(rule -> ruleAppliesToTopic(rule, topicName))
                 .toList();
     }
 
-    private boolean ruleAppliesTopic(AclRule rule, String topicName) {
+    private boolean ruleAppliesToTopic(AclRule rule, String topicName) {
         if (rule.getResource().getType().equals(AclRuleTopicResource.TYPE_TOPIC) && rule.getResource() instanceof AclRuleTopicResource res) {
-            if (res.getPatternType() == AclResourcePatternType.PREFIX && topicName.startsWith(res.getName())) {
-                return true;
+            if (res.getName().equals("*")) {
+                return true; // wildcard rules apply to all topics
+            }
+            if (res.getPatternType() == AclResourcePatternType.PREFIX) {
+                return topicName.startsWith(res.getName());
             }
             return res.getPatternType() == AclResourcePatternType.LITERAL && res.getName().equals(topicName);
         }

@@ -99,7 +99,7 @@ class OperatorTest {
                 List.of(AclOperation.DELETE)));
         // create kafka user with all permissions
         addKafkaUser(getUserInstance("my-admin", Map.of(GROUP_KEY, GROUP_ADMIN), AclResourcePatternType.PREFIX,
-                TOPIC_NAME, List.of(AclOperation.ALL),
+                "*", List.of(AclOperation.ALL),
                 List.of()));
         // create kafka users with no permissions
         addKafkaUser(getUserInstance("dummy", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
