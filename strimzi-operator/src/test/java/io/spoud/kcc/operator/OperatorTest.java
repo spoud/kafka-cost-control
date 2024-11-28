@@ -14,6 +14,8 @@ import io.quarkus.test.kafka.InjectKafkaCompanion;
 import io.quarkus.test.kafka.KafkaCompanionResource;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import io.smallrye.reactive.messaging.kafka.companion.KafkaCompanion;
+import io.spoud.kcc.operator.topics.KafkaTopicReconciler;
+import io.spoud.kcc.operator.users.KafkaUserReconciler;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
 import io.strimzi.api.kafka.model.user.KafkaUser;
@@ -114,6 +116,13 @@ class OperatorTest {
                 .map(cacheManager::getCache)
                 .flatMap(Optional::stream)
                 .forEach(Cache::invalidateAll);
+
+        // wipe the topic
+        if (kafkaCompanion.topics().list().contains(config.contextDataTopic())) {
+            kafkaCompanion.topics().clear(config.contextDataTopic());
+        } else {
+            kafkaCompanion.topics().create(config.contextDataTopic(), 1);
+        }
     }
 
     @Test
@@ -127,14 +136,7 @@ class OperatorTest {
                 List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
         addKafkaUser(user);
 
-        CompletableFuture.runAsync(() -> {
-            try {
-                Thread.sleep(1000); // wait for the consumer to be ready
-                userReconciler.reconcile(user, Mockito.mock(Context.class));
-            } catch (Exception e) {
-                fail(e);
-            }
-        });
+        userReconciler.reconcile(user, Mockito.mock(Context.class));
 
         // make sure that both topics are reconciled
         var records = kafkaCompanion.consumeWithDeserializers(
@@ -154,16 +156,7 @@ class OperatorTest {
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces a context for each topic")
     void testReconcileAllTopics() {
-        kafkaCompanion.setCommonClientConfig(Map.of("auto.offset.reset", "latest"));
-
-        CompletableFuture.runAsync(() -> {
-            try {
-                Thread.sleep(1000); // wait for the consumer to be ready
-                topicReconciler.reconcileAllTopics();
-            } catch (Exception e) {
-                fail(e);
-            }
-        });
+        topicReconciler.reconcileAllTopics();
 
         // just make sure that the amount of records is correct, for a more detailed dive into the records see the other tests
         kafkaCompanion.consumeWithDeserializers(
@@ -175,18 +168,7 @@ class OperatorTest {
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
     void testReconcileSingleTopic() throws Exception {
-        var context = Mockito.mock(Context.class);
-        Mockito.when(context.getClient()).thenReturn(client);
-        kafkaCompanion.setCommonClientConfig(Map.of("auto.offset.reset", "latest"));
-
-        CompletableFuture.runAsync(() -> {
-            try {
-                Thread.sleep(1000); // wait for the consumer to be ready
-                topicReconciler.reconcile(getTopicInstance(TOPIC_NAME, TOPIC_APP), context);
-            } catch (Exception e) {
-                fail(e);
-            }
-        });
+        topicReconciler.reconcile(getTopicInstance(TOPIC_NAME, TOPIC_APP), Mockito.mock(Context.class));
 
         var record = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
@@ -203,11 +185,11 @@ class OperatorTest {
         var value = (GenericData.Record) record.value();
         var ctx = (Map<String, String>) value.get("context");
 
-        assertThat(TOPIC_NAME).matches(Pattern.compile((String) value.get("regex")));
+        assertThat(topic.getMetadata().getName()).matches(Pattern.compile((String) value.get("regex")));
         assertThat(value.get("entityType").toString()).isEqualTo("TOPIC");
         assertThat(ctx.get(config.writersContextKey()).split(",")).containsExactlyInAnyOrder(expectedWriters.toArray(new String[0]));
         assertThat(ctx.get(config.readersContextKey()).split(",")).containsExactlyInAnyOrder(expectedReaders.toArray(new String[0]));
-        assertThat(ctx.get(TOPIC_APP_KEY)).isEqualTo(TOPIC_APP);
+        assertThat(ctx.get(TOPIC_APP_KEY)).isEqualTo(topic.getMetadata().getAnnotations().get(config.contextAnnotationPrefix() + TOPIC_APP_KEY));
     }
 
     void addKafkaUser(KafkaUser u) {

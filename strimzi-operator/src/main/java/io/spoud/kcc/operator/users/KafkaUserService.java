@@ -1,4 +1,4 @@
-package io.spoud.kcc.operator;
+package io.spoud.kcc.operator.users;
 
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import io.strimzi.api.kafka.model.user.KafkaUserAuthorizationSimple;

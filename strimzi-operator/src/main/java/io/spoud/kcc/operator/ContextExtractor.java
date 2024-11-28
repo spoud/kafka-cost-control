@@ -1,6 +1,7 @@
 package io.spoud.kcc.operator;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.spoud.kcc.operator.users.KafkaUserService;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 

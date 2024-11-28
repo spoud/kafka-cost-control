@@ -1,7 +1,8 @@
-package io.spoud.kcc.operator;
+package io.spoud.kcc.operator.users;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.cache.CacheResult;
+import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
 

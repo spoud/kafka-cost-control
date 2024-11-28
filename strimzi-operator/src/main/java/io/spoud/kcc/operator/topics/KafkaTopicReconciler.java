@@ -1,4 +1,4 @@
-package io.spoud.kcc.operator;
+package io.spoud.kcc.operator.topics;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -8,6 +8,8 @@ import io.quarkus.logging.Log;
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.EntityType;
+import io.spoud.kcc.operator.ContextExtractor;
+import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Channel;
