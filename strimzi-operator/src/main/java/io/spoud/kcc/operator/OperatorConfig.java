@@ -11,12 +11,14 @@ public interface OperatorConfig {
      * Namespace where the operator watches for resources.
      */
     @WithDefault("kafka")
+    @NotBlank
     String namespace();
 
     /**
      * Prefix for annotations that are used to store context data that will be used to generate topic contexts.
      */
     @WithDefault("spoud.io/kcc-context.")
+    @NotBlank
     String contextAnnotationPrefix();
 
     /**
@@ -28,6 +30,7 @@ public interface OperatorConfig {
      */
     @WithName("user-group-key")
     @WithDefault("application")
+    @NotBlank
     String userIdContextAnnotation();
 
     /**
@@ -43,6 +46,7 @@ public interface OperatorConfig {
      */
     @WithName("writers-context-key")
     @WithDefault("writers")
+    @NotBlank
     String writersContextKey();
 
     /**
@@ -50,6 +54,7 @@ public interface OperatorConfig {
      */
     @WithName("readers-context-key")
     @WithDefault("readers")
+    @NotBlank
     String readersContextKey();
 
     /**
