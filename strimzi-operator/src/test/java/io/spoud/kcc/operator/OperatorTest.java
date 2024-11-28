@@ -7,7 +7,6 @@ import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.cache.Cache;
 import io.quarkus.cache.CacheManager;
-import io.quarkus.logging.Log;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -29,6 +28,7 @@ import io.strimzi.api.kafka.model.user.acl.AclRuleType;
 import jakarta.inject.Inject;
 import org.apache.avro.generic.GenericData;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,9 +40,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @WithKubernetesTestServer(port = 64444)
 @TestProfile(DefaultTestProfile.class)
@@ -118,15 +120,6 @@ class OperatorTest {
                 .map(cacheManager::getCache)
                 .flatMap(Optional::stream)
                 .forEach(Cache::invalidateAll);
-
-        // wipe the topic if it exists
-        try {
-            if (kafkaCompanion.topics().list().contains(config.contextDataTopic())) {
-                kafkaCompanion.topics().delete(config.contextDataTopic());
-            }
-        } catch (Exception e) {
-            Log.warn("Failed to clear the topic", e);
-        }
     }
 
     @Test
@@ -139,13 +132,14 @@ class OperatorTest {
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
                 List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
         addKafkaUser(user);
-
-        userReconciler.reconcile(user, Mockito.mock(Context.class));
+        delayedAsyncRun(() -> userReconciler.reconcile(user, Mockito.mock(Context.class)));
 
         // make sure that both topics are reconciled
         var records = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
-                ).fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
+                )
+                .withOffsetReset(OffsetResetStrategy.LATEST)
+                .fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
                 .getRecords();
 
         // make sure that the context of TOPIC_NAME now contains a new reader
@@ -160,23 +154,27 @@ class OperatorTest {
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces a context for each topic")
     void testReconcileAllTopics() {
-        topicReconciler.reconcileAllTopics();
+        delayedAsyncRun(topicReconciler::reconcileAllTopics);
 
         // just make sure that the amount of records is correct, for a more detailed dive into the records see the other tests
         kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
-                ).fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
+                )
+                .withOffsetReset(OffsetResetStrategy.LATEST)
+                .fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
                 .getRecords();
     }
 
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
     void testReconcileSingleTopic() throws Exception {
-        topicReconciler.reconcile(getTopicInstance(TOPIC_NAME, TOPIC_APP), Mockito.mock(Context.class));
+        delayedAsyncRun(() -> topicReconciler.reconcile(getTopicInstance(TOPIC_NAME, TOPIC_APP), Mockito.mock(Context.class)));
 
         var record = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
-                ).fromTopics(config.contextDataTopic()).awaitNextRecord(Duration.ofSeconds(5))
+                )
+                .withOffsetReset(OffsetResetStrategy.LATEST)
+                .fromTopics(config.contextDataTopic()).awaitNextRecord(Duration.ofSeconds(5))
                 .getFirstRecord();
 
         assertThatContextRecordMatchesTopic(record, getTopicInstance(TOPIC_NAME, TOPIC_APP),
@@ -258,5 +256,21 @@ class OperatorTest {
                 .withReplicas(1)
                 .endSpec()
                 .build();
+    }
+
+    public interface ThrowableRunnable {
+        void run() throws Exception;
+    }
+
+    private void delayedAsyncRun(ThrowableRunnable r) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(1000); // give downstream code some time to prepare
+                r.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+                fail(e);
+            }
+        });
     }
 }
