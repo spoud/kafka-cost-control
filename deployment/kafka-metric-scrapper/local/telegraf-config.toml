@@ -23,6 +23,7 @@
     monitor_kubernetes_pods_scheme = "http"
     monitor_kubernetes_pods_port = 9404
     monitor_kubernetes_pods_path = "/metrics"
+    monitor_kubernetes_pods_namespace = "kafka"
     kubernetes_label_selector = "strimzi.io/kind=Kafka,strimzi.io/broker-role=true"
     timeout = "10s"
     response_timeout = "10s"
