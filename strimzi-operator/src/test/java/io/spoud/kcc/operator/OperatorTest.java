@@ -29,12 +29,9 @@ import io.strimzi.api.kafka.model.user.acl.AclRuleType;
 import jakarta.inject.Inject;
 import org.apache.avro.generic.GenericData;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
+import org.jboss.logmanager.MDC;
+import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
 
 import java.time.Duration;
@@ -52,6 +49,7 @@ import static org.assertj.core.api.Assertions.fail;
 @TestProfile(DefaultTestProfile.class)
 @QuarkusTestResource(KafkaCompanionResource.class)
 @QuarkusTest
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OperatorTest {
     @Inject
     KubernetesClient client;
@@ -75,8 +73,6 @@ class OperatorTest {
     final String TOPIC_APP = "test-app";
     final String TOPIC_APP_KEY = "application";
 
-    final String HIDDEN_TOPIC_NAME = "hidden-topic";
-
     final String GROUP_READER = "monitoring-stack";
     final String GROUP_WRITER = "audit-log";
     final String GROUP_DESCRIBER = "topic-monitor";
@@ -84,7 +80,9 @@ class OperatorTest {
     final String GROUP_DUMMY = "dummy";
 
     @BeforeEach
-    public void setupKubernetesResources() {
+    public void setupKubernetesResources(TestInfo ti) {
+        MDC.put("testName", ti.getTestMethod().get().getName());
+
         NamespaceBuilder builder = new NamespaceBuilder()
                 .withNewMetadata().withName(config.namespace()).endMetadata();
         client.namespaces().resource(builder.build()).createOr(NonDeletingOperation::update);
@@ -92,7 +90,7 @@ class OperatorTest {
 
         // create some topics
         addKafkaTopic(getTopicInstance(TOPIC_NAME, TOPIC_APP));
-        addKafkaTopic(getTopicInstance(HIDDEN_TOPIC_NAME, TOPIC_APP));
+        addKafkaTopic(getTopicInstance("hidden-topic", TOPIC_APP));
         // create a KafkaUser resource with permission to read from the topic
         addKafkaUser(getUserInstance("my-reader", Map.of(GROUP_KEY, GROUP_READER), AclResourcePatternType.LITERAL,
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
@@ -171,7 +169,7 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
-    @Order(3)
+    @Order(0)
     void testReconcileSingleTopic() throws Exception {
         var topicToReconcile = getTopicInstance(TOPIC_NAME, TOPIC_APP);
         delayedAsyncRun(() -> topicReconciler.reconcile(topicToReconcile, Mockito.mock(Context.class)));
@@ -179,8 +177,11 @@ class OperatorTest {
         var record = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
                 )
-                .fromTopics(config.contextDataTopic()).awaitNextRecord(Duration.ofSeconds(5))
-                .getFirstRecord();
+                .withProp("auto.offset.reset", "latest")
+                .withAutoCommit()
+                .fromTopics(config.contextDataTopic())
+                .awaitNextRecord(Duration.ofSeconds(5))
+                .getLastRecord();
 
         assertThatContextRecordMatchesTopic(record, topicToReconcile,
                 List.of(GROUP_ADMIN, GROUP_READER), List.of(GROUP_ADMIN, GROUP_WRITER));
