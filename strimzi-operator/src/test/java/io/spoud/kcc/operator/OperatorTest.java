@@ -33,6 +33,7 @@ import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -127,6 +128,7 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaUser reconciliation triggers reconciliation of all topics")
+    @Order(1)
     void testUserChangeTriggersTopicReconciliation() throws Exception {
         var username = "another-reader";
         var anotherGroup = UUID.randomUUID().toString();
@@ -155,6 +157,7 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces a context for each topic")
+    @Order(2)
     void testReconcileAllTopics() {
         delayedAsyncRun(topicReconciler::reconcileAllTopics);
 
@@ -168,6 +171,7 @@ class OperatorTest {
 
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
+    @Order(3)
     void testReconcileSingleTopic() throws Exception {
         var topicToReconcile = getTopicInstance(TOPIC_NAME, TOPIC_APP);
         delayedAsyncRun(() -> topicReconciler.reconcile(topicToReconcile, Mockito.mock(Context.class)));
@@ -188,8 +192,9 @@ class OperatorTest {
         var value = (GenericData.Record) record.value();
         var ctx = (Map<String, String>) value.get("context");
 
-        Log.infov("Received Context: ", ctx);
-        Log.infov("Regex: ", value.get("regex"));
+        Log.infov("Expected Topic: {0}", topic.getMetadata().getName());
+        Log.infov("Received Context: {0}", ctx);
+        Log.infov("Regex: {0}", value.get("regex"));
 
         assertThat(topic.getMetadata().getName()).matches(Pattern.compile((String) value.get("regex")));
         assertThat(value.get("entityType").toString()).isEqualTo("TOPIC");
