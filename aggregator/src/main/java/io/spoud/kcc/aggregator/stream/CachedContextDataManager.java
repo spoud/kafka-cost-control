@@ -31,6 +31,14 @@ public class CachedContextDataManager {
         this.contextDataRepository = Objects.requireNonNull(contextDataRepository);
     }
 
+    /**
+     * Get a list of all contexts. The list is cached for CACHE_DURATION seconds,
+     * so that repeated calls do not result in the list being rebuilt.
+     * The list is sorted by creation time (oldest first). Thus merging contexts in the order in which they appear in
+     * this list ensures that the newest value will be the one that is kept if there is a conflict.
+     *
+     * @return the list of all contexts
+     */
     public synchronized List<CachedContextData> getCachedContextData() {
         if (cachedContextData == null || lastUpdate.isBefore(Instant.now().minus(CACHE_DURATION))) {
             // Building cache
@@ -46,7 +54,9 @@ public class CachedContextDataManager {
                 }
             }
             lastUpdate = Instant.now();
-            cachedContextData = Collections.unmodifiableList(list);
+            cachedContextData = list.stream()
+                    .sorted(Comparator.comparing((CachedContextData c) -> c.getContextData().getCreationTime()))
+                    .toList();
         }
         return cachedContextData;
     }

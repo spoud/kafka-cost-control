@@ -321,6 +321,49 @@ class MetricEnricherTest {
     }
 
     @Test
+    void newer_context_should_override_older_context() throws InterruptedException {
+        var expectedVersion = "1.0";
+        var expectedCostUnit = "my-cost-unit-current";
+
+        contextDataStore.put(
+                "current",
+                new ContextData(
+                        Instant.now(), null, null, EntityType.TOPIC, "spoud_.*", Map.of(
+                        "version", expectedVersion)));
+        for (int i = 1; i <= 100; i++) {
+            // these are old contexts, and we expect their values to not be merged into the final context
+            contextDataStore.put(
+                    "id" + i,
+                    new ContextData(
+                            Instant.now().minusSeconds(i + 10),
+                            null,
+                            null,
+                            EntityType.TOPIC,
+                            "spoud_.*",
+                            Map.of("cost-unit", "old-cost-unit-" + i, "version", "alpha-" + i)));
+        }
+        contextDataStore.put(
+                "current2",
+                new ContextData(
+                        Instant.now(),
+                        null,
+                        null,
+                        EntityType.TOPIC,
+                        "spoud_.*",
+                        Map.of("cost-unit", expectedCostUnit)));
+        Thread.sleep(1000);
+
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_v1", 1.5));
+
+        assertThat(aggregatedTopic.getQueueSize()).isEqualTo(1);
+        final AggregatedDataWindowed aggregated = aggregatedTopic.readValue();
+        assertThat(aggregated.getContext()).containsEntry("cost-unit", expectedCostUnit);
+        assertThat(aggregated.getContext()).containsEntry("version", expectedVersion);
+        assertThat(aggregated.getName()).isEqualTo("spoud_topic_v1");
+        assertThat(aggregated.getEntityType()).isEqualTo(EntityType.TOPIC);
+    }
+
+    @Test
     void should_create_unique_key_for_raw_data() {
         final RawTelegrafData topic = generateTopicRawTelegraf("spoud_topic_v1", 1.5);
         final RawTelegrafData principal = generatePrincipalRawTelegraf("george", 1.5);
