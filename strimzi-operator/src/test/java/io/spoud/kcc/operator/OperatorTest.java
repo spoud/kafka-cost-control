@@ -275,7 +275,6 @@ class OperatorTest {
                 Thread.sleep(1000); // give downstream code some time to prepare
                 r.run();
             } catch (Exception e) {
-                e.printStackTrace();
                 fail(e);
             }
         });
