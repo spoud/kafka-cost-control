@@ -1,9 +1,12 @@
 kind: Kustomization
 resources:
   - ../base
-  - scraper.yaml
+  - telegraf-service-account.yaml
 
-namespace: kafka-cost-control-mgb-qual
+patches:
+  - path: deployment.yaml
+
+namespace: kafka
 
 generatorOptions:
   disableNameSuffixHash: true
@@ -12,9 +15,6 @@ secretGenerator:
   - name: telegraf-secret
     envs:
       - .env-telegraf
-  - name: kafka-cost-control-scraper-secret
-    envs:
-      - .env-scraper
 
 configMapGenerator:
   - name: telegraf-config

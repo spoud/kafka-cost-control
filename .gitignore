@@ -82,3 +82,5 @@ docs/**/*.svg
 docs/**/*.pdf
 docs/.asciidoctor
 
+.env-telegraf
+.env-scraper
