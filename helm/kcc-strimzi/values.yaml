@@ -18,3 +18,26 @@ strimzi:
   bootstrapServer: my-cluster-kafka-bootstrap:9094
   # "scram-sha-512" or "tls" or "none"
   auth: scram-sha-512
+  contextOperator:
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 5
+    readinessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 5
+    startupProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 5
+    resources:
+      limits:
+        cpu: 1
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+schemaRegistry:
+  url: http://schema-registry:8080/apis/ccompat/v7

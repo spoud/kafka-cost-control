@@ -4,6 +4,8 @@ metadata:
   name: {{ .Release.Name }}-telegraf
   labels:
     strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
 spec:
   authentication:
     type: {{ .Values.strimzi.auth }}

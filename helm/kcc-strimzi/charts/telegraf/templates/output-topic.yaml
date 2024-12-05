@@ -4,6 +4,8 @@ metadata:
   name: {{ .Release.Name }}-raw-telegraf-metrics
   labels:
     strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
 spec:
   partitions: {{ .Values.topics.rawMetrics.partitions }}
   config:

@@ -1,0 +1,155 @@
+# TODO: make this a Role (after https://github.com/spoud/kafka-cost-control/pull/273 has been merged)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-context-operator-role
+rules:
+- apiGroups: ["kafka.strimzi.io"]
+  verbs: ["get", "list", "watch"]
+  resources:
+  - kafkatopics
+  - kafkausers
+- apiGroups: ["apiextensions.k8s.io"]
+  verbs: ["get"]
+  resources:
+  - customresourcedefinitions
+---
+# TODO: make this a RoleBinding (after https://github.com/spoud/kafka-cost-control/pull/273 has been merged)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-context-operator-role
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-context-operator-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-context-operator
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-context-operator
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ .Release.Name }}-context-operator
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    acls:
+    - host: '*'
+      operations:
+      - Create
+      - Describe
+      - Write
+      resource:
+        name: {{ .Release.Name }}-context-data
+        patternType: literal
+        type: topic
+    type: simple
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ .Release.Name }}-context-data
+spec:
+  config:
+    cleanup.policy: compact
+  partitions: 1
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: {{ .Release.Name }}-context-operator
+  name: {{ .Release.Name }}-context-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-context-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: {{ .Release.Name }}-context-operator
+    spec:
+      serviceAccountName: {{ .Release.Name }}-context-operator
+      containers:
+      - image: spoud/kafka-cost-control-strimzi-operator
+        ports:
+        - containerPort: 8090
+          name: http
+        env:
+        {{ if .Values.debug }}
+        - name: QUARKUS_LOG_CATEGORY__IO_SPOUD__LEVEL
+          value: debug
+        {{ end }}
+        - name: QUARKUS_HTTP_PORT
+          value: "8090"
+        - name: QUARKUS_OPERATOR_SDK_CRD_GENERATE
+          value: "false"
+        - name: MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_SCHEMA_REGISTRY_URL
+          value: {{ .Values.schemaRegistry.url }}
+        - name: MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_BOOTSTRAP_SERVERS
+          value: {{ .Values.strimzi.bootstrapServer }}
+        - name: CC_STRIMZI_OPERATOR_TOPICS_CONTEXT_DATA
+          value: {{ .Release.Name }}-context-data
+        - name: CC_STRIMZI_OPERATOR_NAMESPACE
+          value: {{ .Release.Namespace }}
+        {{ if eq .Values.strimzi.auth "scram-sha-512" }}
+        - name: KAFKA_SASL_MECHANISM
+          value: SCRAM-SHA-512
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
+        - name: KAFKA_SASL_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-context-operator
+              key: sasl.jaas.config
+        {{ end }}
+        name: strimzi-context-operator
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: http
+          initialDelaySeconds: {{ .Values.strimzi.contextOperator.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.strimzi.contextOperator.livenessProbe.periodSeconds }}
+          failureThreshold: {{ .Values.strimzi.contextOperator.livenessProbe.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: http
+          initialDelaySeconds: {{ .Values.strimzi.contextOperator.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.strimzi.contextOperator.readinessProbe.periodSeconds }}
+          failureThreshold: {{ .Values.strimzi.contextOperator.readinessProbe.failureThreshold }}
+        startupProbe:
+          httpGet:
+            path: /q/health/ready
+            port: http
+          initialDelaySeconds: {{ .Values.strimzi.contextOperator.startupProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.strimzi.contextOperator.startupProbe.periodSeconds }}
+          failureThreshold: {{ .Values.strimzi.contextOperator.startupProbe.failureThreshold }}
+        resources:
+          limits:
+            cpu: {{ .Values.strimzi.contextOperator.resources.limits.cpu }}
+            memory: {{ .Values.strimzi.contextOperator.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.strimzi.contextOperator.resources.requests.cpu }}
+            memory: {{ .Values.strimzi.contextOperator.resources.requests.memory }}
