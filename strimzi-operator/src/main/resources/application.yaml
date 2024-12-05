@@ -20,6 +20,8 @@ quarkus:
     crd:
       # no need to apply CRDs, expect that Strimzi is already installed
       apply: false
+      # This is a build-time property, so we fix it to false here
+      validate: false
   container-image:
     build: true
 
