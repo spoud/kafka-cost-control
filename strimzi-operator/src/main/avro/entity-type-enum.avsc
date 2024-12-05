@@ -1,0 +1,10 @@
+{
+    "namespace": "io.spoud.kcc.data",
+    "type": "enum",
+    "name": "EntityType",
+    "symbols": [
+        "TOPIC",
+        "PRINCIPAL",
+        "UNKNOWN"
+    ]
+}
