@@ -417,8 +417,10 @@ class MetricEnricherTest {
     void should_accept_gauges_and_counters() {
         final RawTelegrafData gauge = generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_request_bytes", "spoud_topic_v1", 15.0, "gauge");
         final RawTelegrafData counter = generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_partition_count", "spoud_topic_v1", 15.0, "counter");
+        final RawTelegrafData bad = generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_partition_count", "spoud_topic_v1", 15.0, "bad");
         rawTelegrafDataTopic.pipeInput(gauge);
         rawTelegrafDataTopic.pipeInput(counter);
+        rawTelegrafDataTopic.pipeInput(bad);
         // no assertion, just making sure that the stream processor does not crash when receiving different types of metrics
     }
 

@@ -5,10 +5,7 @@ import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.data.EntityType;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class TelegrafDataWrapper {
@@ -77,6 +74,7 @@ public class TelegrafDataWrapper {
                 return Double.parseDouble(String.valueOf(telegrafData.fields().get(key)));
             }
         }
+        Log.warnv("Cannot read value of metric \"{0}\". None of the following keys are present: {1}", telegrafData.name(), String.join(", ", keys));
         return 0;
     }
 
