@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public class TelegrafDataWrapper {
 
     public static final String GAUGE_FIELD_NAME = "gauge";
+    public static final String COUNTER_FIELD_NAME = "counter";
     public static final String TOPIC_TAG = "topic";
     public static final String PRINCIPAL_ID_TAG = "principal_id";
     private final RawTelegrafData telegrafData;
@@ -67,8 +68,16 @@ public class TelegrafDataWrapper {
     }
 
     public double getValue() {
-        // TODO improve this, we only support gauge for now
-        return Double.parseDouble(String.valueOf(telegrafData.fields().get(GAUGE_FIELD_NAME)));
+        return getFirstPresentValue(GAUGE_FIELD_NAME, COUNTER_FIELD_NAME);
+    }
+
+    private double getFirstPresentValue(String... keys) {
+        for (String key : keys) {
+            if (telegrafData.fields().containsKey(key)) {
+                return Double.parseDouble(String.valueOf(telegrafData.fields().get(key)));
+            }
+        }
+        return 0;
     }
 
     public record AggregatedDataInfo(EntityType type, String name, Map<String, String> context) {
