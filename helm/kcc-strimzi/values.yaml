@@ -8,9 +8,10 @@ env: dev
 debug: false
 
 telegraf:
+  debug: true
   topics:
     rawMetrics:
-      topicName: "raw-metrics" # if unset, the topic name is generated from the release name
+      #topicName: "raw-metrics" # if unset, the topic name is generated from the release name
       partitions: 3
       # default: 90 days retention
       retentionMs: "7776000000"
@@ -36,7 +37,7 @@ strimzi:
     startupProbe:
       initialDelaySeconds: 15
       periodSeconds: 10
-      failureThreshold: 5
+      failureThreshold: 10
     resources:
       limits:
         cpu: 1

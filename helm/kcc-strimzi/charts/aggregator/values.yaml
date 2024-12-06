@@ -1,0 +1,41 @@
+# Default values for telegraf.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Used as a tag in all scraped metrics
+env: dev
+debug: false
+
+appId: kcc-aggregator
+
+topics:
+  pricingRules:
+    #topicName: "pricing-rules" # if unset, the topic name is generated from the release name
+    partitions: 1
+  context: {} # TODO: read this from global values
+    #topicName: "context-data" # if unset, the topic name is generated from the release name
+  aggregated: # TODO: read this from global values
+    #topicName: "aggregated" # if unset, the topic name is generated from the release name
+    partitions: 1
+    config:
+      retentionMs: "7776000000"
+  aggregatedTableFriendly: # TODO: read this from global values
+    #topicName: "aggregated-table-friendly" # if unset, the topic name is generated from the release name
+    partitions: 1
+    config:
+      retentionMs: "7776000000"
+  rawMetrics: []
+
+strimzi:
+  clusterName: my-cluster
+  bootstrapServer: my-cluster-kafka-bootstrap:9094
+  # "scram-sha-512" or "tls" or "none"
+  auth: scram-sha-512
+
+schemaRegistry:
+    url: http://schema-registry:8080/apis/ccompat/v7
+
+volumeClaimTemplate:
+  resources:
+    requests:
+      storage: 1Gi

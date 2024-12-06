@@ -1,0 +1,84 @@
+{{ $pricingRulesTopic := (include "pricingRulesTopic" .) }}
+{{ $aggregatedTopic := (include "aggregatedTopic" .) }}
+{{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
+{{ $contextTopic := (include "contextTopic" .) }}
+{{ $rawMetricsTopicList := split "," (include "rawMetricsTopics" .) }}
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ .Release.Name }}-aggregator
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    acls:
+    - resource:
+        type: group
+        name: {{ .Values.appId }}
+        patternType: literal
+      operations:
+        - Read
+      host: "*"
+    - host: '*'
+      operations:
+      - Write
+      - Describe
+      - Read
+      resource:
+        name: {{ $pricingRulesTopic }}
+        patternType: literal
+        type: topic
+    - host: '*'
+      operations:
+      - Write
+      - Describe
+      - Read
+      resource:
+        name: {{ $aggregatedTopic }}
+        patternType: literal
+        type: topic
+    - host: '*'
+      operations:
+      - Write
+      - Describe
+      - Read
+      resource:
+        name: {{ $aggregatedTableFriendlyTopic }}
+        patternType: literal
+        type: topic
+    - host: '*'
+      operations:
+      - Write
+      - Describe
+      - Read
+      resource:
+        name: {{ $contextTopic }}
+        patternType: literal
+        type: topic
+    - host: "*"
+      operations:
+      - Create
+      - Describe
+      - Write
+      - Read
+      resource:
+        # internal topics are prefixed with the "<appId>-"
+        name: {{ .Values.appId }}-
+        patternType: prefix
+        type: topic
+    {{- range $rawMetricsTopicList }}
+    - host: '*'
+      operations:
+      - Describe
+      - Read
+      resource:
+        name: {{ . }}
+        patternType: literal
+        type: topic
+    {{- end }}
+    type: simple

@@ -1,0 +1,104 @@
+{{ $pricingRulesTopic := (include "pricingRulesTopic" .) }}
+{{ $aggregatedTopic := (include "aggregatedTopic" .) }}
+{{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
+{{ $contextTopic := (include "contextTopic" .) }}
+{{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control
+spec:
+  selector:
+    matchLabels:
+      k8s-app: {{ .Release.Name }}-kafka-cost-control
+  #serviceName: "kafka-cost-control"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: {{ .Release.Name}}-kafka-cost-control
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        fsGroup: 185 # jboss
+      containers:
+        - name: kafka-cost-control
+          image: spoud/kafka-cost-control:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 2Gi
+            requests:
+              cpu: 200m
+              memory: 1Gi
+          env:
+            - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
+              value: /home/jboss/kafka-stream/data/
+            - name: KAFKA_APPLICATION_ID
+              value: {{ .Values.appId }}
+            - name: KAFKA_SCHEMA_REGISTRY_URL
+              value: {{ .Values.schemaRegistry.url }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.strimzi.bootstrapServer }}
+            - name: CC_TOPICS_PRICING_RULES
+              value: {{ $pricingRulesTopic }}
+            - name: CC_TOPICS_AGGREGATED
+              value: {{ $aggregatedTopic }}
+            - name: CC_TOPICS_AGGREGATED_TABLE_FRIENDLY
+              value: {{ $aggregatedTableFriendlyTopic }}
+            - name: CC_TOPICS_CONTEXT_DATA
+              value: {{ $contextTopic }}
+            - name: CC_TOPICS_RAW_DATA
+              value: {{ $rawMetricsTopics }}
+            {{ if eq .Values.strimzi.auth "scram-sha-512" }}
+            - name: KAFKA_SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_PLAINTEXT
+            - name: KAFKA_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-aggregator
+                  key: sasl.jaas.config
+            {{ end }}
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: kstream-data
+              mountPath: /home/jboss/kafka-stream/
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+  volumeClaimTemplates:
+    - metadata:
+        name: kstream-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.volumeClaimTemplate.resources.requests.storage }}
