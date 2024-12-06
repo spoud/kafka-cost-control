@@ -7,11 +7,17 @@
 env: dev
 debug: false
 
+telegraf:
+  topics:
+    rawMetrics:
+      topicName: "raw-metrics" # if unset, the topic name is generated from the release name
+      partitions: 3
+      # default: 90 days retention
+      retentionMs: "7776000000"
+
 topics:
-  rawMetrics:
-    partitions: 3
-    # default: 90 days retention
-    retentionMs: "7776000000"
+  context: {} # when unset, the below values are generated from the release name
+    #topicName: "context-data"
 
 strimzi:
   clusterName: my-cluster
@@ -40,4 +46,4 @@ strimzi:
         memory: 128Mi
 
 schemaRegistry:
-  url: http://schema-registry:8080/apis/ccompat/v7
+    url: http://schema-registry:8080/apis/ccompat/v7

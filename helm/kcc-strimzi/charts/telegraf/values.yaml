@@ -8,6 +8,7 @@ debug: false
 
 topics:
   rawMetrics:
+    #topicName: "raw-telegraf-metrics" # if unset, the topic name is generated from the release name
     partitions: 3
     # default: 90 days retention
     retentionMs: "7776000000"

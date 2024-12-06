@@ -1,3 +1,8 @@
+{{- define "ctxTopic" -}}
+{{- if .Values.topics.context.topicName }}{{ .Values.topics.context.topicName }}{{ else }}{{ printf "%s-context-data" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $ctxTopic := (include "ctxTopic" .) }}
+
 # TODO: make this a Role (after https://github.com/spoud/kafka-cost-control/pull/273 has been merged)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -52,7 +57,7 @@ spec:
       - Describe
       - Write
       resource:
-        name: {{ .Release.Name }}-context-data
+        name: {{ $ctxTopic }}
         patternType: literal
         type: topic
     type: simple
@@ -64,7 +69,7 @@ metadata:
     spoud.io/kcc-context.application: kafka-cost-control
   labels:
     strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
-  name: {{ .Release.Name }}-context-data
+  name: {{ $ctxTopic }}
 spec:
   config:
     cleanup.policy: compact
@@ -110,7 +115,7 @@ spec:
         - name: MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_BOOTSTRAP_SERVERS
           value: {{ .Values.strimzi.bootstrapServer }}
         - name: CC_STRIMZI_OPERATOR_TOPICS_CONTEXT_DATA
-          value: {{ .Release.Name }}-context-data
+          value: {{ $ctxTopic }}
         - name: CC_STRIMZI_OPERATOR_NAMESPACE
           value: {{ .Release.Namespace }}
         {{ if eq .Values.strimzi.auth "scram-sha-512" }}

@@ -1,3 +1,4 @@
+{{ $rawMetricsTopic := (include "rawMetricsTopic" .) }}
 apiVersion: v1
 data:
   telegraf.conf: |
@@ -35,7 +36,7 @@ data:
 
     [[outputs.kafka]]
         brokers = ["{{ .Values.strimzi.bootstrapServer }}"]
-        topic = "{{ .Release.Name }}-raw-telegraf-metrics"
+        topic = "{{ $rawMetricsTopic }}"
         client_id = "telegraf-scrapper"
         routing_tag = "host"
         idempotent_writes = true
