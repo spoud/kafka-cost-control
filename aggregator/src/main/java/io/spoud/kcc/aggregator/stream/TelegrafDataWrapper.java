@@ -64,6 +64,14 @@ public class TelegrafDataWrapper {
         });
     }
 
+    /**
+     * Get the value of the metric. If the metric is a gauge, the gauge value is returned. If the metric is a counter, the
+     * counter value is returned. If the metric is of another type (neither "gauge" nor "counter") keys are present among
+     * the fields, the first key (in alphabetical order) is returned. If no keys are present, 0 is returned.
+     * In the latter case, a warning is logged.
+     *
+     * @return the value of the metric
+     */
     public double getValue() {
         return getFirstPresentValue(GAUGE_FIELD_NAME, COUNTER_FIELD_NAME);
     }
@@ -74,8 +82,19 @@ public class TelegrafDataWrapper {
                 return Double.parseDouble(String.valueOf(telegrafData.fields().get(key)));
             }
         }
-        Log.warnv("Cannot read value of metric \"{0}\". None of the following keys are present: {1}", telegrafData.name(), String.join(", ", keys));
-        return 0;
+        // fallback to the first key in the map or 0 if no keys are present
+        return telegrafData
+                .fields()
+                .entrySet()
+                .stream()
+                .min(Map.Entry.comparingByKey())
+                .map(Map.Entry::getValue)
+                .map(String::valueOf)
+                .map(Double::parseDouble)
+                .orElseGet(() -> {
+                    Log.warnv("Cannot read value of metric \"{0}\". The fields are empty", telegrafData.name());
+                    return 0.0;
+                });
     }
 
     public record AggregatedDataInfo(EntityType type, String name, Map<String, String> context) {
