@@ -66,8 +66,8 @@ public class TelegrafDataWrapper {
 
     /**
      * Get the value of the metric. If the metric is a gauge, the gauge value is returned. If the metric is a counter, the
-     * counter value is returned. If the metric is of another type (neither "gauge" nor "counter") keys are present among
-     * the fields, the first key (in alphabetical order) is returned. If no keys are present, 0 is returned.
+     * counter value is returned. If the metric is of another type (neither "gauge" nor "counter" keys are present among
+     * the fields), the first key (in alphabetical order) is returned. If no keys are present, 0 is returned.
      * In the latter case, a warning is logged.
      *
      * @return the value of the metric
