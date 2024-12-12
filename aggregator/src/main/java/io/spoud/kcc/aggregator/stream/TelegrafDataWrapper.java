@@ -4,6 +4,7 @@ import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.data.EntityType;
+import org.apache.commons.lang3.math.NumberUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -79,7 +80,7 @@ public class TelegrafDataWrapper {
     private double getFirstPresentValue(String... keys) {
         for (String key : keys) {
             if (telegrafData.fields().containsKey(key)) {
-                return Double.parseDouble(String.valueOf(telegrafData.fields().get(key)));
+                return NumberUtils.toDouble(String.valueOf(telegrafData.fields().get(key)));
             }
         }
         // fallback to the first key in the map or 0 if no keys are present
@@ -90,7 +91,7 @@ public class TelegrafDataWrapper {
                 .min(Map.Entry.comparingByKey())
                 .map(Map.Entry::getValue)
                 .map(String::valueOf)
-                .map(Double::parseDouble)
+                .map(NumberUtils::toDouble)
                 .orElseGet(() -> {
                     Log.warnv("Cannot read value of metric \"{0}\". The fields are empty", telegrafData.name());
                     return 0.0;
