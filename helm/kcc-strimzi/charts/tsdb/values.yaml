@@ -1,0 +1,13 @@
+# Default values for tsdb.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+enabled: true
+
+connect:
+  enabled: true
+  strimzi:
+    clusterName: my-cluster
+    bootstrapServer: my-cluster-kafka-bootstrap:9094
+  schemaRegistry:
+      url: http://schema-registry:8080/apis/ccompat/v7
