@@ -16,6 +16,7 @@ spec:
   authentication:
     type: scram-sha-512
   authorization:
+    type: simple
     acls:
     - resource:
         type: group
@@ -57,7 +58,7 @@ spec:
       - All
       resource:
         # internal topics are prefixed with the "<appId>-"
-        name: {{ .Values.appId }}-
+        name: "{{ .Values.appId }}-"
         patternType: prefix
         type: topic
     {{- range $rawMetricsTopicList }}
@@ -69,4 +70,3 @@ spec:
         patternType: literal
         type: topic
     {{- end }}
-    type: simple

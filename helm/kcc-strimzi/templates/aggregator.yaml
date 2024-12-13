@@ -37,7 +37,7 @@ spec:
             - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
               value: /home/jboss/kafka-stream/data/
             - name: KAFKA_APPLICATION_ID
-              value: {{ .Values.appId }}
+              value: {{ .Values.aggregator.appId }}
             - name: KAFKA_SCHEMA_REGISTRY_URL
               value: {{ .Values.schemaRegistry.url }}
             - name: KAFKA_BOOTSTRAP_SERVERS
@@ -101,4 +101,4 @@ spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{ .Values.volumeClaimTemplate.resources.requests.storage }}
+            storage: {{ .Values.aggregator.volumeClaimTemplate.resources.requests.storage }}

@@ -5,20 +5,32 @@
 
 # Used as a tag in all scraped metrics
 env: dev
-debug: false
-
-telegraf:
-  debug: true
-  topics:
-    rawMetrics:
-      #topicName: "raw-metrics" # if unset, the topic name is generated from the release name
-      partitions: 3
-      # default: 90 days retention
-      retentionMs: "7776000000"
+debug: true
 
 topics:
   context: {} # when unset, the below values are generated from the release name
     #topicName: "context-data"
+  rawMetrics:
+    #topicName: "raw-metrics" # if unset, the topic name is generated from the release name
+    partitions: 3
+    # default: 90 days retention
+    retentionMs: "7776000000"
+  pricingRules:
+    #topicName: "pricing-rules" # if unset, the topic name is generated from the release name
+    partitions: 1
+  aggregated: # TODO: read this from global values
+    #topicName: "aggregated" # if unset, the topic name is generated from the release name
+    partitions: 1
+    config:
+      retentionMs: "7776000000"
+  aggregatedTableFriendly: # TODO: read this from global values
+    #topicName: "aggregated-table-friendly" # if unset, the topic name is generated from the release name
+    partitions: 1
+    config:
+      retentionMs: "7776000000"
+  # list of raw metrics topics that should be consumed by the aggregator.
+  # If empty, the aggregator will consume the topic defined in the rawMetrics section
+  toAggregate: []
 
 strimzi:
   clusterName: my-cluster
@@ -48,3 +60,14 @@ strimzi:
 
 schemaRegistry:
     url: http://schema-registry:8080/apis/ccompat/v7
+
+aggregator:
+  enabled: true
+  appId: kcc-aggregator
+  volumeClaimTemplate:
+    resources:
+      requests:
+        storage: 1Gi
+
+connect:
+  enabled: true

@@ -90,7 +90,7 @@ metadata:
   annotations:
     spoud.io/kcc-context.application: kafka-cost-control
   labels:
-    strimzi.io/cluster: {{ .Values.connect.strimzi.clusterName }}
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
   name: {{ .Release.Name }}-connect
 spec:
   authentication:
@@ -131,7 +131,7 @@ spec:
 # spec:
 #   version: 3.8.0
 #   replicas: 1
-#   bootstrapServers: {{ .Values.connect.strimzi.bootstrapServer }}
+#   bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
 #   #image: spoud/kafka-cost-control-connect:latest
 #   authentication:
 #     type: scram-sha-512
@@ -141,7 +141,7 @@ spec:
 #       password: password
 #   #tls:
 #   #  trustedCertificates:
-#   #    - secretName: {{ .Values.connect.strimzi.clusterName }}-cluster-ca-cert
+#   #    - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
 #   #      pattern: "*.crt"
 #   config:
 #     group.id: {{ .Release.Name }}-connect
@@ -183,7 +183,7 @@ spec:
 #     "pk.fields": "startTime,endTime,entityType,initialMetricName,name",
 #     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
 #     "value.converter": "io.confluent.connect.avro.AvroConverter",
-#     "value.converter.schema.registry.url": "{{ .Values.connect.schemaRegistry.url }}",
+#     "value.converter.schema.registry.url": "{{ .Values.schemaRegistry.url }}",
 #     "value.converter.basic.auth.credentials.source": "USER_INFO",
 #     "value.converter.basic.auth.user.info": "schema-registry-user:schema-registry-password",
 #     "transforms": "flatten",
@@ -262,7 +262,7 @@ spec:
 
             # Connect main connection
             - name: CONNECT_BOOTSTRAP_SERVERS
-              value: {{ .Values.connect.strimzi.bootstrapServer }}
+              value: {{ .Values.strimzi.bootstrapServer }}
             - name: CONNECT_SASL_JAAS_CONFIG
               valueFrom:
                 secretKeyRef:

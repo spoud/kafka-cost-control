@@ -19,7 +19,8 @@
 {{ $contextTopic := (include "contextTopic" .) }}
 
 {{- define "rawMetricsTopics" -}}
-{{- if .Values.topics.rawMetrics }}{{ join "," .Values.topics.rawMetrics }}{{ else }}{{ printf "%s-raw-telegraf-metrics" .Release.Name }}{{ end }}
+{{ $fallbackTopic := (include "telegrafTopic" .) }}
+{{- if .Values.topics.toAggregate }}{{ join "," .Values.topics.toAggregate }}{{ else }}{{ $fallbackTopic }}{{ end }}
 {{- end -}}
 {{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
 

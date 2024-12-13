@@ -1,4 +1,4 @@
-{{ $rawMetricsTopic := (include "rawMetricsTopic" .) }}
+{{ $rawMetricsTopic := (include "telegrafTopic" .) }}
 apiVersion: v1
 data:
   telegraf.conf: |

@@ -1,7 +1,7 @@
-{{- define "rawMetricsTopic" -}}
+{{- define "telegrafTopic" -}}
 {{- if .Values.topics.rawMetrics.topicName }}{{ .Values.topics.rawMetrics.topicName }}{{ else }}{{ printf "%s-raw-telegraf-metrics" .Release.Name }}{{ end }}
 {{- end -}}
-{{ $rawMetricsTopic := (include "rawMetricsTopic" .) }}
+{{ $rawMetricsTopic := (include "telegrafTopic" .) }}
 
 apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaTopic
