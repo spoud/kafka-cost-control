@@ -22,50 +22,39 @@ spec:
         name: {{ .Values.appId }}
         patternType: literal
       operations:
-        - Read
+        - All
       host: "*"
     - host: '*'
       operations:
-      - Write
-      - Describe
-      - Read
+      - All
       resource:
         name: {{ $pricingRulesTopic }}
         patternType: literal
         type: topic
     - host: '*'
       operations:
-      - Write
-      - Describe
-      - Read
+      - All
       resource:
         name: {{ $aggregatedTopic }}
         patternType: literal
         type: topic
     - host: '*'
       operations:
-      - Write
-      - Describe
-      - Read
+      - All
       resource:
         name: {{ $aggregatedTableFriendlyTopic }}
         patternType: literal
         type: topic
     - host: '*'
       operations:
-      - Write
-      - Describe
-      - Read
+      - All
       resource:
         name: {{ $contextTopic }}
         patternType: literal
         type: topic
     - host: "*"
       operations:
-      - Create
-      - Describe
-      - Write
-      - Read
+      - All
       resource:
         # internal topics are prefixed with the "<appId>-"
         name: {{ .Values.appId }}-
@@ -74,8 +63,7 @@ spec:
     {{- range $rawMetricsTopicList }}
     - host: '*'
       operations:
-      - Describe
-      - Read
+      - All
       resource:
         name: {{ . }}
         patternType: literal
