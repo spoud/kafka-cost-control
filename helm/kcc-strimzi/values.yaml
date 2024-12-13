@@ -1,5 +1,5 @@
 
-# Default values for telegraf.
+# Default values for Kafka Cost Control.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -58,6 +58,9 @@ strimzi:
         cpu: 100m
         memory: 128Mi
 
+# Don't have a schema registry and would like to try out this chart? Run the following two commands:
+# kubectl create deploy schema-registry --image=apicurio/apicurio-registry:3.0.5 -n <your strimzi namespace> --port 8080
+# kubectl expose deploy schema-registry
 schemaRegistry:
     url: http://schema-registry:8080/apis/ccompat/v7
 
@@ -70,4 +73,6 @@ aggregator:
         storage: 1Gi
 
 connect:
+  # Connect image with the JDBC connector installed. If not set, a new image will be built and pushed to ttl.sh (ttl of 4 hours)
+  #image: quay.io/redhat-kafka/kafka-connect:latest
   enabled: true
