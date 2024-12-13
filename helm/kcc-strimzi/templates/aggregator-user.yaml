@@ -20,7 +20,7 @@ spec:
     acls:
     - resource:
         type: group
-        name: {{ .Values.appId }}
+        name: {{ .Values.aggregator.appId }}
         patternType: literal
       operations:
         - All
@@ -58,7 +58,7 @@ spec:
       - All
       resource:
         # internal topics are prefixed with the "<appId>-"
-        name: "{{ .Values.appId }}-"
+        name: "{{ .Values.aggregator.appId }}-"
         patternType: prefix
         type: topic
     {{- range $rawMetricsTopicList }}
