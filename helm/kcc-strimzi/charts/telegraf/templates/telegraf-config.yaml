@@ -7,21 +7,22 @@ data:
         env = "{{ .Values.env }}"
 
     [agent]
-        interval = "60s"
+        interval = "10s"
         round_interval = true
-        metric_batch_size = 1000
+        metric_batch_size = 10
         metric_buffer_limit = 10000
         collection_jitter = "0s"
         flush_interval = "10s"
         flush_jitter = "0s"
         precision = "0s"
-        hostname = "confluent.cloud"
         omit_hostname = false
         logtarget = "stderr"
         debug = true
         quiet = false
 
     [[inputs.prometheus]]
+        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
+        taginclude = ["topic", "pod_name", "env"]
         monitor_kubernetes_pods = true
         monitor_kubernetes_pods_method = "settings"
         monitor_kubernetes_pods_scheme = "http"
@@ -33,6 +34,13 @@ data:
         response_timeout = "10s"
         [inputs.prometheus.tags]
             source="strimzi-metric-api"
+    
+    [[aggregators.basicstats]]
+        period = "600s"
+        delay = "10s"
+        grace = "10s"
+        drop_original = true
+        stats = ["diff"]
 
     [[outputs.kafka]]
         brokers = ["{{ .Values.strimzi.bootstrapServer }}"]
