@@ -60,11 +60,13 @@ public class ContextExtractor {
                 .stream()
                 .map(this::getContextOfResource)
                 .map(ctx -> ctx.getOrDefault(config.userIdContextAnnotation(), config.userIdContextFallback()))
+                .distinct()
                 .collect(Collectors.joining(",")));
         context.put(config.writersContextKey(), kafkaUserService.getWritersOfTopic(topicName)
                 .stream()
                 .map(this::getContextOfResource)
                 .map(ctx -> ctx.getOrDefault(config.userIdContextAnnotation(), config.userIdContextFallback()))
+                .distinct()
                 .collect(Collectors.joining(",")));
 
         return context;
