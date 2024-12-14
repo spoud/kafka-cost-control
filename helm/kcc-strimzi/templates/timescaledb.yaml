@@ -133,6 +133,13 @@ spec:
     acls:
     - resource:
         type: group
+        name: connect-{{ .Release.Name }}-tsdb-sink 
+        patternType: literal
+      operations:
+        - All
+      host: "*"
+    - resource:
+        type: group
         name: {{ .Release.Name }}-connect
         patternType: literal
       operations:
@@ -145,13 +152,14 @@ spec:
         name: {{ .Release.Name }}-connect-
         patternType: prefix
         type: topic
-    # TODO: restrict this rule to only allow reading from the "...-aggregated-table-friendly" topic
     - host: "*"
       operations:
-      - All
+      - Read
+      - Describe
+      - DescribeConfigs
       resource:
-        name: {{ .Release.Name }}-
-        patternType: prefix
+        name: {{ $aggregatedTableFriendlyTopic }}
+        patternType: literal
         type: topic
 ---
 
@@ -162,29 +170,7 @@ metadata:
   annotations:
     strimzi.io/use-connector-resources: "true"
 spec:
-  # if .Values.connect.image is not set, a new image will be built by strimzi
-  {{- if .Values.connect.image }}
   image: {{ .Values.connect.image }}
-  {{- else }}
-  build:
-    output:
-      type: docker
-      # This image will last only for 24 hours and might be overwritten by other users
-      # Strimzi will use this tag to push the image. But it will use the digest to pull
-      # the container image to make sure it pulls exactly the image we just built. So
-      # it should not happen that you pull someone else's container image. However, we
-      # recommend changing this to your own container registry or using a different
-      # image name for any other than demo purposes.
-      image: ttl.sh/{{ .Release.Name }}-connect-kcc-sink-3.8.0:4h
-    plugins:
-      - name: kafka-connect-file
-        artifacts:
-          - type: maven
-            group: io.confluent
-            repository: https://packages.confluent.io/maven
-            artifact: kafka-connect-jdbc
-            version: 10.8.0
-  {{- end }}
   version: 3.8.0
   replicas: 1
   bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
@@ -194,6 +180,7 @@ spec:
     passwordSecret:
       secretName: {{ .Release.Name }}-connect
       password: password
+  # TODO: only relevant if the listener defined in the Kafka resource is using TLS
   #tls:
   #  trustedCertificates:
   #    - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
@@ -211,25 +198,6 @@ spec:
     internal.value.converter: org.apache.kafka.connect.json.JsonConverter
     key.converter: org.apache.kafka.connect.storage.StringConverter
     value.converter: org.apache.kafka.connect.json.JsonConverter
-            # # Connect consumer connection
-            # - name: CONNECT_CONSUMER_BOOTSTRAP_SERVERS
-            #   value: "$(CONNECT_BOOTSTRAP_SERVERS)"
-            # - name: CONNECT_CONSUMER_SASL_JAAS_CONFIG
-            #   value: "$(CONNECT_SASL_JAAS_CONFIG)"
-            # - name: CONNECT_CONSUMER_SECURITY_PROTOCOL
-            #   value: "$(CONNECT_SECURITY_PROTOCOL)"
-            # - name: CONNECT_CONSUMER_SASL_MECHANISM
-            #   value: "$(CONNECT_SASL_MECHANISM)"
-
-            # # Connect producer connection
-            # - name: CONNECT_PRODUCER_BOOTSTRAP_SERVERS
-            #   value: "$(CONNECT_BOOTSTRAP_SERVERS)"
-            # - name: CONNECT_PRODUCER_SASL_JAAS_CONFIG
-            #   value: "$(CONNECT_SASL_JAAS_CONFIG)"
-            # - name: CONNECT_PRODUCER_SECURITY_PROTOCOL
-            #   value: "$(CONNECT_SECURITY_PROTOCOL)"
-            # - name: CONNECT_PRODUCER_SASL_MECHANISM
-            #   value: "$(CONNECT_SASL_MECHANISM)"
 ---
 # To use the KafkaConnector resource, you have to first enable the connector operator using
 # the strimzi.io/use-connector-resources annotation on the KafkaConnect custom resource.
@@ -249,13 +217,13 @@ spec:
   class: io.confluent.connect.jdbc.JdbcSinkConnector
   tasksMax: 1
   config: {
-    "topics": "$aggregatedTableFriendlyTopic",
+    "topics": "{{ $aggregatedTableFriendlyTopic }}",
     "connection.url": "jdbc:postgresql://{{ .Release.Name }}-timescaledb:5432/postgres?sslmode=disable",
     "connection.user": "postgres",
     "connection.password": "{{ $postgresPw }}",
     "insert.mode": "upsert",
     "auto.create": "false",
-    "table.name.format": "",
+    "table.name.format": "{{ $outputTable }}",
     "pk.mode": "record_value",
     "pk.fields": "startTime,endTime,entityType,initialMetricName,name",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
@@ -267,127 +235,3 @@ spec:
     "transforms.flatten.type": "org.apache.kafka.connect.transforms.Flatten$Value",
     "transforms.flatten.delimiter": "_"
   }
-
-# TODO: use the above KafkaConnector resource instead of the below Deployment and Service resources
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: {{ .Release.Name }}-connect
-# spec:
-#   replicas: 1
-#   selector:
-#     matchLabels:
-#       k8s-app: {{ .Release.Name }}-kafka-connect
-#   template:
-#     metadata:
-#       labels:
-#         k8s-app: {{ .Release.Name }}-kafka-connect
-#     spec:
-#       containers:
-#         - name: kafka-connect
-#           image: spoud/kafka-cost-control-connect:latest
-#           imagePullPolicy: Always
-#           resources:
-#             limits:
-#               cpu: 2000m
-#               memory: 2Gi
-#             requests:
-#               cpu: 200m
-#               memory: 500Mi
-#           env:
-#             - name: CONNECT_REST_ADVERTISED_HOST_NAME
-#               value: kafka-connect
-#             - name: CONNECT_REST_PORT
-#               value: "8083"
-#             - name: CONNECT_GROUP_ID
-#               value: {{ .Release.Name }}-connect
-#             - name: CONNECT_INTERNAL_KEY_CONVERTER
-#               value: org.apache.kafka.connect.storage.StringConverter
-#             - name: CONNECT_INTERNAL_VALUE_CONVERTER
-#               value: org.apache.kafka.connect.json.JsonConverter
-#             - name: CONNECT_CONFIG_STORAGE_PARTITIONS
-#               value: "1"
-#             - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
-#               value: "3"
-#             - name: CONNECT_CONFIG_STORAGE_TOPIC
-#               value: {{ .Release.Name }}-connect-configs
-#             - name: CONNECT_OFFSET_STORAGE_PARTITIONS
-#               value: "1"
-#             - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
-#               value: "3"
-#             - name: CONNECT_OFFSET_STORAGE_TOPIC
-#               value: {{ .Release.Name }}-connect-offsets
-#             - name: CONNECT_STATUS_STORAGE_PARTITIONS
-#               value: "1"
-#             - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
-#               value: "3"
-#             - name: CONNECT_STATUS_STORAGE_TOPIC
-#               value: {{ .Release.Name }}-connect-status
-#             - name: CONNECT_KEY_CONVERTER
-#               value: org.apache.kafka.connect.storage.StringConverter
-#             - name: CONNECT_VALUE_CONVERTER
-#               value: org.apache.kafka.connect.json.JsonConverter
-
-#             # Connect username and password
-#             - name: CLUSTER_API_KEY
-#               value: "{{ .Release.Name }}-connect"
-#             - name: CLUSTER_API_SECRET
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{ .Release.Name }}-connect
-#                   key: password
-
-#             # Connect main connection
-#             - name: CONNECT_BOOTSTRAP_SERVERS
-#               value: {{ .Values.strimzi.bootstrapServer }}
-#             - name: CONNECT_SASL_JAAS_CONFIG
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{ .Release.Name }}-connect
-#                   key: sasl.jaas.config
-#             - name: CONNECT_SECURITY_PROTOCOL
-#               value: SASL_PLAINTEXT
-#             - name: CONNECT_SASL_MECHANISM
-#               value: SCRAM-SHA-512
-
-#             # Connect consumer connection
-#             - name: CONNECT_CONSUMER_BOOTSTRAP_SERVERS
-#               value: "$(CONNECT_BOOTSTRAP_SERVERS)"
-#             - name: CONNECT_CONSUMER_SASL_JAAS_CONFIG
-#               value: "$(CONNECT_SASL_JAAS_CONFIG)"
-#             - name: CONNECT_CONSUMER_SECURITY_PROTOCOL
-#               value: "$(CONNECT_SECURITY_PROTOCOL)"
-#             - name: CONNECT_CONSUMER_SASL_MECHANISM
-#               value: "$(CONNECT_SASL_MECHANISM)"
-
-#             # Connect producer connection
-#             - name: CONNECT_PRODUCER_BOOTSTRAP_SERVERS
-#               value: "$(CONNECT_BOOTSTRAP_SERVERS)"
-#             - name: CONNECT_PRODUCER_SASL_JAAS_CONFIG
-#               value: "$(CONNECT_SASL_JAAS_CONFIG)"
-#             - name: CONNECT_PRODUCER_SECURITY_PROTOCOL
-#               value: "$(CONNECT_SECURITY_PROTOCOL)"
-#             - name: CONNECT_PRODUCER_SASL_MECHANISM
-#               value: "$(CONNECT_SASL_MECHANISM)"
-#           ports:
-#             - containerPort: 8083
-#               name: http
-#   strategy:
-#     type: Recreate
-#   revisionHistoryLimit: 2
-#   progressDeadlineSeconds: 60
-
-# ---
-# kind: Service
-# apiVersion: v1
-# metadata:
-#   labels:
-#     k8s-app: {{ .Release.Name }}-kafka-connect
-#   name: {{ .Release.Name }}-kafka-connect-service
-# spec:
-#   ports:
-#     - port: 8083
-#       name: http
-#       targetPort: 8083
-#   selector:
-#     k8s-app: {{ .Release.Name }}-kafka-connect

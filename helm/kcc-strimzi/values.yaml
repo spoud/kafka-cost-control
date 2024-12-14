@@ -35,6 +35,8 @@ topics:
 strimzi:
   clusterName: my-cluster
   bootstrapServer: my-cluster-kafka-bootstrap:9094
+  # TODO: actually add support for tls
+  # TODO: actually add support for sasl (scram-sha-512 over tls)
   # "scram-sha-512" or "tls" or "none"
   auth: scram-sha-512
   contextOperator:
@@ -73,6 +75,6 @@ aggregator:
         storage: 1Gi
 
 connect:
-  # Connect image with the JDBC connector installed. If not set, a new image will be built and pushed to ttl.sh (ttl of 4 hours)
-  #image: quay.io/redhat-kafka/kafka-connect:latest
+  # TODO: build and use a spoud image (cannot be built on top of a confluent image, because strimzi does not know how to start it)
+  image: alero00/kafka-connect-jdbc:latest
   enabled: true
