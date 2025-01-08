@@ -35,11 +35,11 @@ topics:
 
 strimzi:
   clusterName: my-cluster
-  bootstrapServer: my-cluster-kafka-bootstrap:9094
-  # TODO: actually add support for tls
-  # TODO: actually add support for sasl (scram-sha-512 over tls)
+  bootstrapServer: my-cluster-kafka-bootstrap:9093
+  # TODO: actually add support for tls and none
   # "scram-sha-512" or "tls" or "none"
   auth: scram-sha-512
+  scramOverTls: true
   contextOperator:
     livenessProbe:
       initialDelaySeconds: 30

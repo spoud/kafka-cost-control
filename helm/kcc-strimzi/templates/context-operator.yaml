@@ -96,8 +96,16 @@ spec:
         app: {{ .Release.Name }}-context-operator
     spec:
       serviceAccountName: {{ .Release.Name }}-context-operator
+      volumes:
+      - name: kafka-cluster-ca
+        secret:
+          secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
       containers:
       - image: spoud/kafka-cost-control-strimzi-operator
+        volumeMounts:
+        - name: kafka-cluster-ca
+          mountPath: /etc/kafka
+          readOnly: true
         ports:
         - containerPort: 8090
           name: http
@@ -121,13 +129,25 @@ spec:
         {{ if eq .Values.strimzi.auth "scram-sha-512" }}
         - name: KAFKA_SASL_MECHANISM
           value: SCRAM-SHA-512
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: SASL_PLAINTEXT
         - name: KAFKA_SASL_JAAS_CONFIG
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-context-operator
               key: sasl.jaas.config
+        {{ if .Values.strimzi.scramOverTls }}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_SSL
+        - name: KAFKA_SSL_TRUSTSTORE_LOCATION
+          value: /etc/kafka/ca.p12
+        - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+              key: ca.password
+        {{ else }}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
+        {{ end }}
         {{ end }}
         name: strimzi-context-operator
         livenessProbe:
