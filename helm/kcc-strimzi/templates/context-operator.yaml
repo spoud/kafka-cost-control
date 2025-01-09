@@ -1,0 +1,187 @@
+{{- define "ctxTopic" -}}
+{{- if .Values.topics.context.topicName }}{{ .Values.topics.context.topicName }}{{ else }}{{ printf "%s-context-data" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $ctxTopic := (include "ctxTopic" .) }}
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-context-operator-role
+rules:
+- apiGroups: ["kafka.strimzi.io"]
+  verbs: ["get", "list", "watch"]
+  resources:
+  - kafkatopics
+  - kafkausers
+- apiGroups: ["apiextensions.k8s.io"]
+  verbs: ["get"]
+  resources:
+  - customresourcedefinitions
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-context-operator-role
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-context-operator-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-context-operator
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-context-operator
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ .Release.Name }}-context-operator
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    acls:
+    - host: '*'
+      operations:
+      - Create
+      - Describe
+      - Write
+      resource:
+        name: {{ $ctxTopic }}
+        patternType: literal
+        type: topic
+    type: simple
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ $ctxTopic }}
+spec:
+  config:
+    cleanup.policy: compact
+  partitions: 1
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: {{ .Release.Name }}-context-operator
+    {{- with .Values.strimzi.contextOperator.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  name: {{ .Release.Name }}-context-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-context-operator
+      {{- with .Values.strimzi.contextOperator.labels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: {{ .Release.Name }}-context-operator
+        {{- with .Values.strimzi.contextOperator.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-context-operator
+      volumes:
+      - name: kafka-cluster-ca
+        secret:
+          secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+      containers:
+      - image: spoud/kafka-cost-control-strimzi-operator
+        volumeMounts:
+        - name: kafka-cluster-ca
+          mountPath: /etc/kafka
+          readOnly: true
+        ports:
+        - containerPort: 8090
+          name: http
+        env:
+        {{ if .Values.debug }}
+        - name: QUARKUS_LOG_CATEGORY__IO_SPOUD__LEVEL
+          value: debug
+        {{ end }}
+        - name: QUARKUS_HTTP_PORT
+          value: "8090"
+        - name: QUARKUS_OPERATOR_SDK_CRD_GENERATE
+          value: "false"
+        - name: MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_SCHEMA_REGISTRY_URL
+          value: {{ .Values.schemaRegistry.url }}
+        - name: MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_BOOTSTRAP_SERVERS
+          value: {{ .Values.strimzi.bootstrapServer }}
+        - name: CC_STRIMZI_OPERATOR_TOPICS_CONTEXT_DATA
+          value: {{ $ctxTopic }}
+        - name: CC_STRIMZI_OPERATOR_NAMESPACE
+          value: {{ .Release.Namespace }}
+        {{ if eq .Values.strimzi.auth "scram-sha-512" }}
+        - name: KAFKA_SASL_MECHANISM
+          value: SCRAM-SHA-512
+        - name: KAFKA_SASL_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-context-operator
+              key: sasl.jaas.config
+        {{ if .Values.strimzi.scramOverTls }}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_SSL
+        - name: KAFKA_SSL_TRUSTSTORE_LOCATION
+          value: /etc/kafka/ca.p12
+        - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+              key: ca.password
+        {{ else }}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
+        {{ end }}
+        {{ end }}
+        name: strimzi-context-operator
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: http
+          initialDelaySeconds: {{ .Values.strimzi.contextOperator.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.strimzi.contextOperator.livenessProbe.periodSeconds }}
+          failureThreshold: {{ .Values.strimzi.contextOperator.livenessProbe.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: http
+          initialDelaySeconds: {{ .Values.strimzi.contextOperator.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.strimzi.contextOperator.readinessProbe.periodSeconds }}
+          failureThreshold: {{ .Values.strimzi.contextOperator.readinessProbe.failureThreshold }}
+        startupProbe:
+          httpGet:
+            path: /q/health/ready
+            port: http
+          initialDelaySeconds: {{ .Values.strimzi.contextOperator.startupProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.strimzi.contextOperator.startupProbe.periodSeconds }}
+          failureThreshold: {{ .Values.strimzi.contextOperator.startupProbe.failureThreshold }}
+        resources:
+          limits:
+            cpu: {{ .Values.strimzi.contextOperator.resources.limits.cpu }}
+            memory: {{ .Values.strimzi.contextOperator.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.strimzi.contextOperator.resources.requests.cpu }}
+            memory: {{ .Values.strimzi.contextOperator.resources.requests.memory }}

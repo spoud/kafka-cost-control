@@ -1,0 +1,129 @@
+{{ $pricingRulesTopic := (include "pricingRulesTopic" .) }}
+{{ $aggregatedTopic := (include "aggregatedTopic" .) }}
+{{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
+{{ $contextTopic := (include "contextTopic" .) }}
+{{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control
+spec:
+  selector:
+    matchLabels:
+      k8s-app: {{ .Release.Name }}-kafka-cost-control
+      {{- with .Values.aggregator.labels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+  #serviceName: "kafka-cost-control"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: {{ .Release.Name}}-kafka-cost-control
+        {{- with .Values.aggregator.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        fsGroup: 185 # jboss
+      volumes:
+      - name: kafka-cluster-ca
+        secret:
+          secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+      containers:
+        - name: kafka-cost-control
+          image: spoud/kafka-cost-control:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: {{ .Values.aggregator.resources.limits.cpu }}
+              memory: {{ .Values.aggregator.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.aggregator.resources.requests.cpu }}
+              memory: {{ .Values.aggregator.resources.requests.memory }}
+          env:
+            - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
+              value: /home/jboss/kafka-stream/data/
+            - name: KAFKA_APPLICATION_ID
+              value: {{ .Values.aggregator.appId }}
+            - name: KAFKA_SCHEMA_REGISTRY_URL
+              value: {{ .Values.schemaRegistry.url }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.strimzi.bootstrapServer }}
+            - name: CC_TOPICS_PRICING_RULES
+              value: {{ $pricingRulesTopic }}
+            - name: CC_TOPICS_AGGREGATED
+              value: {{ $aggregatedTopic }}
+            - name: CC_TOPICS_AGGREGATED_TABLE_FRIENDLY
+              value: {{ $aggregatedTableFriendlyTopic }}
+            - name: CC_TOPICS_CONTEXT_DATA
+              value: {{ $contextTopic }}
+            - name: CC_TOPICS_RAW_DATA
+              value: {{ $rawMetricsTopics }}
+            {{ if eq .Values.strimzi.auth "scram-sha-512" }}
+            - name: KAFKA_SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: KAFKA_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-aggregator
+                  key: sasl.jaas.config
+            {{ if .Values.strimzi.scramOverTls }}
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_SSL
+            - name: KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: /etc/kafka/ca.p12
+            - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+                  key: ca.password
+            {{ else }}
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_PLAINTEXT
+            {{ end }}
+            {{ end }}
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: kstream-data
+              mountPath: /home/jboss/kafka-stream/
+            - name: kafka-cluster-ca
+              mountPath: /etc/kafka
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+  volumeClaimTemplates:
+    - metadata:
+        name: kstream-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.aggregator.volumeClaimTemplate.resources.requests.storage }}
