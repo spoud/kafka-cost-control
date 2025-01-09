@@ -96,8 +96,12 @@ class OperatorTest {
         addKafkaUser(getUserInstance("my-reader", Map.of(GROUP_KEY, GROUP_READER), AclResourcePatternType.LITERAL,
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
                 List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE)));
-        // create a KafkaUser resource only with permission to write to the topic (no read permission)
+        // create two KafkaUser resources only with permission to write to the topic (no read permission).
+        // Both users are part of the same group, so the context of the topic should contain only one writer group (not two).
         addKafkaUser(getUserInstance("my-writer", Map.of(GROUP_KEY, GROUP_WRITER), AclResourcePatternType.LITERAL,
+                TOPIC_NAME, List.of(AclOperation.WRITE, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
+                List.of(AclOperation.READ, AclOperation.ALTER, AclOperation.DELETE)));
+        addKafkaUser(getUserInstance("my-writer2", Map.of(GROUP_KEY, GROUP_WRITER), AclResourcePatternType.LITERAL,
                 TOPIC_NAME, List.of(AclOperation.WRITE, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
                 List.of(AclOperation.READ, AclOperation.ALTER, AclOperation.DELETE)));
         // create kafka user only with permissions to describe the topic (no read/write permission)

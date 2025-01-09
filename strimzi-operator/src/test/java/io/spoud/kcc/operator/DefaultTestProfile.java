@@ -10,6 +10,7 @@ public class DefaultTestProfile implements QuarkusTestProfile {
     @Override
     public Map<String, String> getConfigOverrides() {
         return Map.of(
+                "quarkus.http.test-port", "0",
                 "cc.strimzi.operator.topics.context-data", "context-data",
                 "cc.strimzi.operator.context-regex-prefix", PREFIX,
                 "quarkus.operator-sdk.crd.apply", "true", // the mock k8s server does not have strimzi CRDs, so we need to apply them
