@@ -181,10 +181,10 @@ spec:
       secretName: {{ .Release.Name }}-connect
       password: password
   # TODO: only relevant if the listener defined in the Kafka resource is using TLS
-  #tls:
-  #  trustedCertificates:
-  #    - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
-  #      pattern: "*.crt"
+  tls:
+    trustedCertificates:
+      - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+        pattern: "*.crt"
   config:
     group.id: {{ .Release.Name }}-connect
     offset.storage.topic: {{ .Release.Name }}-connect-cluster-offsets

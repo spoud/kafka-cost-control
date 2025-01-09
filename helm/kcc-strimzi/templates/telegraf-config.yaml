@@ -49,11 +49,15 @@ data:
         routing_tag = "host"
         idempotent_writes = true
         max_retry = 3
-        enable_tls = false
         {{ if eq .Values.strimzi.auth "scram-sha-512" }}
         sasl_username = "{{ .Release.Name }}-telegraf"
         sasl_password = "${OUTPUT_KAFKA_SASL_PASSWORD}"
         sasl_mechanism = "SCRAM-SHA-512"
+        {{ if .Values.strimzi.scramOverTls }}
+        enable_tls = true
+        tls_ca = "/etc/kafka/ca.crt"
+        insecure_skip_verify = false
+        {{ end }}
         {{ end }}
         data_format = "json"
     
