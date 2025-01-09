@@ -78,6 +78,6 @@ aggregator:
 
 connect:
   # TODO: build and use a spoud image (cannot be built on top of a confluent image, because strimzi does not know how to start it)
-  image: alero00/kafka-connect-jdbc:latest
+  image: spoud/kafka-connect-jdbc:latest
   # TODO: actually don't spin up the connect and timescale if this is false
   enabled: true
