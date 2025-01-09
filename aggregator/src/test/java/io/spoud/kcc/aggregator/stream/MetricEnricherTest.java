@@ -414,6 +414,17 @@ class MetricEnricherTest {
     }
 
     @Test
+    void should_accept_gauges_and_counters() {
+        final RawTelegrafData gauge = generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_request_bytes", "spoud_topic_v1", 15.0, "gauge");
+        final RawTelegrafData counter = generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_partition_count", "spoud_topic_v1", 15.0, "counter");
+        final RawTelegrafData bad = generateTopicRawTelegraf(Instant.now(), "confluent_kafka_server_partition_count", "spoud_topic_v1", 15.0, "bad");
+        rawTelegrafDataTopic.pipeInput(gauge);
+        rawTelegrafDataTopic.pipeInput(counter);
+        rawTelegrafDataTopic.pipeInput(bad);
+        // no assertion, just making sure that the stream processor does not crash when receiving different types of metrics
+    }
+
+    @Test
     void should_use_valid_context_data() {
         Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
         Instant t2 = Instant.parse("2024-02-01T00:00:00Z");
@@ -569,10 +580,14 @@ class MetricEnricherTest {
     }
 
     private RawTelegrafData generateTopicRawTelegraf(Instant time, String metricName, String topicName, double value) {
+        return generateTopicRawTelegraf(time, metricName, topicName, value, "gauge");
+    }
+
+    private RawTelegrafData generateTopicRawTelegraf(Instant time, String metricName, String topicName, double value, String metricType) {
         return new RawTelegrafData(
                 time,
                 metricName,
-                Map.of("gauge", value),
+                Map.of(metricType, value),
                 Map.of("env", "dev", "topic", topicName));
     }
 

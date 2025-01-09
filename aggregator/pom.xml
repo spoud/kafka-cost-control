@@ -24,7 +24,7 @@
         <compiler-plugin.version>3.13.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.2</surefire-plugin.version>
         <kafka.version>3.9.0</kafka.version>
-        <confluent.platform.version>7.7.2</confluent.platform.version>
+        <confluent.platform.version>7.8.0</confluent.platform.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -148,7 +148,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.26.3</version>
+            <version>3.27.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
