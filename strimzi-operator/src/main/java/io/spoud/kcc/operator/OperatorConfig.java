@@ -5,6 +5,8 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.Optional;
+
 @ConfigMapping(prefix = "cc.strimzi.operator")
 public interface OperatorConfig {
     /**
@@ -64,4 +66,26 @@ public interface OperatorConfig {
     @WithName("topics.context-data")
     @NotBlank
     String contextDataTopic();
+
+    /**
+     * Context regex prefix. The regex is used to match the topic name to a context object.
+     * This prefix will be prepended to each generated regex. Use this if, for example, you also use MirrorMaker2
+     * which generates replicated topics with a prefix
+     * <p>
+     * For example, if for each topic with <topicname> MirrorMaker2 generates a replica called "eu-west-1.<topicname>",
+     * you could set this prefix to "(eu-west-1.)?" to match both, the prefixed and non-prefixed topics with the same context object.
+     */
+    @WithName("context-regex-prefix")
+    Optional<String> contextRegexPrefix();
+
+    /**
+     * Context regex suffix. The regex is used to match the topic name to a context object.
+     * This suffix will be appended to each generated regex. Use this if, for example, you also use MirrorMaker2
+     * which generates replicated topics with a suffix
+     * <p>
+     * For example, if for each topic with <topicname> MirrorMaker2 generates a replica called "<topicname>.eu-west-1",
+     * you could set this suffix to "(eu-west-1)?" to match both, the suffixed and non-suffixed topics with the same context object.
+     */
+    @WithName("context-regex-suffix")
+    Optional<String> contextRegexSuffix();
 }
