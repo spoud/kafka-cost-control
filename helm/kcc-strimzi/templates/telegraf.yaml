@@ -7,10 +7,16 @@ spec:
   selector:
     matchLabels:
       app: {{ .Release.Name }}-telegraf
+      {{- with .Values.telegraf.labels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
   template:
     metadata:
       labels:
         app: {{ .Release.Name }}-telegraf
+        {{- with .Values.telegraf.labels }}
+        {{- toYaml . | nindent 6 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-telegraf
       volumes:
@@ -28,11 +34,11 @@ spec:
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              cpu: 1
-              memory: 500Mi
+              cpu: {{ .Values.telegraf.resources.limits.cpu }}
+              memory: {{ .Values.telegraf.resources.limits.memory }}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: {{ .Values.telegraf.resources.requests.cpu }}
+              memory: {{ .Values.telegraf.resources.requests.memory }}
           {{ if eq .Values.strimzi.auth "scram-sha-512" }}
           env:
             - name: OUTPUT_KAFKA_SASL_PASSWORD

@@ -33,6 +33,16 @@ topics:
   # If empty, the aggregator will consume the topic defined in the rawMetrics section
   toAggregate: []
 
+telegraf:
+  labels: {}
+  resources:
+    limits:
+      cpu: 1
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
 strimzi:
   clusterName: my-cluster
   bootstrapServer: my-cluster-kafka-bootstrap:9093
@@ -41,6 +51,7 @@ strimzi:
   auth: scram-sha-512
   scramOverTls: true
   contextOperator:
+    labels: {}
     livenessProbe:
       initialDelaySeconds: 30
       periodSeconds: 10
@@ -65,12 +76,21 @@ strimzi:
 # kubectl create deploy schema-registry --image=apicurio/apicurio-registry:3.0.5 -n <your strimzi namespace> --port 8080
 # kubectl expose deploy schema-registry
 schemaRegistry:
-    url: http://schema-registry:8080/apis/ccompat/v7
+  url: http://schema-registry:8080/apis/ccompat/v7
 
 aggregator:
   # TODO: actually don't spin up the aggregator if this is false
   enabled: true
   appId: kcc-aggregator
+  # Labels that will be added to the pod
+  labels: {}
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 1Gi
   volumeClaimTemplate:
     resources:
       requests:
@@ -78,6 +98,6 @@ aggregator:
 
 connect:
   # TODO: build and use a spoud image (cannot be built on top of a confluent image, because strimzi does not know how to start it)
-  image: spoud/kafka-connect-jdbc:latest
+  image: alero00/kafka-connect-jdbc-sink:latest
   # TODO: actually don't spin up the connect and timescale if this is false
   enabled: true

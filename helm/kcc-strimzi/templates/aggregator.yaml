@@ -12,12 +12,18 @@ spec:
   selector:
     matchLabels:
       k8s-app: {{ .Release.Name }}-kafka-cost-control
+      {{- with .Values.aggregator.labels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
   #serviceName: "kafka-cost-control"
   replicas: 1
   template:
     metadata:
       labels:
         k8s-app: {{ .Release.Name}}-kafka-cost-control
+        {{- with .Values.aggregator.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       terminationGracePeriodSeconds: 10
       securityContext:
@@ -32,11 +38,11 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              cpu: 4000m
-              memory: 2Gi
+              cpu: {{ .Values.aggregator.resources.limits.cpu }}
+              memory: {{ .Values.aggregator.resources.limits.memory }}
             requests:
-              cpu: 200m
-              memory: 1Gi
+              cpu: {{ .Values.aggregator.resources.requests.cpu }}
+              memory: {{ .Values.aggregator.resources.requests.memory }}
           env:
             - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
               value: /home/jboss/kafka-stream/data/

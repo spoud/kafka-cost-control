@@ -80,18 +80,27 @@ metadata:
   creationTimestamp: null
   labels:
     app: {{ .Release.Name }}-context-operator
+    {{- with .Values.strimzi.contextOperator.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   name: {{ .Release.Name }}-context-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: {{ .Release.Name }}-context-operator
+      {{- with .Values.strimzi.contextOperator.labels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
         app: {{ .Release.Name }}-context-operator
+        {{- with .Values.strimzi.contextOperator.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-context-operator
       volumes:

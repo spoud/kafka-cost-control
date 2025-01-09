@@ -184,7 +184,7 @@ spec:
   tls:
     trustedCertificates:
       - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
-        pattern: "*.crt"
+        certificate: "ca.crt"
   config:
     group.id: {{ .Release.Name }}-connect
     offset.storage.topic: {{ .Release.Name }}-connect-cluster-offsets
