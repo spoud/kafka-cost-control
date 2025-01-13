@@ -3,12 +3,10 @@ package io.spoud.kcc.aggregator.olap;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
-import io.quarkus.runtime.Startup;
-import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.data.AggregatedDataWindowed;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 
@@ -33,8 +31,8 @@ public class AggregatedMetricsRepository {
     private final Queue<AggregatedDataWindowed> rowBuffer = new ConcurrentLinkedQueue<>();
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Startup
-    public void init(@Observes StartupEvent ev) {
+    @PostConstruct
+    public void init() {
         if (olapConfig.enabled()) {
             getConnection().ifPresent((conn) -> {
                 try {
