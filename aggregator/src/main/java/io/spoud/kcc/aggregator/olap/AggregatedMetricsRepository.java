@@ -149,11 +149,11 @@ public class AggregatedMetricsRepository {
                     .toList();
             for (var value : values) {
                 var newContext = new HashMap<>(metric.getContext());
-                olapConfig.splitBy().get().forEach(k -> newContext.remove(k, null));
+                olapConfig.splitBy().get().forEach(newContext::remove);
                 newContext.put(key, value);
                 splitMetrics.add(AggregatedDataWindowed.newBuilder(metric)
                         .setContext(newContext)
-                        .setValue(values.size())
+                        .setValue(metric.getValue() / values.size())
                         .build());
             }
         }
