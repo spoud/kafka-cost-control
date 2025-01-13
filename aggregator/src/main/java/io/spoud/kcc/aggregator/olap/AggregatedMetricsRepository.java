@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.data.AggregatedDataWindowed;
+import io.spoud.kcc.data.EntityType;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -161,6 +162,10 @@ public class AggregatedMetricsRepository {
 
     public void insertRow(AggregatedDataWindowed row) {
         if (!olapConfig.enabled()) {
+            return;
+        }
+        if (olapConfig.dropUnknownEntities() && row.getEntityType() == EntityType.UNKNOWN) {
+            Log.debug("Skipping metric with unknown entity type");
             return;
         }
         splitByContext(row).forEach(this::insertSingleRow);

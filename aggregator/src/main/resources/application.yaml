@@ -17,13 +17,15 @@ cc:
       table: aggregated_data
     context:
       cost-center-keys:
-        - app
+        - readers
+        - writers
       global-value-fallback: unknown
       key-specific-value-fallback: {}
     transformations:
       split-by:
         - readers
         - writers
+      drop-unknown-entities: true
   admin-password: admin
   metrics:
     aggregations:
@@ -86,6 +88,7 @@ quarkus:
         roles:
           admin: ADMIN
   http:
+    port: 8086
     auth:
       basic: true
   smallrye-graphql:

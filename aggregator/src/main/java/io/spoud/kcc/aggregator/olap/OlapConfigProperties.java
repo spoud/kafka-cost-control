@@ -127,4 +127,12 @@ public interface OlapConfigProperties {
      */
     @WithName("transformations.split-by")
     Optional<List<String>> splitBy();
+
+    /**
+     * Whether to drop metrics belonging to entities of type UNKNOWN. If set to true, then such metrics will not
+     * be ingested into the OLAP database. If set to false, then such metrics will be ingested as-is.
+     */
+    @WithName("transformations.drop-unknown-entities")
+    @WithDefault("true")
+    boolean dropUnknownEntities();
 }
