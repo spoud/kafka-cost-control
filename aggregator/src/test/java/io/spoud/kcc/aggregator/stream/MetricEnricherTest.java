@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
@@ -89,7 +90,7 @@ class MetricEnricherTest {
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, gaugeRepository, metricReducer);
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, gaugeRepository, metricReducer, Mockito.mock(AggregatedMetricsRepository.class));
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
