@@ -77,6 +77,8 @@ public class AggregatedMetricsRepository {
 
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s")
     public void flushToDb() {
+        if (rowBuffer.isEmpty())
+            return;
         getConnection().ifPresent((conn) -> {
             var skipped = 0;
             var count = 0;
