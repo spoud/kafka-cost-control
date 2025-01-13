@@ -8,6 +8,22 @@ kafka:
       url: http://localhost:8081
 
 cc:
+  olap:
+    enabled: true
+    database:
+      # technically this is already the default, but let's be explicit
+      url: "jdbc:duckdb:"
+      schema: main
+      table: aggregated_data
+    context:
+      cost-center-keys:
+        - app
+      global-value-fallback: unknown
+      key-specific-value-fallback: {}
+    transformations:
+      split-by:
+        - readers
+        - writers
   admin-password: admin
   metrics:
     aggregations:
