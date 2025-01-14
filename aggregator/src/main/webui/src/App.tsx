@@ -10,13 +10,14 @@ import { MantineProvider } from '@mantine/core';
  
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { MainLayout } from './components/MainLayout/MainLayout';
+import { DashboardPage, loader as dashboardPageLoader } from './pages/DashboardPage/DashboardPage';
 
 const router = createBrowserRouter([
   {
     element: <div><MainLayout /></div>, 
     children: [
-  { path: '/', element: <div>Home</div> },
-  { path: '/dashboard', element: <div>Dashboard</div> },
+  { path: '/', element: <DashboardPage />, loader: dashboardPageLoader },
+  { path: '/dashboard', element: <DashboardPage /> },
     ]
   },
 ]);
