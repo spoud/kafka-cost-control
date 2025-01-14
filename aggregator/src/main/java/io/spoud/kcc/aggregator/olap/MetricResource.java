@@ -9,6 +9,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestQuery;
+import org.jboss.resteasy.reactive.RestResponse;
+import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 import java.util.List;
 import java.util.Set;
@@ -35,7 +37,7 @@ public class MetricResource {
                                                             @RestQuery AggregatedMetricsRepository.GroupBySpec groupBy,
                                                             @RestQuery Integer limit,
                                                             @RestQuery Integer offset,
-                                                            @RestQuery AggregatedMetricsRepository.SortOrder sort) {
+                                                            @RestQuery AggregatedMetricsRepository.SortSpec sort) {
         Log.infof("All params: metric=%s, aggType=%s, filter=%s, start=%s, end=%s, groupBy=%s, limit=%s, offset=%s, sort=%s",
                 metricName, aggType, filter, startTimestamp, endTimestamp, groupBy, limit, offset, sort);
         return metricRepository.getAggregatedMetric(metricName,
@@ -84,5 +86,11 @@ public class MetricResource {
             throw new NotFoundException();
         }
         return metricRepository.runQuery(query);
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ApiError> handleBadRequestException(WebApplicationException e) {
+        return RestResponse.status(RestResponse.Status.BAD_REQUEST,
+                new ApiError(e.getMessage(), null));
     }
 }
