@@ -9,7 +9,7 @@ data:
     [agent]
         interval = "10s"
         round_interval = true
-        metric_batch_size = 10
+        metric_batch_size = 100
         metric_buffer_limit = 10000
         collection_jitter = "0s"
         flush_interval = "10s"
@@ -21,8 +21,8 @@ data:
         quiet = false
 
     [[inputs.prometheus]]
-        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
-        taginclude = ["topic", "pod_name", "env"]
+        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total", "kafka_log_log_size"]
+        taginclude = ["topic", "pod_name", "env", "partition"]
         monitor_kubernetes_pods = true
         monitor_kubernetes_pods_method = "settings"
         monitor_kubernetes_pods_scheme = "http"
@@ -36,6 +36,15 @@ data:
             source="strimzi-metric-api"
     
     [[aggregators.basicstats]]
+        namepass = ["kafka_log_log_size"]
+        period = "3600s"
+        delay = "10s"
+        grace = "10s"
+        drop_original = true
+        stats = ["max"]
+
+    [[aggregators.basicstats]]
+        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
         period = "600s"
         delay = "10s"
         grace = "10s"
