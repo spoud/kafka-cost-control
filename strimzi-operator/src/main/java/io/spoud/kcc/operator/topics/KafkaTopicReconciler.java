@@ -39,12 +39,14 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
     private void reconcileSingleTopic(KafkaTopic t) {
         Log.debugv("Reconciling KafkaTopic {0}", t.getMetadata().getName());
         var context = contextExtractor.getContextOfTopic(t);
+        var suffix = config.contextRegexSuffix().orElse("");
+        var prefix = config.contextRegexPrefix().orElse("");
         // publish the context to a Kafka topic
         var record = Record.of(t.getMetadata().getName(), ContextData.newBuilder()
                 .setCreationTime(Instant.now())
                 .setContext(context)
                 .setEntityType(EntityType.TOPIC)
-                .setRegex(t.getMetadata().getName().replaceAll("[.]", "[.]"))
+                .setRegex(String.format("%s%s%s", prefix, t.getMetadata().getName().replaceAll("[.]", "[.]"), suffix))
                 .build()
         );
         contextEmitter.send(record).whenComplete((unused, throwable) -> {
