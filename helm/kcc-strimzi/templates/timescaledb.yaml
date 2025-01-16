@@ -1,0 +1,237 @@
+{{ $postgresPw := randAlphaNum 10 }}
+{{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
+{{ $outputTable := printf "%s_aggregated_table_friendly" .Release.Name }}
+
+kind: Secret
+apiVersion: v1
+data:
+  POSTGRES_PASSWORD: {{ $postgresPw | b64enc | quote }}
+metadata:
+  labels:
+  name: {{ .Release.Name }}-timescaledb-secret 
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: timescaledb
+  name: {{ .Release.Name }}-timescaledb
+spec:
+  ports:
+    - port: 5432
+      name: timescaledb
+      targetPort: 5432
+  selector:
+    k8s-app: {{ .Release.Name }}-timescaledb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-timescaledb
+spec:
+  selector:
+    matchLabels:
+      k8s-app: {{ .Release.Name }}-timescaledb
+  serviceName: "{{ .Release.Name }}-timescaledb"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: {{ .Release.Name }}-timescaledb
+    spec:
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: tsdb-init
+          configMap:
+            name: {{ .Release.Name }}-timescaledb-init
+      initContainers:
+        - name: pgsql-data-permission-fix
+          image: busybox
+          command: [ "/bin/chmod","-R","777", "/data" ]
+          volumeMounts:
+            - name: timescaledb-data
+              mountPath: /data
+        - name: pgsql-lost-and-found-fix
+          image: busybox
+          command: [ "/bin/rm", "-Rf", "/data/lost+found", "||", "echo", "done" ]
+          volumeMounts:
+            - name: timescaledb-data
+              mountPath: /data
+      containers:
+        - name: timescaledb
+          image: timescale/timescaledb:latest-pg16
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 0.5Gi
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-timescaledb-secret
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+              name: timescaledb
+          volumeMounts:
+            - name: tsdb-init
+              mountPath: /docker-entrypoint-initdb.d
+            - name: timescaledb-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: timescaledb-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi
+---
+# DB init script
+apiVersion: v1
+data:
+  init-db.sql: |+
+    CREATE TABLE "{{ $outputTable }}"
+    (
+        "startTime"         TIMESTAMP        NOT NULL,
+        "endTime"           TIMESTAMP        NOT NULL,
+        "entityType"        VARCHAR          NOT NULL,
+        "initialMetricName" VARCHAR          NOT NULL,
+        "name"              VARCHAR          NOT NULL,
+        "value"             DOUBLE PRECISION NOT NULL,
+        "cost"              DOUBLE PRECISION NULL,
+        "tags"              JSONB            NOT NULL,
+        "context"           JSONB            NOT NULL,
+        PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
+    );
+
+    SELECT create_hypertable('{{ $outputTable }}', by_range('startTime', INTERVAL '1 day'));
+
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: {{ .Release.Name }}-timescaledb-init
+---
+# Connect Stuff
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ .Release.Name }}-connect
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+    - resource:
+        type: group
+        name: connect-{{ .Release.Name }}-tsdb-sink 
+        patternType: literal
+      operations:
+        - All
+      host: "*"
+    - resource:
+        type: group
+        name: {{ .Release.Name }}-connect
+        patternType: literal
+      operations:
+        - All
+      host: "*"
+    - host: "*"
+      operations:
+      - All
+      resource:
+        name: {{ .Release.Name }}-connect-
+        patternType: prefix
+        type: topic
+    - host: "*"
+      operations:
+      - Read
+      - Describe
+      - DescribeConfigs
+      resource:
+        name: {{ $aggregatedTableFriendlyTopic }}
+        patternType: literal
+        type: topic
+---
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: {{ .Release.Name }}-connect
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  image: {{ .Values.connect.image }}
+  version: 3.8.0
+  replicas: 1
+  bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
+  authentication:
+    type: scram-sha-512
+    username: {{ .Release.Name }}-connect
+    passwordSecret:
+      secretName: {{ .Release.Name }}-connect
+      password: password
+  # TODO: only relevant if the listener defined in the Kafka resource is using TLS
+  tls:
+    trustedCertificates:
+      - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+        certificate: "ca.crt"
+  config:
+    group.id: {{ .Release.Name }}-connect
+    offset.storage.topic: {{ .Release.Name }}-connect-cluster-offsets
+    config.storage.topic: {{ .Release.Name }}-connect-cluster-configs
+    status.storage.topic: {{ .Release.Name }}-connect-cluster-status
+    # -1 means it will use the default replication factor configured in the broker
+    config.storage.replication.factor: -1
+    offset.storage.replication.factor: -1
+    status.storage.replication.factor: -1
+    internal.key.converter: org.apache.kafka.connect.storage.StringConverter
+    internal.value.converter: org.apache.kafka.connect.json.JsonConverter
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+---
+# To use the KafkaConnector resource, you have to first enable the connector operator using
+# the strimzi.io/use-connector-resources annotation on the KafkaConnect custom resource.
+# From Apache Kafka 3.1.1 and 3.2.0, you also have to add the FileStreamSourceConnector
+# connector to the container image. You can do that using the kafka-connect-build.yaml example.
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: {{ .Release.Name }}-tsdb-sink
+  labels:
+    # The strimzi.io/cluster label identifies the KafkaConnect instance
+    # in which to create this connector. That KafkaConnect instance
+    # must have the strimzi.io/use-connector-resources annotation
+    # set to true.
+    strimzi.io/cluster: {{ .Release.Name }}-connect
+spec:
+  class: io.confluent.connect.jdbc.JdbcSinkConnector
+  tasksMax: 1
+  config: {
+    "topics": "{{ $aggregatedTableFriendlyTopic }}",
+    "connection.url": "jdbc:postgresql://{{ .Release.Name }}-timescaledb:5432/postgres?sslmode=disable",
+    "connection.user": "postgres",
+    "connection.password": "{{ $postgresPw }}",
+    "insert.mode": "upsert",
+    "auto.create": "false",
+    "table.name.format": "{{ $outputTable }}",
+    "pk.mode": "record_value",
+    "pk.fields": "startTime,endTime,entityType,initialMetricName,name",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "{{ .Values.schemaRegistry.url }}",
+    "value.converter.basic.auth.credentials.source": "USER_INFO",
+    "value.converter.basic.auth.user.info": "schema-registry-user:schema-registry-password",
+    "transforms": "flatten",
+    "transforms.flatten.type": "org.apache.kafka.connect.transforms.Flatten$Value",
+    "transforms.flatten.delimiter": "_"
+  }

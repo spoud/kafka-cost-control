@@ -1,0 +1,64 @@
+{{- define "pricingRulesTopic" -}}
+{{- if .Values.topics.pricingRules.topicName }}{{ .Values.topics.pricingRules.topicName }}{{ else }}{{ printf "%s-pricing-rules" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $pricingRulesTopic := (include "pricingRulesTopic" .) }}
+
+{{- define "aggregatedTopic" -}}
+{{- if .Values.topics.aggregated.topicName }}{{ .Values.topics.aggregated.topicName }}{{ else }}{{ printf "%s-aggregated" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $aggregatedTopic := (include "aggregatedTopic" .) }}
+
+{{- define "aggregatedTableFriendlyTopic" -}}
+{{- if .Values.topics.aggregatedTableFriendly.topicName }}{{ .Values.topics.aggregatedTableFriendly.topicName }}{{ else }}{{ printf "%s-aggregated-table-friendly" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
+
+{{- define "contextTopic" -}}
+{{- if .Values.topics.context.topicName }}{{ .Values.topics.context.topicName }}{{ else }}{{ printf "%s-context-data" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $contextTopic := (include "contextTopic" .) }}
+
+{{- define "rawMetricsTopics" -}}
+{{ $fallbackTopic := (include "telegrafTopic" .) }}
+{{- if .Values.topics.toAggregate }}{{ join "," .Values.topics.toAggregate }}{{ else }}{{ $fallbackTopic }}{{ end }}
+{{- end -}}
+{{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
+
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: {{ $pricingRulesTopic }}
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+spec:
+  partitions: {{ .Values.topics.pricingRules.partitions }}
+  config:
+    cleanup.policy: compact
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: {{ $aggregatedTopic }}
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+spec:
+  partitions: {{ .Values.topics.aggregated.partitions }}
+  config:
+    retention.ms: {{ .Values.topics.aggregated.config.retentionMs }}
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: {{ $aggregatedTableFriendlyTopic }}
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+spec:
+  partitions: {{ .Values.topics.aggregatedTableFriendly.partitions }}
+  config:
+    retention.ms: {{ .Values.topics.aggregatedTableFriendly.config.retentionMs }}

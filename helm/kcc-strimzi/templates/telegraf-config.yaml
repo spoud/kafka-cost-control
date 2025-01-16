@@ -1,0 +1,81 @@
+{{ $rawMetricsTopic := (include "telegrafTopic" .) }}
+apiVersion: v1
+data:
+  telegraf.conf: |
+    # Global tags can be specified here in key="value" format.
+    [global_tags]
+        env = "{{ .Values.env }}"
+
+    [agent]
+        interval = "10s"
+        round_interval = true
+        metric_batch_size = 100
+        metric_buffer_limit = 10000
+        collection_jitter = "0s"
+        flush_interval = "10s"
+        flush_jitter = "0s"
+        precision = "0s"
+        omit_hostname = false
+        logtarget = "stderr"
+        debug = true
+        quiet = false
+
+    [[inputs.prometheus]]
+        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total", "kafka_log_log_size"]
+        taginclude = ["topic", "pod_name", "env", "partition"]
+        monitor_kubernetes_pods = true
+        monitor_kubernetes_pods_method = "settings"
+        monitor_kubernetes_pods_scheme = "http"
+        monitor_kubernetes_pods_port = 9404
+        monitor_kubernetes_pods_path = "/metrics"
+        monitor_kubernetes_pods_namespace = "{{ .Release.Namespace }}"
+        kubernetes_label_selector = "strimzi.io/kind=Kafka,strimzi.io/broker-role=true"
+        timeout = "10s"
+        response_timeout = "10s"
+        [inputs.prometheus.tags]
+            source="strimzi-metric-api"
+    
+    [[aggregators.basicstats]]
+        namepass = ["kafka_log_log_size"]
+        period = "3600s"
+        delay = "10s"
+        grace = "10s"
+        drop_original = true
+        stats = ["max"]
+
+    [[aggregators.basicstats]]
+        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
+        period = "600s"
+        delay = "10s"
+        grace = "10s"
+        drop_original = true
+        stats = ["diff"]
+
+    [[outputs.kafka]]
+        brokers = ["{{ .Values.strimzi.bootstrapServer }}"]
+        topic = "{{ $rawMetricsTopic }}"
+        client_id = "telegraf-scrapper"
+        routing_tag = "host"
+        idempotent_writes = true
+        max_retry = 3
+        {{ if eq .Values.strimzi.auth "scram-sha-512" }}
+        sasl_username = "{{ .Release.Name }}-telegraf"
+        sasl_password = "${OUTPUT_KAFKA_SASL_PASSWORD}"
+        sasl_mechanism = "SCRAM-SHA-512"
+        {{ if .Values.strimzi.scramOverTls }}
+        enable_tls = true
+        tls_ca = "/etc/kafka/ca.crt"
+        insecure_skip_verify = false
+        {{ end }}
+        {{ end }}
+        data_format = "json"
+    
+    {{ if .Values.debug }}
+    [[outputs.file]]
+        files = ["stdout"]
+        data_format = "json"
+    {{ end }}
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: {{ .Release.Name }}-telegraf-config

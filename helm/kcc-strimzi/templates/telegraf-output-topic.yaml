@@ -1,0 +1,17 @@
+{{- define "telegrafTopic" -}}
+{{- if .Values.topics.rawMetrics.topicName }}{{ .Values.topics.rawMetrics.topicName }}{{ else }}{{ printf "%s-raw-telegraf-metrics" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $rawMetricsTopic := (include "telegrafTopic" .) }}
+
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: {{ $rawMetricsTopic }}
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+spec:
+  partitions: {{ .Values.topics.rawMetrics.partitions }}
+  config:
+    retention.ms: {{ .Values.topics.rawMetrics.retentionMs }}

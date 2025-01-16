@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-telegraf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-telegraf
+      {{- with .Values.telegraf.labels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-telegraf
+        {{- with .Values.telegraf.labels }}
+        {{- toYaml . | nindent 6 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-telegraf
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-telegraf-config
+            defaultMode: 420
+            optional: false
+        - name: kafka-cluster-ca
+          secret:
+            secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+      containers:
+        - name: telegraf
+          image: telegraf:alpine
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: {{ .Values.telegraf.resources.limits.cpu }}
+              memory: {{ .Values.telegraf.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.telegraf.resources.requests.cpu }}
+              memory: {{ .Values.telegraf.resources.requests.memory }}
+          {{ if eq .Values.strimzi.auth "scram-sha-512" }}
+          env:
+            - name: OUTPUT_KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-telegraf
+                  key: password
+          {{ end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf
+            - name: kafka-cluster-ca
+              mountPath: /etc/kafka
+              readOnly: true
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
