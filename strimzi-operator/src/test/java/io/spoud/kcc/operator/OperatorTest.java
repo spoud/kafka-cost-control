@@ -33,6 +33,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.jboss.logmanager.MDC;
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
+import static io.spoud.kcc.operator.DefaultTestProfile.PREFIX;
 
 import java.time.Duration;
 import java.util.List;
@@ -149,7 +150,7 @@ class OperatorTest {
 
         // make sure that the context of TOPIC_NAME now contains a new reader
         var record = records.stream()
-                .filter(r -> TOPIC_NAME.equals(((GenericData.Record) r.value()).get("regex")))
+                .filter(r -> (PREFIX + TOPIC_NAME).equals(((GenericData.Record) r.value()).get("regex")))
                 .findFirst()
                 .orElseThrow();
         assertThatContextRecordMatchesTopic(record, getTopicInstance(TOPIC_NAME, TOPIC_APP),
