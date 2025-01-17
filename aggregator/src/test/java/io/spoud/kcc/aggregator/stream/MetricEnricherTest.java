@@ -75,8 +75,7 @@ class MetricEnricherTest {
                 .topicRawData(List.of(TOPIC_RAW_TELEGRAF))
                 .topicContextData(TOPIC_CONTEXT_DATA)
                 .metricsAggregations(Map.of("confluent_kafka_server_retained_bytes", "max"))
-                .topicMetricToPrincipalMetric(Map.of("bytesin_transposable", "writers"))
-                .splitValueAmongListMembers(Map.of("bytesin_splittable", "writers"))
+                .splitValueAmongListMembers(Map.of("bytesin_transposable", "writers"))
                 .build();
         metricReducer = Mockito.spy(new MetricReducer(configProperties));
         metricRepository = new MetricNameRepository(metricReducer);
@@ -363,72 +362,33 @@ class MetricEnricherTest {
     }
 
     @Test
-    void should_apply_splitting_transformation() {
+    void should_turn_topic_metric_into_principal_metric() {
         contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
                 EntityType.TOPIC, "spoud_.*", Map.of("writers", "alice,bob", "application", "flux-capacitor")));
-        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_splittable", "spoud_topic_v1", 10.0);
+        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
 
         rawTelegrafDataTopic.pipeInput(topicMetric);
 
         assertThat(aggregatedTopic.getQueueSize()).isEqualTo(2);
         final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
-        assertThat(list.stream().map(l -> l.getContext().get("writers")).collect(Collectors.toList()))
-                .containsExactlyInAnyOrder("alice", "bob");
-        assertThat(list.stream().map(l -> l.getContext().get("application")).collect(Collectors.toSet()))
-                .containsOnly("flux-capacitor");
-        assertThat(list.stream().map(AggregatedDataWindowed::getValue)).containsExactly(5.0, 5.0);
-        assertThat(list.stream().map(AggregatedDataWindowed::getName)).containsExactly("spoud_topic_v1", "spoud_topic_v1");
-    }
-
-    @Test
-    void should_not_split_metric_without_right_context() {
-        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_splittable", "nocontext-topic", 10.0);
-
-        rawTelegrafDataTopic.pipeInput(topicMetric);
-
-        assertThat(aggregatedTopic.getQueueSize()).isEqualTo(1);
-        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
-        assertThat(list).hasSize(1);
-        assertThat(list.getFirst().getValue()).isEqualTo(10.0);
-    }
-
-    @Test
-    void should_not_split_metric_given_singleton_list() {
-        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
-                EntityType.TOPIC, "spoud_.*", Map.of("writers", "alice", "application", "flux-capacitor")));
-        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_splittable", "spoud_topic_v1", 10.0);
-
-        rawTelegrafDataTopic.pipeInput(topicMetric);
-
-        assertThat(aggregatedTopic.getQueueSize()).isEqualTo(1);
-        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
-        assertThat(list).hasSize(1);
-        assertThat(list.getFirst().getValue()).isEqualTo(10.0);
-    }
-
-    @Test
-    void should_turn_topic_metric_into_principal_metric() {
-        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
-                EntityType.TOPIC, "spoud_.*", Map.of("writers", "alice", "application", "flux-capacitor")));
-        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
-
-        rawTelegrafDataTopic.pipeInput(topicMetric);
-
-        // make sure that the metric that comes out is of type PRINCIPAL and has name "alice"
-        assertThat(aggregatedTopic.getQueueSize()).isEqualTo(1);
-        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
-        assertThat(list).hasSize(1);
+        assertThat(list).hasSize(2);
         assertThat(list.getFirst().getEntityType()).isEqualTo(EntityType.PRINCIPAL);
         assertThat(list.getFirst().getName()).isEqualTo("alice");
         assertThat(list.getFirst().getContext()).containsOnlyKeys("topic", "application");
         assertThat(list.getFirst().getContext()).containsEntry("topic", "spoud_topic_v1");
-        assertThat(list.getFirst().getValue()).isEqualTo(10);
+        assertThat(list.getFirst().getValue()).isEqualTo(5);
+
+        assertThat(list.getLast().getEntityType()).isEqualTo(EntityType.PRINCIPAL);
+        assertThat(list.getLast().getName()).isEqualTo("bob");
+        assertThat(list.getLast().getContext()).containsOnlyKeys("topic", "application");
+        assertThat(list.getLast().getContext()).containsEntry("topic", "spoud_topic_v1");
+        assertThat(list.getLast().getValue()).isEqualTo(5);
     }
 
     @Test
-    void should_turn_not_transform_topic_into_principal_metric_if_principal_context_missing() {
+    void should_not_transform_topic_into_principal_metric_if_principal_context_missing() {
         contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
-                EntityType.TOPIC, "spoud_.*", Map.of("readers", "alice", "application", "flux-capacitor")));
+                EntityType.TOPIC, "spoud_.*", Map.of("readers", "alice,bob", "application", "flux-capacitor"))); // we replaced "writers" with "readers" (above we configured the application to only split among "writers")
         final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
 
         rawTelegrafDataTopic.pipeInput(topicMetric);
@@ -439,7 +399,7 @@ class MetricEnricherTest {
         assertThat(list.getFirst().getEntityType()).isEqualTo(EntityType.TOPIC);
         assertThat(list.getFirst().getName()).isEqualTo("spoud_topic_v1");
         assertThat(list.getFirst().getContext()).containsOnlyKeys("readers", "application");
-        assertThat(list.getFirst().getContext()).containsEntry("readers", "alice");
+        assertThat(list.getFirst().getContext()).containsEntry("readers", "alice,bob");
         assertThat(list.getFirst().getValue()).isEqualTo(10);
     }
 
