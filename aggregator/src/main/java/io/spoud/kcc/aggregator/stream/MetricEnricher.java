@@ -23,7 +23,9 @@ import org.apache.kafka.streams.kstream.*;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @ApplicationScoped
@@ -87,6 +89,8 @@ public class MetricEnricher {
                 .toStream(Named.as("convert-window-to-stream"))
                 .map(MetricEnricher::mapToWindowedAggregate, Named.as("map-to-windowed-aggregated-data"))
                 .leftJoin(pricingRulesTable, this::addPriceToWindowedMetric, Joined.as("join-pricing-rule"))
+                .flatMapValues(this::splitValueAmongListMembers, Named.as("split-value-among-list-members"))
+                .mapValues(this::mapTopicMetricToPrincipalMetricIfNeeded, Named.as("map-topic-metric-to-principal-metric"))
                 .selectKey((key, value) -> new AggregatedDataKey(
                         value.getStartTime(),
                         value.getEndTime(),
@@ -179,4 +183,68 @@ public class MetricEnricher {
                         .build());
     }
 
+    /// For more information, {@link CostControlConfigProperties#splitValueAmongListMembers() see config reference}
+    private List<AggregatedDataWindowed> splitValueAmongListMembers(AggregatedDataWindowed metric) {
+        var keyToSplitBy = configProperties.splitValueAmongListMembers().get(metric.getInitialMetricName());
+        if (keyToSplitBy == null) {
+            return List.of(metric);
+        }
+        var splitBy = Optional.of(metric)
+                .map(AggregatedDataWindowed::getContext)
+                .map(context -> context.get(keyToSplitBy))
+                .map(value -> value.split(","))
+                .orElse(new String[]{});
+        if (splitBy.length == 0) {
+            return List.of(metric);
+        }
+        var valuePerSplit = metric.getValue() / splitBy.length;
+        var costPerSplit = metric.getCost() != null ? metric.getCost() / splitBy.length : null;
+        return Stream.of(splitBy)
+                .map(split -> {
+                    var newContext = metric.getContext() != null
+                            ? new HashMap<>(metric.getContext()) : new HashMap<String, String>();
+                    newContext.put(keyToSplitBy, split);
+                    return AggregatedDataWindowed.newBuilder()
+                            .setStartTime(metric.getStartTime())
+                            .setEndTime(metric.getEndTime())
+                            .setInitialMetricName(metric.getInitialMetricName())
+                            .setName(metric.getName())
+                            .setValue(valuePerSplit)
+                            .setCost(costPerSplit)
+                            .setEntityType(metric.getEntityType())
+                            .setTags(metric.getTags())
+                            .setContext(newContext)
+                            .build();
+                })
+                .toList();
+    }
+
+    private AggregatedDataWindowed mapTopicMetricToPrincipalMetricIfNeeded(AggregatedDataWindowed metric) {
+        var keyToMapBy = configProperties.topicMetricToPrincipalMetric().get(metric.getInitialMetricName());
+        if (keyToMapBy == null || metric.getEntityType() != EntityType.TOPIC) {
+            return metric;
+        }
+        var principalName = Optional.of(metric)
+                .map(AggregatedDataWindowed::getContext)
+                .map(context -> context.get(keyToMapBy))
+                .orElse(null);
+        if (principalName == null) {
+            return metric;
+        }
+        var newContext = metric.getContext() != null
+                ? new HashMap<>(metric.getContext()) : new HashMap<String, String>();
+        newContext.put("topic", metric.getName());
+        newContext.remove(keyToMapBy);
+        return AggregatedDataWindowed.newBuilder()
+                .setStartTime(metric.getStartTime())
+                .setEndTime(metric.getEndTime())
+                .setInitialMetricName(metric.getInitialMetricName())
+                .setName(principalName)
+                .setValue(metric.getValue())
+                .setCost(metric.getCost())
+                .setEntityType(EntityType.PRINCIPAL)
+                .setTags(metric.getTags())
+                .setContext(newContext)
+                .build();
+    }
 }
