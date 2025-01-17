@@ -34,7 +34,19 @@ topics:
   toAggregate: []
 
 telegraf:
+  image: telegraf:1.31.3-alpine
   labels: {}
+  # will be applied to the container
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 12023
+    runAsGroup: 12023
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
   resources:
     limits:
       cpu: 1
@@ -46,12 +58,29 @@ telegraf:
 strimzi:
   clusterName: my-cluster
   bootstrapServer: my-cluster-kafka-bootstrap:9093
+  # If you have a custom CA certificate stored in a secret, you can specify it here.
+  # Otherwise, every component talking to the Kafka cluster will try to mount the <clusterName>-cluster-ca-cert secret.
+  # The custom secret must have the same structure as the strimzi-generated one. (i.e. it should contain ca.crt, ca.p12, ca.password keys)
+  #clusterCaCertSecret: cost-control-cluster-ca-cert
+
   # TODO: actually add support for tls and none
   # "scram-sha-512" or "tls" or "none"
   auth: scram-sha-512
   scramOverTls: true
   contextOperator:
     labels: {}
+    image: spoud/kafka-cost-control-strimzi-operator:latest
+    # will be applied to the container
+    securityContext:
+      runAsUser: 185
+      runAsGroup: 185
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+      seccompProfile:
+        type: RuntimeDefault
     livenessProbe:
       initialDelaySeconds: 30
       periodSeconds: 10
@@ -82,8 +111,22 @@ aggregator:
   # TODO: actually don't spin up the aggregator if this is false
   enabled: true
   appId: kcc-aggregator
+  image: spoud/kafka-cost-control:latest
   # Labels that will be added to the pod
   labels: {}
+  # will be applied to the container
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 185
+    runAsGroup: 185
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    # Override the default storage class if you don't want to use the default one
   resources:
     limits:
       cpu: 4000m
@@ -92,12 +135,54 @@ aggregator:
       cpu: 200m
       memory: 1Gi
   volumeClaimTemplate:
+    #storageClassName: standard
+    accessModes: [ "ReadWriteOnce" ]
     resources:
       requests:
         storage: 1Gi
 
 connect:
-  # TODO: build and use a spoud image (cannot be built on top of a confluent image, because strimzi does not know how to start it)
-  image: alero00/kafka-connect-jdbc-sink:latest
-  # TODO: actually don't spin up the connect and timescale if this is false
+  image: spoud/kafka-cost-control-connect:strimzi-latest
   enabled: true
+  # Labels that will be added to the connect pod
+  labels: {}
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 1m
+      memory: 200Mi
+  securityContext: {}
+
+timescaledb:
+  enabled: true
+  image: timescale/timescaledb:2.17.2-pg16
+  labels: {}
+  volumeClaimTemplate:
+    #storageClassName: standard
+    accessModes: [ "ReadWriteOnce" ]
+    resources:
+      requests:
+        storage: 10Gi
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 100m
+      memory: 0.5Gi
+  # this security context will be applied on the pod level
+  podSecurityContext:
+    fsGroup: 70
+  # this security context will be applied on the container level
+  securityContext:
+    runAsUser: 70
+    runAsGroup: 70
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
