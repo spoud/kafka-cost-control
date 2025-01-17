@@ -10,7 +10,6 @@ import {MatButton} from "@angular/material/button";
 
 @Component({
     selector: 'app-reprocess-dialog',
-    standalone: true,
     imports: [
         MatButton,
         MatDialogTitle,

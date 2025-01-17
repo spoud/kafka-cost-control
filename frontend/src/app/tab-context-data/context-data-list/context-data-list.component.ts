@@ -8,14 +8,12 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
 
 @Component({
-    standalone: true,
     selector: 'app-context-data-list',
     templateUrl: './context-data-list.component.html',
     styleUrl: './context-data-list.component.scss',
     imports: [
         MatTableModule,
         MatSortModule,
-
         KeyValueListComponent,
     ]
 })
