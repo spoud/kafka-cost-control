@@ -201,8 +201,8 @@ public class MetricEnricher {
                 .map(AggregatedData::getContext)
                 .map(context -> context.get(keyToSplitBy))
                 .map(value -> value.split(","))
-                .orElse(new String[]{});
-        if (splitBy.length == 0) {
+                .orElse(null);
+        if (splitBy == null) {
             return Stream.of(metric);
         }
         var valuePerSplit = metric.getValue() / splitBy.length;
