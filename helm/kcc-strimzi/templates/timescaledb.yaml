@@ -1,6 +1,7 @@
 {{ $postgresPw := randAlphaNum 10 }}
 {{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
 {{ $outputTable := printf "%s_aggregated_table_friendly" .Release.Name }}
+{{ $caCert := (include "strimziCaCert" .) }}
 
 kind: Secret
 apiVersion: v1
@@ -38,36 +39,29 @@ spec:
     metadata:
       labels:
         k8s-app: {{ .Release.Name }}-timescaledb
+        {{- with .Values.timescaledb.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       terminationGracePeriodSeconds: 10
       volumes:
         - name: tsdb-init
           configMap:
             name: {{ .Release.Name }}-timescaledb-init
-      initContainers:
-        - name: pgsql-data-permission-fix
-          image: busybox
-          command: [ "/bin/chmod","-R","777", "/data" ]
-          volumeMounts:
-            - name: timescaledb-data
-              mountPath: /data
-        - name: pgsql-lost-and-found-fix
-          image: busybox
-          command: [ "/bin/rm", "-Rf", "/data/lost+found", "||", "echo", "done" ]
-          volumeMounts:
-            - name: timescaledb-data
-              mountPath: /data
+        - name: tmp
+          emptyDir: {}
+        - name: postgresql
+          emptyDir: {}
+      securityContext:
+        {{- .Values.timescaledb.podSecurityContext | toYaml | nindent 8 }}
       containers:
         - name: timescaledb
-          image: timescale/timescaledb:latest-pg16
+          image: {{ .Values.timescaledb.image }}
+          securityContext:
+            {{- .Values.timescaledb.securityContext | toYaml | nindent 12 }}
           imagePullPolicy: Always
           resources:
-            limits:
-              cpu: 4000m
-              memory: 1Gi
-            requests:
-              cpu: 100m
-              memory: 0.5Gi
+            {{- .Values.timescaledb.resources | toYaml | nindent 12 }}
           env:
             - name: POSTGRES_PASSWORD
               valueFrom:
@@ -81,15 +75,28 @@ spec:
             - name: tsdb-init
               mountPath: /docker-entrypoint-initdb.d
             - name: timescaledb-data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
+              readOnly: false
+            - name: tmp
+              mountPath: /tmp
+            - name: postgresql
+              mountPath: /var/run/postgresql
   volumeClaimTemplates:
     - metadata:
         name: timescaledb-data
       spec:
+        {{ if .Values.timescaledb.volumeClaimTemplate.storageClassName }}
+        storageClassName: {{ .Values.timescaledb.volumeClaimTemplate.storageClassName }}
+        {{ end }}
+        {{ if .Values.timescaledb.volumeClaimTemplate.accessModes }}
+        accessModes:
+          {{ .Values.timescaledb.volumeClaimTemplate.accessModes | toYaml | nindent 10 }}
+        {{ else }}
         accessModes: [ "ReadWriteOnce" ]
+        {{ end }}
         resources:
           requests:
-            storage: 10Gi
+            storage: {{ .Values.timescaledb.volumeClaimTemplate.resources.requests.storage }}
 ---
 # DB init script
 apiVersion: v1
@@ -109,7 +116,8 @@ data:
         PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
     );
 
-    SELECT create_hypertable('{{ $outputTable }}', by_range('startTime', INTERVAL '1 day'));
+    -- todo: bad syntax
+    -- SELECT create_hypertable('{{ $outputTable }}', by_range('startTime', INTERVAL '1 day'));
 
 kind: ConfigMap
 metadata:
@@ -170,20 +178,28 @@ metadata:
   annotations:
     strimzi.io/use-connector-resources: "true"
 spec:
+  resources:
+    {{- .Values.connect.resources | toYaml | nindent 4 }}
   image: {{ .Values.connect.image }}
   version: 3.8.0
   replicas: 1
   bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
+  template:
+    pod:
+      metadata:
+        labels:
+          {{- .Values.connect.labels | toYaml | nindent 10 }}
+      securityContext:
+        {{- .Values.connect.securityContext | toYaml | nindent 8 }}
   authentication:
     type: scram-sha-512
     username: {{ .Release.Name }}-connect
     passwordSecret:
       secretName: {{ .Release.Name }}-connect
       password: password
-  # TODO: only relevant if the listener defined in the Kafka resource is using TLS
   tls:
     trustedCertificates:
-      - secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+      - secretName: {{ $caCert }}
         certificate: "ca.crt"
   config:
     group.id: {{ .Release.Name }}-connect

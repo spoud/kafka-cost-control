@@ -2,6 +2,7 @@
 {{- if .Values.topics.context.topicName }}{{ .Values.topics.context.topicName }}{{ else }}{{ printf "%s-context-data" .Release.Name }}{{ end }}
 {{- end -}}
 {{ $ctxTopic := (include "ctxTopic" .) }}
+{{ $caCert := (include "strimziCaCert" .) }}
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -104,15 +105,22 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}-context-operator
       volumes:
+      - name: tmp
+        emptyDir: {}
       - name: kafka-cluster-ca
         secret:
-          secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+          secretName: {{ $caCert }}
       containers:
-      - image: spoud/kafka-cost-control-strimzi-operator
+      - image: {{ .Values.strimzi.contextOperator.image }}
+        securityContext:
+          {{- .Values.strimzi.contextOperator.securityContext | toYaml | nindent 10 }}
         volumeMounts:
         - name: kafka-cluster-ca
           mountPath: /etc/kafka
           readOnly: true
+        - name: tmp
+          mountPath: /tmp
+          readOny: false
         ports:
         - containerPort: 8090
           name: http
@@ -149,7 +157,7 @@ spec:
         - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+              name: {{ .Values.strimzi.clusterCaCertSecret }}
               key: ca.password
         {{ else }}
         - name: KAFKA_SECURITY_PROTOCOL

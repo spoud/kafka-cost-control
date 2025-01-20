@@ -4,6 +4,11 @@
 {{ $contextTopic := (include "contextTopic" .) }}
 {{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
 
+{{- define "strimziCaCert" -}}
+{{- if .Values.strimzi.clusterCaCertSecret }}{{ .Values.strimzi.clusterCaCertSecret }}{{ else }}{{ printf "%s-cluster-ca-cert" .Values.strimzi.clusterName }}{{ end }}
+{{- end -}}
+{{ $caCert := (include "strimziCaCert" .) }}
+
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -31,10 +36,14 @@ spec:
       volumes:
       - name: kafka-cluster-ca
         secret:
-          secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+          secretName: {{ $caCert }}
+      - name: tmp
+        emptyDir: {}
       containers:
         - name: kafka-cost-control
-          image: spoud/kafka-cost-control:latest
+          image: {{ .Values.aggregator.image }}
+          securityContext:
+            {{- .Values.aggregator.securityContext | toYaml | nindent 12 }}
           imagePullPolicy: Always
           resources:
             limits:
@@ -78,7 +87,7 @@ spec:
             - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+                  name: {{ .Values.strimzi.clusterCaCertSecret }}
                   key: ca.password
             {{ else }}
             - name: KAFKA_SECURITY_PROTOCOL
@@ -89,6 +98,9 @@ spec:
             - containerPort: 8080
               name: http
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+              readOny: false
             - name: kstream-data
               mountPath: /home/jboss/kafka-stream/
             - name: kafka-cluster-ca
@@ -123,7 +135,15 @@ spec:
     - metadata:
         name: kstream-data
       spec:
+        {{ if .Values.aggregator.volumeClaimTemplate.storageClassName }}
+        storageClassName: {{ .Values.aggregator.volumeClaimTemplate.storageClassName }}
+        {{ end }}
+        {{ if .Values.aggregator.volumeClaimTemplate.accessModes }}
+        accessModes:
+          {{- .Values.aggregator.volumeClaimTemplate.accessModes | toYaml | nindent 10 }}
+        {{ else }}
         accessModes: [ "ReadWriteOnce" ]
+        {{ end }}
         resources:
           requests:
             storage: {{ .Values.aggregator.volumeClaimTemplate.resources.requests.storage }}

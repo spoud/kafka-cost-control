@@ -1,3 +1,5 @@
+{{ $caCert := (include "strimziCaCert" .) }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,7 +17,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-telegraf
         {{- with .Values.telegraf.labels }}
-        {{- toYaml . | nindent 6 }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-telegraf
@@ -27,10 +29,12 @@ spec:
             optional: false
         - name: kafka-cluster-ca
           secret:
-            secretName: {{ .Values.strimzi.clusterName }}-cluster-ca-cert
+            secretName: {{ $caCert }}
       containers:
         - name: telegraf
-          image: telegraf:alpine
+          securityContext:
+            {{- .Values.telegraf.securityContext | toYaml | nindent 12 }}
+          image: {{ .Values.telegraf.image }}
           imagePullPolicy: IfNotPresent
           resources:
             limits:

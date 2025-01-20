@@ -35,4 +35,26 @@ public interface CostControlConfigProperties {
 
     @WithName("metrics.aggregations")
     Map<String, String> metricsAggregations();
+
+    /**
+     * This is a map of metric names to context keys. The value of the context key will be interpreted as a comma-separated list of principals (applications, teams, users, ...).
+     * The metric will be replaced with multiple metrics, one for each value (=principal) in the list.
+     * Each metric will be of type PRINCIPAL and will have the respective principal as the record name.
+     * The context will no longer contain the context key referencing principal names. Instead, it will hold a "topic" key with the original topic name.
+     * The value of the original metric will be divided evenly among the resulting metrics.
+     * <p>
+     * For example, if the incoming metric is {type: TOPIC, name: "my-topic", initialMetricName: "bytesin", context: {writers: "v1,v2", c2: "v3"}, value: 10}
+     * and this map contains {"bytesin": "writers"}, then the original metric will be replaced by two metrics:
+     * <p>
+     *     {type: PRINCIPAL, name: "v1", initialMetricName: "bytesin", context: {topic: "my-topic", c2: "v3"}, value: 5},<br/>
+     *     {type: PRINCIPAL, name: "v2", initialMetricName: "bytesin", context: {topic: "my-topic", c2: "v3"}, value: 5}
+     * <p>
+     * This is handy when you have a metric that represents usage of a resource by multiple entities, and you want to split the metric
+     * into individual metrics for each entity.
+     * <p>
+     * If a metric's context contains a single value for the context key, the metric will not be split.
+     * If a metric's context does not contain the context key, the metric also will not be split.
+     */
+    @WithName("metrics.transformations.splitMetricAmongPrincipals")
+    Map<String, String> splitTopicMetricAmongPrincipals();
 }

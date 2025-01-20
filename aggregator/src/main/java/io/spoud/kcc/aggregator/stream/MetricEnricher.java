@@ -23,7 +23,9 @@ import org.apache.kafka.streams.kstream.*;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @ApplicationScoped
@@ -78,6 +80,7 @@ public class MetricEnricher {
                 .filter(
                         (key, value) -> (value != null && value.getEntityType() != null && value.getName() != null),
                         Named.as("filter-null"))
+                .flatMapValues(this::splitTopicMetricToPrincipalMetrics, Named.as("map-topic-metric-to-principal-metric"))
                 .selectKey(
                         (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName(),
                         Named.as("unique-key-for-windowing"))
@@ -179,4 +182,64 @@ public class MetricEnricher {
                         .build());
     }
 
+    private List<AggregatedData> splitTopicMetricToPrincipalMetrics(AggregatedData metric) {
+        if (metric.getEntityType() != EntityType.TOPIC) {
+            return Collections.singletonList(metric);
+        }
+        return splitValueAmongListMembers(metric)
+                .map(this::toPrincipalMetric)
+                .toList();
+    }
+
+    /// For more information, {@link CostControlConfigProperties#splitTopicMetricAmongPrincipals() see config reference}
+    private Stream<AggregatedData> splitValueAmongListMembers(AggregatedData metric) {
+        var keyToSplitBy = configProperties.splitTopicMetricAmongPrincipals().get(metric.getInitialMetricName());
+        if (keyToSplitBy == null) {
+            return Stream.of(metric);
+        }
+        var splitBy = Optional.of(metric)
+                .map(AggregatedData::getContext)
+                .map(context -> context.get(keyToSplitBy))
+                .map(value -> value.split(","))
+                .orElse(null);
+        if (splitBy == null) {
+            return Stream.of(metric);
+        }
+        var valuePerSplit = metric.getValue() / splitBy.length;
+        var costPerSplit = metric.getCost() != null ? metric.getCost() / splitBy.length : null;
+        return Stream.of(splitBy)
+                .map(split -> {
+                    var newContext = metric.getContext() != null
+                            ? new HashMap<>(metric.getContext()) : new HashMap<String, String>();
+                    newContext.put(keyToSplitBy, split);
+                    return new AggregatedData(metric.getTimestamp(),
+                            metric.getEntityType(),
+                            metric.getName(),
+                            metric.getInitialMetricName(),
+                            valuePerSplit,
+                            costPerSplit,
+                            metric.getTags(),
+                            newContext);
+                });
+    }
+
+    private AggregatedData toPrincipalMetric(AggregatedData metric) {
+        var keyToMapBy = configProperties.splitTopicMetricAmongPrincipals().get(metric.getInitialMetricName());
+        if (keyToMapBy == null || metric.getEntityType() != EntityType.TOPIC) {
+            return metric;
+        }
+        var principalName = Optional.of(metric)
+                .map(AggregatedData::getContext)
+                .map(context -> context.get(keyToMapBy))
+                .orElse(null);
+        if (principalName == null) {
+            return metric;
+        }
+        var newContext = metric.getContext() != null
+                ? new HashMap<>(metric.getContext()) : new HashMap<String, String>();
+        newContext.put("topic", metric.getName());
+        newContext.remove(keyToMapBy);
+        return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName, metric.getInitialMetricName(),
+                metric.getValue(), metric.getCost(), metric.getTags(), newContext);
+    }
 }
