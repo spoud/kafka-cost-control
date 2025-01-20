@@ -8,6 +8,7 @@ Feel free to adapt the partition size to fit your needs. In this example we put 
 
 [source,sql]
 ----
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE TABLE "kafka_aggregated-table-friendly"
 (
     "startTime"         TIMESTAMP        NOT NULL,
@@ -25,7 +26,15 @@ CREATE TABLE "kafka_aggregated-table-friendly"
 SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '1 day'));
 ----
 
-if you want to run the script above you can run it with the interactive cli.
+Note that the Helm and Kustomize templates already execute this script when the database is created.
+To prevent the database from being overwhelmed by the amount of data, we recommend creating a retention policy. In this example we will keep the data for 90 days:
+
+[source,sql]
+----
+SELECT add_retention_policy('kafka_aggregated-table-friendly', INTERVAL '90 days');
+----
+
+if you want to run the scripts above manually, you can use the interactive cli.
 [source,shell]
 ----
 kubectl exec -it -n <namespace> timescaledb-0 -- psql -U postgres -d postgres
