@@ -157,7 +157,7 @@ spec:
         - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.strimzi.clusterCaCertSecret }}
+              name: {{ $caCert }}
               key: ca.password
         {{ else }}
         - name: KAFKA_SECURITY_PROTOCOL

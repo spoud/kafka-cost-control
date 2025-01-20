@@ -39,6 +39,9 @@ spec:
           secretName: {{ $caCert }}
       - name: tmp
         emptyDir: {}
+      - name: additional-config
+        configMap:
+          name: {{ .Release.Name }}-kafka-cost-control-config
       containers:
         - name: kafka-cost-control
           image: {{ .Values.aggregator.image }}
@@ -87,7 +90,7 @@ spec:
             - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.strimzi.clusterCaCertSecret }}
+                  name: {{ $caCert }}
                   key: ca.password
             {{ else }}
             - name: KAFKA_SECURITY_PROTOCOL
@@ -105,6 +108,9 @@ spec:
               mountPath: /home/jboss/kafka-stream/
             - name: kafka-cluster-ca
               mountPath: /etc/kafka
+              readOnly: true
+            - name: additional-config
+              mountPath: /deployments/config
               readOnly: true
           startupProbe:
             httpGet:
@@ -147,3 +153,17 @@ spec:
         resources:
           requests:
             storage: {{ .Values.aggregator.volumeClaimTemplate.resources.requests.storage }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control-config
+data:
+  application.yaml: |
+    cc:
+      metrics:
+        transformations:
+          splitMetricAmongPrincipals:
+            kafka_server_brokertopicmetrics_bytesout_total: readers
+            kafka_server_brokertopicmetrics_bytesin_total: writers
+            kafka_log_log_size: writers
