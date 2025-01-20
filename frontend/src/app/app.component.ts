@@ -16,20 +16,18 @@ interface Link {
 
 @Component({
     selector: 'app-root',
-    standalone: true,
     templateUrl: './app.component.html',
     styleUrl: './app.component.scss',
     imports: [
         RouterLink,
         RouterLinkActive,
         RouterOutlet,
-
         MatTabsModule,
         MatToolbar,
         MatIcon,
         MatButton,
         MatTooltip
-    ],
+    ]
 })
 export class AppComponent {
     isAuthenticated: Signal<boolean>;

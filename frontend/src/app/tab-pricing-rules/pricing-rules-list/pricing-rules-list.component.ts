@@ -7,7 +7,6 @@ import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSnackBar} from '@angular/material/snack-bar';
 
 @Component({
-    standalone: true,
     selector: 'app-pricing-rules-list',
     templateUrl: './pricing-rules-list.component.html',
     styleUrl: './pricing-rules-list.component.scss',

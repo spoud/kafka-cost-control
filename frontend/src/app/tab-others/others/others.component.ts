@@ -13,15 +13,12 @@ import {provideNativeDateAdapter} from '@angular/material/core';
 import {MatCardModule} from '@angular/material/card';
 
 @Component({
-    standalone: true,
     selector: 'app-others',
     templateUrl: './others.component.html',
     styleUrl: './others.component.scss',
     imports: [
         ReprocessDialogComponent,
-
         FormsModule,
-
         MatButton,
         MatDatepickerModule,
         MatInputModule,
@@ -30,7 +27,7 @@ import {MatCardModule} from '@angular/material/card';
     ],
     providers: [
         provideNativeDateAdapter()
-    ],
+    ]
 })
 export class OthersComponent {
 

@@ -10,11 +10,9 @@ import {DialogRef} from '@angular/cdk/dialog';
 
 @Component({
     selector: 'app-sign-in-dialog',
-    standalone: true,
     imports: [
         ReactiveFormsModule,
         MatSnackBarModule,
-
         MatButton,
         MatDialogTitle,
         MatDialogContent,
