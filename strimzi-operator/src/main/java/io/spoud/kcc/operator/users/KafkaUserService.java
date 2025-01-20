@@ -1,11 +1,14 @@
 package io.spoud.kcc.operator.users;
 
+import io.quarkus.logging.Log;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import io.strimzi.api.kafka.model.user.KafkaUserAuthorizationSimple;
 import io.strimzi.api.kafka.model.user.acl.*;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 @ApplicationScoped
 public class KafkaUserService {
@@ -41,11 +44,17 @@ public class KafkaUserService {
     }
 
     private boolean canPerformOperationOnTopic(KafkaUser user, AclOperation op, String topicName) {
-        if (user.getSpec().getAuthorization() instanceof KafkaUserAuthorizationSimple auth) {
-            var rules = getRulesForTopicName(auth.getAcls(), topicName);
-            // deny rule takes precedence over allow rule, so we need to check that there is no deny rule
-            return hasRuleForOperation(rules, op, AclRuleType.ALLOW) &&
-                    !hasRuleForOperation(rules, op, AclRuleType.DENY);
+        try {
+            if (user.getSpec().getAuthorization() instanceof KafkaUserAuthorizationSimple auth) {
+                var rules = getRulesForTopicName(auth.getAcls(), topicName);
+                // deny rule takes precedence over allow rule, so we need to check that there is no deny rule
+                return hasRuleForOperation(rules, op, AclRuleType.ALLOW) &&
+                        !hasRuleForOperation(rules, op, AclRuleType.DENY);
+            }
+        } catch (Exception e) {
+            var err = String.format("Error while checking ACLs for user %s. Context generation will proceed, but the user will not be listed as a reader/writer.",
+                    user.getMetadata().getName());
+            Log.warn(err, e);
         }
         return false; // only simple authorization is supported
     }
@@ -70,7 +79,16 @@ public class KafkaUserService {
     }
 
     private boolean hasRuleForOperation(Collection<AclRule> rules, AclOperation op, AclRuleType type) {
-        return rules.stream().anyMatch(rule -> (rule.getOperations().contains(op) || rule.getOperations().contains(AclOperation.ALL))
+        return rules.stream().anyMatch(rule -> (getOperations(rule).contains(op)
+                || getOperations(rule).contains(AclOperation.ALL))
                 && rule.getType() == type);
+    }
+
+    private List<AclOperation> getOperations(AclRule rule) {
+        if (rule.getOperations() == null) {
+            return Optional.ofNullable(rule.getOperation())
+                    .stream().toList();
+        }
+        return rule.getOperations();
     }
 }

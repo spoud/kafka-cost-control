@@ -119,6 +119,8 @@ class OperatorTest {
         addKafkaUser(getUserInstance("dummy2", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
                 TOPIC_NAME, List.of(AclOperation.READ), // even though read is allowed, the deny READ rule should take precedence
                 List.of(AclOperation.READ)));
+        // this user has no ACLs at all (testing that this does not break the operator)
+        addKafkaUser(getKafkaUserWithoutAcls("dummy3", Map.of(GROUP_KEY, GROUP_DUMMY)));
 
         // invalidate all caches
         cacheManager.getCacheNames().stream()
@@ -244,6 +246,17 @@ class OperatorTest {
                                 .endAcl()
                                 .build()
                 )
+                .endSpec()
+                .build();
+    }
+
+    KafkaUser getKafkaUserWithoutAcls(String username, Map<String, String> annotations) {
+        return new KafkaUserBuilder()
+                .withNewMetadata()
+                .withName(username)
+                .withAnnotations(annotations)
+                .endMetadata()
+                .withNewSpec()
                 .endSpec()
                 .build();
     }

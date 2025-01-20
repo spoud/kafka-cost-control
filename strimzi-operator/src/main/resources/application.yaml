@@ -7,7 +7,7 @@ cc:
 quarkus:
   kafka:
     devservices:
-      image-name: redpandadata/redpanda
+      #image-name: redpandadata/redpanda
   http:
     port: 8090
   # jandex indexing for external dependencies
