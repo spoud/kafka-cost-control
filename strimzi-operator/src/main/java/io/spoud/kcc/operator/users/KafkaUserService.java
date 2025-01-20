@@ -52,9 +52,7 @@ public class KafkaUserService {
                         !hasRuleForOperation(rules, op, AclRuleType.DENY);
             }
         } catch (Exception e) {
-            var err = String.format("Error while checking ACLs for user %s. Context generation will proceed, but the user will not be listed as a reader/writer.",
-                    user.getMetadata().getName());
-            Log.warn(err, e);
+            Log.warnf(err, "Error while checking ACLs for user %s. Context generation will proceed, but the user will not be listed as a reader/writer.", user.getMetadata().getName());
         }
         return false; // only simple authorization is supported
     }
