@@ -34,6 +34,7 @@ public class KafkaUserService {
     /**
      * Get all Kafka users that have ACLs allowing them to write to the given topic.
      * Considers both literal and prefix ACLs.
+     *
      * @param topicName the name of the topic
      * @return the Kafka users that have write access to the topic
      */
@@ -52,7 +53,7 @@ public class KafkaUserService {
                         !hasRuleForOperation(rules, op, AclRuleType.DENY);
             }
         } catch (Exception e) {
-            Log.warnf(err, "Error while checking ACLs for user %s. Context generation will proceed, but the user will not be listed as a reader/writer.", user.getMetadata().getName());
+            Log.warnf(e, "Error while checking ACLs for user %s. Context generation will proceed, but the user will not be listed as a reader/writer.", user.getMetadata().getName());
         }
         return false; // only simple authorization is supported
     }
