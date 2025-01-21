@@ -19,15 +19,6 @@ data:
 
     SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '7 days'));
   
-    -- Compression
-    ALTER TABLE "kafka_aggregated-table-friendly"
-    SET (
-      timescaledb.compress,
-      timescaledb.compress_segmentby = 'name',
-      timescaledb.compress_orderby="""startTime"" ASC"
-    );
-    SELECT add_compression_policy('kafka_aggregated-table-friendly', INTERVAL '1 year');
-      
     -- Reorder chunk for fast query when we filter by metric
     CREATE INDEX "kafka_aggregated-table-friendly_name_idx" ON "kafka_aggregated-table-friendly" USING btree (name);
     SELECT add_reorder_policy('kafka_aggregated-table-friendly', 'kafka_aggregated-table-friendly_name_idx');

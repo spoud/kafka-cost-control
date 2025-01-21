@@ -118,7 +118,11 @@ data:
         PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
     );
 
-    SELECT create_hypertable('{{ $outputTable }}', by_range('startTime', INTERVAL '1 day'));
+    SELECT create_hypertable('{{ $outputTable }}', by_range('startTime', INTERVAL '7 days'));
+  
+    -- Reorder chunk for fast query when we filter by metric
+    CREATE INDEX "{{ $outputTable }}_name_idx" ON "{{ $outputTable }}" USING btree (name);
+    SELECT add_reorder_policy('{{ $outputTable }}', '{{ $outputTable }}_name_idx');
 
 kind: ConfigMap
 metadata:
