@@ -4,10 +4,11 @@ In order to store the metrics, we recommend using a timeserie database. Feel fre
 
 ==== Database Schema
 
-Feel free to adapt the partition size to fit your needs. In this example we put 1 day but please follow the link:https://docs.timescale.com/use-timescale/latest/hypertables/about-hypertables/#best-practices-for-time-partitioning[TimescaleDB documentation] to choose the right partition size for your use case.
+Feel free to adapt the partition size to fit your needs. In this example we put 7 days but please follow the link:https://docs.timescale.com/use-timescale/latest/hypertables/about-hypertables/#best-practices-for-time-partitioning[TimescaleDB documentation] to choose the right partition size for your use case. We recommend a value between 7 days and 1 month. Note that the Helm and Kustomize templates already execute this script when the database is created.
 
 [source,sql]
 ----
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE TABLE "kafka_aggregated-table-friendly"
 (
     "startTime"         TIMESTAMP        NOT NULL,
@@ -22,10 +23,17 @@ CREATE TABLE "kafka_aggregated-table-friendly"
     PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
 );
 
-SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '1 day'));
+SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '7 day'));
 ----
 
-if you want to run the script above you can run it with the interactive cli.
+To prevent the database from being overwhelmed by the amount of data, we recommend creating a retention policy. In this example we will keep the data for 2 years:
+
+[source,sql]
+----
+SELECT add_retention_policy('kafka_aggregated-table-friendly', INTERVAL '2 years');
+----
+
+if you want to run the scripts above manually, you can use the interactive cli.
 [source,shell]
 ----
 kubectl exec -it -n <namespace> timescaledb-0 -- psql -U postgres -d postgres
