@@ -17,10 +17,7 @@ data:
         PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
     );
 
-    SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '7 day'));
-  
-    -- Retention
-    SELECT add_retention_policy('kafka_aggregated-table-friendly', INTERVAL '10 years');
+    SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '7 days'));
   
     -- Compression
     ALTER TABLE kafka_aggregated-table-friendly

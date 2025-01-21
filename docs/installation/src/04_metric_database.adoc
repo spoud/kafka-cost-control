@@ -4,7 +4,7 @@ In order to store the metrics, we recommend using a timeserie database. Feel fre
 
 ==== Database Schema
 
-Feel free to adapt the partition size to fit your needs. In this example we put 7 days but please follow the link:https://docs.timescale.com/use-timescale/latest/hypertables/about-hypertables/#best-practices-for-time-partitioning[TimescaleDB documentation] to choose the right partition size for your use case. We recommend a value between 7 days and 1 month.
+Feel free to adapt the partition size to fit your needs. In this example we put 7 days but please follow the link:https://docs.timescale.com/use-timescale/latest/hypertables/about-hypertables/#best-practices-for-time-partitioning[TimescaleDB documentation] to choose the right partition size for your use case. We recommend a value between 7 days and 1 month. Note that the Helm and Kustomize templates already execute this script when the database is created.
 
 [source,sql]
 ----
@@ -26,7 +26,6 @@ CREATE TABLE "kafka_aggregated-table-friendly"
 SELECT create_hypertable('kafka_aggregated-table-friendly', by_range('startTime', INTERVAL '7 day'));
 ----
 
-Note that the Helm and Kustomize templates already execute this script when the database is created.
 To prevent the database from being overwhelmed by the amount of data, we recommend creating a retention policy. In this example we will keep the data for 2 years:
 
 [source,sql]
