@@ -122,7 +122,7 @@ class AggregatedMetricsRepositoryTest {
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.flushToDb();
-        var exportPath = repo.exportData(LocalDateTime.now().minus(Duration.ofHours(1)), LocalDateTime.now().plus(Duration.ofHours(1)), "json");
+        var exportPath = repo.exportData(Instant.now().minus(Duration.ofHours(1)), Instant.now().plus(Duration.ofHours(1)), "json");
         assertThat(exportPath).isNotNull();
 
         var objectMapper = new ObjectMapper();
@@ -142,9 +142,6 @@ class AggregatedMetricsRepositoryTest {
                 Log.info(json.toString());
                 metricCount++;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail();
         } finally {
             Files.delete(exportPath);
         }
