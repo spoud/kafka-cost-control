@@ -33,7 +33,7 @@ public interface OlapConfigProperties {
      * @return the flush interval in seconds
      */
     @WithName("database.flush-interval.seconds")
-    @WithDefault("5")
+    @WithDefault("15")
     int databaseFlushIntervalSeconds();
 
     /**
