@@ -20,9 +20,26 @@ public class DataExportResource {
     @GET
     @Produces("text/csv")
     public Response genCsvExport(@RestQuery DateTimeParameter fromDate, @RestQuery DateTimeParameter toDate) {
-        var exportPath = aggregatedMetricsRepository.exportDataToCsv(
+        return serveExport("csv", fromDate, toDate);
+    }
+
+    @GET
+    @Produces("application/jsonl")
+    public Response genJsonLinesExport(@RestQuery DateTimeParameter fromDate, @RestQuery DateTimeParameter toDate) {
+        return serveExport("json", fromDate, toDate);
+    }
+
+    // Note that this is just an alias for the application/jsonl endpoint. In both cases, json lines are returned.
+    @GET
+    @Produces("application/json")
+    public Response genJsonExport(@RestQuery DateTimeParameter fromDate, @RestQuery DateTimeParameter toDate) {
+        return serveExport("json", fromDate, toDate);
+    }
+
+    private Response serveExport(String format, DateTimeParameter fromDate, DateTimeParameter toDate) {
+        var exportPath = aggregatedMetricsRepository.exportData(
                 Optional.ofNullable(fromDate).map(DateTimeParameter::localDateTime).orElse(null),
-                Optional.ofNullable(toDate).map(DateTimeParameter::localDateTime).orElse(null));
+                Optional.ofNullable(toDate).map(DateTimeParameter::localDateTime).orElse(null), format);
         return Optional.ofNullable(exportPath)
                 .map(path -> Response.ok().entity((StreamingOutput) output -> {
                     try {
@@ -31,7 +48,7 @@ public class DataExportResource {
                         Log.infof("Export file %s has been downloaded and will be deleted now.", path);
                         Files.delete(path);
                     }
-                }).header("Content-Disposition", "attachment; filename=export.csv").build())
+                }).header("Content-Disposition", "attachment; filename=export." + format).build())
                 .orElse(Response.status(204).build());
     }
 
