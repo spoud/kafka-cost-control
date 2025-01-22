@@ -234,7 +234,7 @@ public class AggregatedMetricsRepository {
                 statement.execute();
                 return tmpFileName;
             } catch (SQLException e) {
-                Log.error("Failed to export data to CSV", e);
+                Log.error("Failed to export data", e);
                 return null;
             }
         }).orElse(null);
