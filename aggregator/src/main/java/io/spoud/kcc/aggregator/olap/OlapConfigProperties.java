@@ -14,6 +14,10 @@ public interface OlapConfigProperties {
     @WithDefault("false")
     boolean enabled();
 
+    /**
+     * The JDBC URL to connect to the DuckDB database. To use an in-memory database, use "jdbc:duckdb:".
+     * Otherwise, specify the path to the database file, e.g. "jdbc:duckdb:/path/to/database.db".
+     */
     @WithName("database.url")
     @WithDefault("jdbc:duckdb:")
     String databaseUrl();
