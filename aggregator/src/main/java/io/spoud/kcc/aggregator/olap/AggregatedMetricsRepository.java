@@ -15,7 +15,7 @@ import java.nio.file.Path;
 import java.sql.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -59,17 +59,20 @@ public class AggregatedMetricsRepository {
 
     private void createTableIfNotExists(Connection connection) throws SQLException {
         try (var statement = connection.createStatement()) {
-            statement.execute("CREATE TABLE IF NOT EXISTS " + olapConfig.fqTableName() + " (" +
-                    "start_time TIMESTAMP_MS NOT NULL, " +
-                    "end_time TIMESTAMP_MS NOT NULL, " +
-                    "initial_metric_name VARCHAR NOT NULL, " +
-                    "entity_type VARCHAR NOT NULL, " +
-                    "name VARCHAR NOT NULL, " +
-                    "tags JSON NOT NULL, " +
-                    "context JSON NOT NULL, " +
-                    "value DOUBLE NOT NULL," +
-                    "target VARCHAR NOT NULL, " +
-                    "id VARCHAR PRIMARY KEY)");
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS %s (
+                        start_time TIMESTAMPTZ NOT NULL,
+                        end_time TIMESTAMPTZ NOT NULL,
+                        initial_metric_name VARCHAR NOT NULL,
+                        entity_type VARCHAR NOT NULL,
+                        name VARCHAR NOT NULL,
+                        tags JSON NOT NULL,
+                        context JSON NOT NULL,
+                        value DOUBLE NOT NULL,
+                        target VARCHAR NOT NULL,
+                        id VARCHAR PRIMARY KEY
+                    )
+                    """.formatted(olapConfig.fqTableName()));
             Log.infof("Created OLAP DB table: %s", olapConfig.fqTableName());
         }
     }
@@ -83,8 +86,8 @@ public class AggregatedMetricsRepository {
             try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO " + olapConfig.fqTableName() + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var metric = rowBuffer.poll(); metric != null; metric = rowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
-                    var start = Timestamp.from(metric.getStartTime());
-                    var end = Timestamp.from(metric.getEndTime());
+                    var start = metric.getStartTime();
+                    var end = metric.getEndTime();
                     var tags = "";
                     var context = "";
                     try {
@@ -104,8 +107,8 @@ public class AggregatedMetricsRepository {
                             tags +
                             context +
                             target);
-                    stmt.setTimestamp(1, start);
-                    stmt.setTimestamp(2, end);
+                    stmt.setObject(1, start.atOffset(ZoneOffset.UTC));
+                    stmt.setObject(2, end.atOffset(ZoneOffset.UTC));
                     stmt.setString(3, metric.getInitialMetricName());
                     stmt.setString(4, metric.getEntityType().name());
                     stmt.setString(5, metric.getName());
@@ -181,7 +184,7 @@ public class AggregatedMetricsRepository {
         ensureIdentifierIsSafe(key);
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT " + column + "->>'" + key + "' FROM " + olapConfig.fqTableName())) {
+                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM %s".formatted(column, key, olapConfig.fqTableName()))) {
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -218,10 +221,10 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    public Path exportData(LocalDateTime startDate, LocalDateTime endDate, String format) {
+    public Path exportData(Instant startDate, Instant endDate, String format) {
         var finalFormat = (format == null ? "csv" : format).toLowerCase();
-        var finalStartDate = startDate == null ? LocalDateTime.now().minus(Duration.ofDays(30)) : startDate;
-        var finalEndDate = endDate == null ? LocalDateTime.now() : endDate;
+        var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
+        var finalEndDate = endDate == null ? Instant.now() : endDate;
 
         Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
@@ -229,8 +232,8 @@ public class AggregatedMetricsRepository {
         return getConnection().map((conn) -> {
             try (var statement = conn.prepareStatement("COPY (SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
                     + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
-                statement.setTimestamp(1, Timestamp.valueOf(finalStartDate));
-                statement.setTimestamp(2, Timestamp.valueOf(finalEndDate));
+                statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
+                statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
                 statement.execute();
                 return tmpFileName;
             } catch (SQLException e) {

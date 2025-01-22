@@ -8,8 +8,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 import org.jboss.resteasy.reactive.RestQuery;
 
 import java.nio.file.Files;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 import java.util.Optional;
 
 @Path("/olap/export")
@@ -38,8 +37,8 @@ public class DataExportResource {
 
     private Response serveExport(String format, DateTimeParameter fromDate, DateTimeParameter toDate) {
         var exportPath = aggregatedMetricsRepository.exportData(
-                Optional.ofNullable(fromDate).map(DateTimeParameter::localDateTime).orElse(null),
-                Optional.ofNullable(toDate).map(DateTimeParameter::localDateTime).orElse(null), format);
+                Optional.ofNullable(fromDate).map(DateTimeParameter::instant).orElse(null),
+                Optional.ofNullable(toDate).map(DateTimeParameter::instant).orElse(null), format);
         return Optional.ofNullable(exportPath)
                 .map(path -> Response.ok().entity((StreamingOutput) output -> {
                     try {
@@ -52,12 +51,12 @@ public class DataExportResource {
                 .orElse(Response.status(204).build());
     }
 
-    public record DateTimeParameter(LocalDateTime localDateTime) {
+    public record DateTimeParameter(Instant instant) {
         public static DateTimeParameter fromString(String value) {
             try {
-                return new DateTimeParameter(LocalDateTime.parse(value, DateTimeFormatter.ISO_DATE_TIME));
+                return new DateTimeParameter(Instant.parse(value));
             } catch (Exception e) {
-                throw new BadRequestException("Invalid date time format. Expected ISO-8601 date time format.");
+                throw new BadRequestException("Invalid date time format. Expected ISO-8601 date time in UTC time zone (e.g. 2020-01-01T00:00:00Z).");
             }
         }
     }
