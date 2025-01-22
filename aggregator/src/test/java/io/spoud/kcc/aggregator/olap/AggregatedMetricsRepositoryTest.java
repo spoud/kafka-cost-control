@@ -1,13 +1,20 @@
 package io.spoud.kcc.aggregator.olap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.logging.Log;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.data.EntityType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Random;
 
@@ -105,6 +112,43 @@ class AggregatedMetricsRepositoryTest {
         assertThat(repo.getAllContextValues("app")).containsExactlyInAnyOrder("kcc");
         assertThat(repo.getAllContextValues("org")).containsExactlyInAnyOrder("spoud");
         assertThat(repo.getAllContextValues("topic")).containsExactlyInAnyOrder("kcc-topic", "kcc-topic-2");
+    }
+
+    @Test
+    @DisplayName("Export metrics to jsonl file")
+    void getAllMetricsJsonExport() throws IOException {
+        var repo = new AggregatedMetricsRepository(testOlapConfig);
+        repo.init();
+        repo.insertRow(randomDatapoint().setInitialMetricName("metric1").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
+        repo.insertRow(randomDatapoint().setInitialMetricName("metric2").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
+        repo.flushToDb();
+        var exportPath = repo.exportData(LocalDateTime.now().minus(Duration.ofHours(1)), LocalDateTime.now().plus(Duration.ofHours(1)), "json");
+        assertThat(exportPath).isNotNull();
+
+        var objectMapper = new ObjectMapper();
+        var metricCount = 0;
+        try (var reader = Files.newBufferedReader(exportPath)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                var json = objectMapper.readTree(line);
+                assertThat(json.has("start_time")).isTrue();
+                assertThat(json.has("end_time")).isTrue();
+                assertThat(json.has("initial_metric_name")).isTrue();
+                assertThat(json.has("value")).isTrue();
+                assertThat(json.has("tags")).isTrue();
+                assertThat(json.has("context")).isTrue();
+                assertThat(json.has("name")).isTrue();
+                assertThat(json.get("value").asDouble()).isEqualTo(10.0);
+                Log.info(json.toString());
+                metricCount++;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        } finally {
+            Files.delete(exportPath);
+        }
+        assertThat(metricCount).isEqualTo(2);
     }
 
     private static final OlapConfigProperties testOlapConfig = new OlapConfigProperties() {
