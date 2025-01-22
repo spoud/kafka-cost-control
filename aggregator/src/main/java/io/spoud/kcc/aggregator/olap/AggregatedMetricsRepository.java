@@ -6,16 +6,20 @@ import io.quarkus.logging.Log;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.data.AggregatedDataWindowed;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 
+import java.nio.file.Path;
 import java.sql.*;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+@Startup
 @RequiredArgsConstructor
 @ApplicationScoped
 public class AggregatedMetricsRepository {
@@ -25,7 +29,7 @@ public class AggregatedMetricsRepository {
     private final Queue<AggregatedDataWindowed> rowBuffer = new ConcurrentLinkedQueue<>();
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Startup
+    @PostConstruct
     public void init() {
         if (olapConfig.enabled()) {
             getConnection().ifPresent((conn) -> {
@@ -65,6 +69,7 @@ public class AggregatedMetricsRepository {
                     "value DOUBLE NOT NULL," +
                     "target VARCHAR NOT NULL, " +
                     "id VARCHAR PRIMARY KEY)");
+            Log.infof("Created OLAP DB table: %s", olapConfig.fqTableName());
         }
     }
 
@@ -116,7 +121,9 @@ public class AggregatedMetricsRepository {
                 Log.error("Failed to ingest ALL metrics to OLAP database", e);
                 return;
             }
-            Log.infof("Ingested %d metrics. Skipped %d metrics. Duration: %s", count, skipped, Duration.between(startTime, Instant.now()));
+            if (count != 0 || skipped != 0) {
+                Log.infof("Ingested %d metrics. Skipped %d metrics. Duration: %s", count, skipped, Duration.between(startTime, Instant.now()));
+            }
         });
     }
 
@@ -208,5 +215,25 @@ public class AggregatedMetricsRepository {
         if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
             throw new IllegalArgumentException("Invalid identifier. Expected only letters, numbers, and underscores");
         }
+    }
+
+    public Path exportDataToCsv(LocalDateTime startDate, LocalDateTime endDate) {
+        var finalStartDate = startDate == null ? LocalDateTime.now().minus(Duration.ofDays(30)) : startDate;
+        var finalEndDate = endDate == null ? LocalDateTime.now() : endDate;
+
+        Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
+
+        var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + ".csv");
+        return getConnection().map((conn) -> {
+            try (var statement = conn.prepareStatement("COPY (SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "' (HEADER, DELIMITER ',')")) {
+                statement.setTimestamp(1, Timestamp.valueOf(finalStartDate));
+                statement.setTimestamp(2, Timestamp.valueOf(finalEndDate));
+                statement.execute();
+                return tmpFileName;
+            } catch (SQLException e) {
+                Log.error("Failed to export data to CSV", e);
+                return null;
+            }
+        }).orElse(null);
     }
 }

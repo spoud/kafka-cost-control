@@ -15,15 +15,6 @@ cc:
       url: "jdbc:duckdb:"
       schema: main
       table: aggregated_data
-    context:
-      cost-center-keys:
-        - app
-      global-value-fallback: unknown
-      key-specific-value-fallback: {}
-    transformations:
-      split-by:
-        - readers
-        - writers
   admin-password: admin
   metrics:
     aggregations:
