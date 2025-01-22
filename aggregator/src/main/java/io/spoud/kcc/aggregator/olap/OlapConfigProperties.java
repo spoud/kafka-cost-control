@@ -5,11 +5,6 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import org.duckdb.DuckDBConnection;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
 /**
  * Configuration for the optional OLAP (online analytical processing) module.
  */
