@@ -47,6 +47,7 @@ public class AggregatedMetricsRepository {
     private Optional<Connection> getConnection() {
         try {
             if (connection == null) {
+                Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
                 connection = DriverManager.getConnection(olapConfig.databaseUrl());
             }
             return Optional.of(connection);
