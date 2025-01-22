@@ -217,15 +217,17 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    public Path exportDataToCsv(LocalDateTime startDate, LocalDateTime endDate) {
+    public Path exportData(LocalDateTime startDate, LocalDateTime endDate, String format) {
+        var finalFormat = (format == null ? "csv" : format).toLowerCase();
         var finalStartDate = startDate == null ? LocalDateTime.now().minus(Duration.ofDays(30)) : startDate;
         var finalEndDate = endDate == null ? LocalDateTime.now() : endDate;
 
         Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
-        var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + ".csv");
+        var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + "." + finalFormat);
         return getConnection().map((conn) -> {
-            try (var statement = conn.prepareStatement("COPY (SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "' (HEADER, DELIMITER ',')")) {
+            try (var statement = conn.prepareStatement("COPY (SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
+                    + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
                 statement.setTimestamp(1, Timestamp.valueOf(finalStartDate));
                 statement.setTimestamp(2, Timestamp.valueOf(finalEndDate));
                 statement.execute();
