@@ -12,11 +12,18 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.nio.file.Path;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Startup
@@ -24,10 +31,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @ApplicationScoped
 public class AggregatedMetricsRepository {
     private final OlapConfigProperties olapConfig;
-
-    private Connection connection;
     private final Queue<AggregatedDataWindowed> rowBuffer = new ConcurrentLinkedQueue<>();
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private Connection connection;
+
+    private static void ensureIdentifierIsSafe(String identifier) {
+        if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
+            throw new IllegalArgumentException("Invalid identifier. Expected only letters, numbers, and underscores");
+        }
+    }
 
     @PostConstruct
     public void init() {
@@ -60,7 +72,7 @@ public class AggregatedMetricsRepository {
     private void createTableIfNotExists(Connection connection) throws SQLException {
         try (var statement = connection.createStatement()) {
             statement.execute("""
-                    CREATE TABLE IF NOT EXISTS %s (
+                    CREATE TABLE IF NOT EXISTS main.aggregated_data (
                         start_time TIMESTAMPTZ NOT NULL,
                         end_time TIMESTAMPTZ NOT NULL,
                         initial_metric_name VARCHAR NOT NULL,
@@ -72,8 +84,8 @@ public class AggregatedMetricsRepository {
                         target VARCHAR NOT NULL,
                         id VARCHAR PRIMARY KEY
                     )
-                    """.formatted(olapConfig.fqTableName()));
-            Log.infof("Created OLAP DB table: %s", olapConfig.fqTableName());
+                    """);
+            Log.infof("Created OLAP DB table: main.aggregated_data");
         }
     }
 
@@ -83,7 +95,7 @@ public class AggregatedMetricsRepository {
             var skipped = 0;
             var count = 0;
             var startTime = Instant.now();
-            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO " + olapConfig.fqTableName() + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO main.aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var metric = rowBuffer.poll(); metric != null; metric = rowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
@@ -152,7 +164,7 @@ public class AggregatedMetricsRepository {
     public Set<String> getAllMetrics() {
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM " + olapConfig.fqTableName())) {
+                    try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM main.aggregated_data")) {
                         var result = statement.executeQuery();
                         var metrics = new HashSet<String>();
                         while (result.next()) {
@@ -170,7 +182,7 @@ public class AggregatedMetricsRepository {
     private Set<String> getAllJsonKeys(String column) {
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM " + olapConfig.fqTableName())) {
+                    try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM main.aggregated_data")) {
                         return getStatementResultAsStrings(statement, true);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -184,7 +196,7 @@ public class AggregatedMetricsRepository {
         ensureIdentifierIsSafe(key);
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM %s".formatted(column, key, olapConfig.fqTableName()))) {
+                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM main.aggregated_data".formatted(column, key))) {
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -215,12 +227,6 @@ public class AggregatedMetricsRepository {
         return getAllJsonKeyValues("context", contextKey);
     }
 
-    private static void ensureIdentifierIsSafe(String identifier) {
-        if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
-            throw new IllegalArgumentException("Invalid identifier. Expected only letters, numbers, and underscores");
-        }
-    }
-
     public Path exportData(Instant startDate, Instant endDate, String format) {
         var finalFormat = (format == null ? "csv" : format).toLowerCase();
         var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
@@ -230,7 +236,7 @@ public class AggregatedMetricsRepository {
 
         var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + "." + finalFormat);
         return getConnection().map((conn) -> {
-            try (var statement = conn.prepareStatement("COPY (SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
+            try (var statement = conn.prepareStatement("COPY (SELECT * FROM main.aggregated_data WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
                     + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));

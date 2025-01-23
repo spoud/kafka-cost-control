@@ -22,14 +22,6 @@ public interface OlapConfigProperties {
     @WithDefault("jdbc:duckdb:")
     String databaseUrl();
 
-    @WithName("database.table")
-    @WithDefault("aggregated_data")
-    String databaseTable();
-
-    @WithName("database.schema")
-    @WithDefault(DuckDBConnection.DEFAULT_SCHEMA)
-    String databaseSchema();
-
     /**
      * Writes to DB will be flushed once every this many seconds. This is a performance optimization that ensures
      * that data is batched and written to DB in larger chunks, which is better for DuckDB.
@@ -49,11 +41,4 @@ public interface OlapConfigProperties {
     @WithDefault("1000")
     int databaseMaxBufferedRows();
 
-    /**
-     * The fully qualified table name in the format "schema.table".
-     * @return the fully qualified table name
-     */
-    default String fqTableName() {
-        return databaseSchema() + "." + databaseTable();
-    }
 }
