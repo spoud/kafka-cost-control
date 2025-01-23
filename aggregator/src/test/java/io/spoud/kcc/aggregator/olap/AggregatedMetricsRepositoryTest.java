@@ -160,16 +160,6 @@ class AggregatedMetricsRepositoryTest {
         }
 
         @Override
-        public String databaseTable() {
-            return "aggregated_data";
-        }
-
-        @Override
-        public String databaseSchema() {
-            return "main";
-        }
-
-        @Override
         public int databaseFlushIntervalSeconds() {
             return 10;
         }
