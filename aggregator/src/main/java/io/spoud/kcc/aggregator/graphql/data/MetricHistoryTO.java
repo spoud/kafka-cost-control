@@ -10,6 +10,7 @@ import org.eclipse.microprofile.graphql.NonNull;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Name("MetricHistory")
 @Data
@@ -18,9 +19,16 @@ import java.util.List;
 @NoArgsConstructor
 @RegisterForReflection
 public class MetricHistoryTO {
+
+    @NonNull
+    private String name;
+
+    @NonNull
+    private Map<String, String> context;
+
     @NonNull
     private List<Instant> times;
 
     @NonNull
-    private List<MetricHistoryNameTO> metrics;
+    private List<Double> values;
 }

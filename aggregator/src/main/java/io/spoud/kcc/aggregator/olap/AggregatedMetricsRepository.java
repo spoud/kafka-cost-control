@@ -16,11 +16,16 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -261,7 +266,7 @@ public class AggregatedMetricsRepository {
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
-            try (var statement = conn.prepareStatement("SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) ")) {
+            try (var statement = conn.prepareStatement("SELECT * FROM main.aggregated_data WHERE start_time >= ? AND end_time <= ?) ")) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
                 List<MetricEO> metrics = new ArrayList<>();
