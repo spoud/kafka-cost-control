@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.olap;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Startup;
@@ -23,11 +24,19 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @RequiredArgsConstructor
 @ApplicationScoped
 public class AggregatedMetricsRepository {
-    private final OlapConfigProperties olapConfig;
+    public static final TypeReference<Map<String, String>> MAP_STRING_STRING_TYPE_REF = new TypeReference<>() {
+    };
 
-    private Connection connection;
+    private final OlapConfigProperties olapConfig;
     private final Queue<AggregatedDataWindowed> rowBuffer = new ConcurrentLinkedQueue<>();
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private Connection connection;
+
+    private static void ensureIdentifierIsSafe(String identifier) {
+        if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
+            throw new IllegalArgumentException("Invalid identifier. Expected only letters, numbers, and underscores");
+        }
+    }
 
     @PostConstruct
     public void init() {
@@ -46,7 +55,7 @@ public class AggregatedMetricsRepository {
 
     private Optional<Connection> getConnection() {
         try {
-            if (connection == null) {
+            if (connection == null || connection.isClosed()) {
                 Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
                 connection = DriverManager.getConnection(olapConfig.databaseUrl());
             }
@@ -215,12 +224,6 @@ public class AggregatedMetricsRepository {
         return getAllJsonKeyValues("context", contextKey);
     }
 
-    private static void ensureIdentifierIsSafe(String identifier) {
-        if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
-            throw new IllegalArgumentException("Invalid identifier. Expected only letters, numbers, and underscores");
-        }
-    }
-
     public Path exportData(Instant startDate, Instant endDate, String format) {
         var finalFormat = (format == null ? "csv" : format).toLowerCase();
         var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
@@ -241,5 +244,50 @@ public class AggregatedMetricsRepository {
                 return null;
             }
         }).orElse(null);
+    }
+
+
+    // TODO implement name filter
+    public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
+        return getConnection().map((conn) -> {
+            var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
+            var finalEndDate = endDate == null ? Instant.now() : endDate;
+            Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
+
+            try (var statement = conn.prepareStatement("SELECT * FROM " + olapConfig.fqTableName() + " WHERE start_time >= ? AND end_time <= ?) ")) {
+                statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
+                statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
+                List<MetricEO> metrics = new ArrayList<>();
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        metrics.add(new MetricEO(
+                                resultSet.getString("id"),
+                                resultSet.getTimestamp("start_time").toInstant(),
+                                resultSet.getTimestamp("end_time").toInstant(),
+                                resultSet.getString("initial_metric_name"),
+                                resultSet.getString("entity_type"),
+                                resultSet.getString("name"),
+                                parseMap(resultSet.getString("tags")),
+                                parseMap(resultSet.getString("context")),
+                                resultSet.getDouble("value"),
+                                resultSet.getString("target")
+                        ));
+                    }
+                }
+                return metrics;
+            } catch (SQLException e) {
+                Log.error("Failed to export data", e);
+                return null;
+            }
+        }).orElse(Collections.emptyList());
+    }
+
+    private Map<String, String> parseMap(String content) {
+        try {
+            return OBJECT_MAPPER.readValue(content, MAP_STRING_STRING_TYPE_REF);
+        } catch (JsonProcessingException e) {
+            Log.errorf(e, "Failed to parse map content: %s", content);
+        }
+        return Collections.emptyMap();
     }
 }
