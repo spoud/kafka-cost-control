@@ -21,13 +21,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PricingRulesResource {
     private final PricingRulesRepository pricingRulesRepository;
-    private final MetricNameRepository metricNameRepository;
-
-    @PermitAll
-    @Query("metricNames")
-    public @NonNull List<@NonNull MetricNameEntity> metricNames() {
-        return metricNameRepository.getMetricNames();
-    }
 
     @PermitAll
     @Query("pricingRules")

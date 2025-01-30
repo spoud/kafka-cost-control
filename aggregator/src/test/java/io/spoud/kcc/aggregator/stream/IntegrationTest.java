@@ -5,6 +5,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.graphql.ContextDataResource;
+import io.spoud.kcc.aggregator.graphql.MetricsResource;
 import io.spoud.kcc.aggregator.graphql.PricingRulesResource;
 import io.spoud.kcc.aggregator.stream.config.KafkaResource;
 import io.spoud.kcc.aggregator.stream.config.SchemaRegistryResource;
@@ -42,6 +43,8 @@ public class IntegrationTest {
     private static final String TOPIC_INPUT_CONTEXT_DATA = "context-data";
     private static final String TOPIC_OUTPUT_AGGREGATED = "aggregated";
 
+    @Inject
+    MetricsResource metricsResource;
     @Inject
     PricingRulesResource pricingRulesResource;
     @Inject
@@ -113,7 +116,7 @@ public class IntegrationTest {
     void should_find_used_metric_names() {
         await()
                 .atMost(Duration.ofSeconds(10))
-                .untilAsserted(() -> assertThat(pricingRulesResource.metricNames()).hasSize(1));
+                .untilAsserted(() -> assertThat(metricsResource.metricNames()).hasSize(1));
     }
 
     @Test
