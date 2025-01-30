@@ -33,6 +33,7 @@ export class AppComponent {
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
         const list = [
+            {path: '/graphs', label: 'Graphs'},
             {path: '/context-data', label: 'Context Data'},
             {path: '/pricing-rules', label: 'Pricing Rules'},
         ];

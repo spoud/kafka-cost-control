@@ -1,0 +1,27 @@
+<form [formGroup]="form">
+    <mat-form-field>
+        <mat-label>Metric Name</mat-label>
+        <mat-select formControlName="metricName">
+            @for (metricName of metricNames(); track metricName.metricName) {
+                <mat-option [value]="metricName.metricName">{{ metricName.metricName }}</mat-option>
+            }
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Group by contexts</mat-label>
+        <mat-select formControlName="groupByContext" multiple>
+            @for (nd of contextKeys(); track nd.name) {
+                <mat-option [value]="nd.name">{{ nd.definition || nd.name }}</mat-option>
+            }
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Date range</mat-label>
+        <mat-date-range-input [rangePicker]="picker">
+            <input matStartDate placeholder="Start date" formControlName="from">
+            <input matEndDate placeholder="End date" formControlName="to">
+        </mat-date-range-input>
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-date-range-picker #picker></mat-date-range-picker>
+    </mat-form-field>
+</form>

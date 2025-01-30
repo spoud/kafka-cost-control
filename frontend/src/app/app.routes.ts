@@ -2,6 +2,10 @@ import {Routes} from '@angular/router';
 
 export const routes: Routes = [
     {
+        path: 'graphs',
+        loadChildren: () => import('./tab-graphs/tab-graphs.module').then(m => m.TabGraphsModule)
+    },
+    {
         path: 'context-data',
         loadChildren: () => import('./tab-context-data/tab-context-data.module').then(m => m.TabContextDataModule)
     },
@@ -15,7 +19,7 @@ export const routes: Routes = [
     },
     {
         path: '',
-        redirectTo: '/context-data',
+        redirectTo: '/graphs',
         pathMatch: 'full'
     }
 ];

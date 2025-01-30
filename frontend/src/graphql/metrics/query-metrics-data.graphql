@@ -1,0 +1,8 @@
+query metricHistory ($from: String!, $to: String!, $metric: [String]!, $context: [String]){
+    history(from: $from, to: $to, metricNames: $metric, groupByContextKeys: $context){
+        name
+        context
+        times
+        values
+    }
+}

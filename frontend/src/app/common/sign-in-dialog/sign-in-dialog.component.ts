@@ -2,7 +2,7 @@ import {Component} from '@angular/core';
 import {MatButton} from "@angular/material/button";
 import {MatDialogContent, MatDialogTitle} from "@angular/material/dialog";
 import {FormControl, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {MatFormField, MatHint, MatLabel, MatSuffix} from '@angular/material/form-field';
+import {MatFormField, MatLabel} from '@angular/material/form-field';
 import {MatInput} from '@angular/material/input';
 import {BasicAuthServiceService} from '../../services/basic-auth-service.service';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
@@ -18,10 +18,8 @@ import {DialogRef} from '@angular/cdk/dialog';
         MatDialogContent,
         FormsModule,
         MatFormField,
-        MatHint,
         MatInput,
         MatLabel,
-        MatSuffix,
     ],
     templateUrl: './sign-in-dialog.component.html',
     styleUrl: './sign-in-dialog.component.scss'
