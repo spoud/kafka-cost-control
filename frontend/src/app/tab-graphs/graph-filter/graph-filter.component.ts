@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, output, resource} from '@angular/core';
+import {AfterViewInit, Component, computed, effect, inject, output, resource} from '@angular/core';
 import {GraphFilter} from '../tab-graphs.component';
 import {FormBuilder, FormGroup, ReactiveFormsModule} from '@angular/forms';
 import {toSignal} from '@angular/core/rxjs-interop';
@@ -15,7 +15,7 @@ import {MatSelectModule} from '@angular/material/select';
     templateUrl: './graph-filter.component.html',
     styleUrl: './graph-filter.component.scss'
 })
-export class GraphFilterComponent {
+export class GraphFilterComponent implements AfterViewInit{
     graphFilter = output<GraphFilter>();
 
     metricContextKeysGql = inject(MetricContextKeysGQL);
@@ -35,8 +35,8 @@ export class GraphFilterComponent {
 
     constructor(formBuilder: FormBuilder) {
         this.form = formBuilder.group({
-            from: [''],
-            to: [''],
+            from: [new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000)],
+            to: [new Date()],
             metricName: [''],
             groupByContext: ['']
         });
@@ -49,5 +49,7 @@ export class GraphFilterComponent {
 
     }
 
-
+    ngAfterViewInit(): void {
+        this.graphFilter.emit(this.form.value);
+    }
 }
