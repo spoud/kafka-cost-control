@@ -14,6 +14,7 @@ import org.eclipse.microprofile.graphql.Query;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,13 +35,20 @@ public class MetricsResource {
             Instant to) {
 
         if(1==1){
-            Instant now = Instant.now();
+            Instant now = Instant.now().truncatedTo(ChronoUnit.DAYS);
+            List<Instant> times = List.of(now.minus(Duration.ofDays(4)), now.minus(Duration.ofDays(3)), now.minus(Duration.ofDays(2)), now.minus(Duration.ofDays(1)), now);
             return List.of(
                     MetricHistoryTO.builder()
                             .name("metric1")
                             .context(Map.of("appName", "app1"))
-                            .times(List.of(now.minus(Duration.ofDays(1)), now))
-                            .values(List.of(1.0, 2.0))
+                            .times(times)
+                            .values(List.of(1.0, 2.0, -1.0, 3.0, 2.0))
+                            .build(),
+                    MetricHistoryTO.builder()
+                            .name("metric2")
+                            .context(Map.of("appName", "app1"))
+                            .times(times)
+                            .values(List.of(2.0, 5.0, 4.0, 3.0, 4.0))
                             .build()
             );
         }
