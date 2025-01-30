@@ -1,0 +1,6 @@
+<app-graph-filter (graphFilter)="filter.set($event)"/>
+<app-graph-panel/>
+
+<pre>
+    {{ filter() | json }}
+</pre>

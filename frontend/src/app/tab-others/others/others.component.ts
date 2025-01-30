@@ -17,7 +17,6 @@ import {MatCardModule} from '@angular/material/card';
     templateUrl: './others.component.html',
     styleUrl: './others.component.scss',
     imports: [
-        ReprocessDialogComponent,
         FormsModule,
         MatButton,
         MatDatepickerModule,

@@ -19,7 +19,19 @@ type Entry_String_String {
   value: String
 }
 
+type MetricHistory {
+  context(
+    "Get entry/entries for a certain key/s"
+    key: [String]
+  ): [Entry_String_String]!
+  name: String!
+  "ISO-8601"
+  times: [DateTime]!
+  values: [Float]!
+}
+
 type MetricNameEntity {
+  aggregationType: String!
   "ISO-8601"
   lastSeen: DateTime!
   metricName: String!
@@ -38,6 +50,11 @@ type Mutation {
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
 }
 
+type NameWithDefinition {
+  definition: String
+  name: String!
+}
+
 type PricingRuleEntity {
   baseCost: Float!
   costFactor: Float!
@@ -50,6 +67,15 @@ type PricingRuleEntity {
 type Query {
   contextData: [ContextDataEntity!]!
   currentUser: String!
+  history(
+    "ISO-8601"
+    from: DateTime!,
+    groupByContextKeys: [String]!,
+    metricNames: [String]!,
+    "ISO-8601"
+    to: DateTime
+  ): [MetricHistory!]!
+  metricContextKeys: [NameWithDefinition!]!
   metricNames: [MetricNameEntity!]!
   pricingRules: [PricingRuleEntity!]!
 }
