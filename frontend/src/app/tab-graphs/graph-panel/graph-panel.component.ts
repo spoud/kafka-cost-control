@@ -54,7 +54,7 @@ export class GraphPanelComponent {
         };
     });
 
-    protected drawOneLIne(history: MetricHistory, name: string): SeriesOption {
+    protected drawOneLine(history: MetricHistory, name: string): SeriesOption {
         const data: LineDataItemOption[] = this.extractDataFromChannel(history);
 
         return {
