@@ -30,7 +30,7 @@ export class GraphPanelComponent {
 
         this.metricsData().forEach(metricData => {
             const name = metricData.name;
-            series.push(this.drawOneLIne(metricData, name));
+            series.push(this.drawOneLine(metricData, name));
             legendDataObjects.push({
                 name,
                 icon: 'none',
