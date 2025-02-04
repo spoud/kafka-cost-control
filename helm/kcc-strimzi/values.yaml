@@ -19,12 +19,12 @@ topics:
   pricingRules:
     #topicName: "pricing-rules" # if unset, the topic name is generated from the release name
     partitions: 1
-  aggregated: # TODO: read this from global values
+  aggregated:
     #topicName: "aggregated" # if unset, the topic name is generated from the release name
     partitions: 1
     config:
       retentionMs: "7776000000"
-  aggregatedTableFriendly: # TODO: read this from global values
+  aggregatedTableFriendly:
     #topicName: "aggregated-table-friendly" # if unset, the topic name is generated from the release name
     partitions: 1
     config:
@@ -35,6 +35,7 @@ topics:
 
 telegraf:
   image: telegraf:1.31.3-alpine
+  enabled: true
   labels: {}
   # will be applied to the container
   securityContext:
@@ -69,6 +70,7 @@ strimzi:
   scramOverTls: true
   contextOperator:
     labels: {}
+    enabled: true
     image: spoud/kafka-cost-control-strimzi-operator:latest
     # will be applied to the container
     securityContext:
@@ -108,7 +110,6 @@ schemaRegistry:
   url: http://schema-registry:8080/apis/ccompat/v7
 
 aggregator:
-  # TODO: actually don't spin up the aggregator if this is false
   enabled: true
   appId: kcc-aggregator
   image: spoud/kafka-cost-control:latest
@@ -144,6 +145,9 @@ aggregator:
 connect:
   image: spoud/kafka-cost-control-connect:strimzi-latest
   enabled: true
+  # Whether to configure a connector to move data from the aggregated topic to timescaledb
+  # Note that this will have no effect if timescaledb is not also enabled
+  createConnector: true
   # Labels that will be added to the connect pod
   labels: {}
   resources:

@@ -9,6 +9,7 @@
 {{- end -}}
 {{ $caCert := (include "strimziCaCert" .) }}
 
+{{ if .Values.aggregator.enabled -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -166,3 +167,4 @@ data:
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-kafka-cost-control-config
+{{- end -}}

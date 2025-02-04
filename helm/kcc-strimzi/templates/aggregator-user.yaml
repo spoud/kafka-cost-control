@@ -4,6 +4,7 @@
 {{ $contextTopic := (include "contextTopic" .) }}
 {{ $rawMetricsTopicList := split "," (include "rawMetricsTopics" .) }}
 
+{{ if .Values.aggregator.enabled -}}
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaUser
 metadata:
@@ -70,3 +71,4 @@ spec:
         patternType: literal
         type: topic
     {{- end }}
+{{- end }}

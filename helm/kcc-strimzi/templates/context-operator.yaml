@@ -4,6 +4,24 @@
 {{ $ctxTopic := (include "ctxTopic" .) }}
 {{ $caCert := (include "strimziCaCert" .) }}
 
+{{ if (or .Values.strimzi.contextOperator.enabled .Values.aggregator.enabled) }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  name: {{ $ctxTopic }}
+spec:
+  config:
+    cleanup.policy: compact
+  partitions: 1
+  replicas: 3
+---
+{{ end }}
+
+{{ if .Values.strimzi.contextOperator.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -60,20 +78,6 @@ spec:
         patternType: literal
         type: topic
     type: simple
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  annotations:
-    spoud.io/kcc-context.application: kafka-cost-control
-  labels:
-    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
-  name: {{ $ctxTopic }}
-spec:
-  config:
-    cleanup.policy: compact
-  partitions: 1
-  replicas: 3
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -193,3 +197,4 @@ spec:
           requests:
             cpu: {{ .Values.strimzi.contextOperator.resources.requests.cpu }}
             memory: {{ .Values.strimzi.contextOperator.resources.requests.memory }}
+{{- end }}
