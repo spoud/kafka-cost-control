@@ -1,6 +1,7 @@
 {
   "/graphql": {
-    "target": "https://kafka-cost-control-demo.sdm.spoud.io",
+    "target": "http://localhost:8080",
+    "target2": "https://kafka-cost-control-demo.sdm.spoud.io",
     "secure": false,
     "changeOrigin": true
   }

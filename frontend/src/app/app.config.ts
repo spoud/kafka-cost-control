@@ -5,12 +5,14 @@ import {routes} from './app.routes';
 import {provideAnimations} from '@angular/platform-browser/animations';
 import {provideHttpClient} from '@angular/common/http';
 import {provideGraphql} from './graphql-provider';
+import {provideNativeDateAdapter} from '@angular/material/core';
 
 export const appConfig: ApplicationConfig = {
     providers: [
         provideRouter(routes),
         provideAnimations(),
         provideHttpClient(),
-        provideGraphql()
+        provideGraphql(),
+        provideNativeDateAdapter()
     ],
 };

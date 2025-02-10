@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.olap;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Startup;
@@ -15,11 +16,16 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -30,6 +36,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @RequiredArgsConstructor
 @ApplicationScoped
 public class AggregatedMetricsRepository {
+    public static final TypeReference<Map<String, String>> MAP_STRING_STRING_TYPE_REF = new TypeReference<>() {
+    };
+
     private final OlapConfigProperties olapConfig;
     private final Queue<AggregatedDataWindowed> rowBuffer = new ConcurrentLinkedQueue<>();
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -58,7 +67,7 @@ public class AggregatedMetricsRepository {
 
     private Optional<Connection> getConnection() {
         try {
-            if (connection == null) {
+            if (connection == null || connection.isClosed()) {
                 Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
                 connection = DriverManager.getConnection(olapConfig.databaseUrl());
             }
@@ -72,7 +81,7 @@ public class AggregatedMetricsRepository {
     private void createTableIfNotExists(Connection connection) throws SQLException {
         try (var statement = connection.createStatement()) {
             statement.execute("""
-                    CREATE TABLE IF NOT EXISTS main.aggregated_data (
+                    CREATE TABLE IF NOT EXISTS aggregated_data (
                         start_time TIMESTAMPTZ NOT NULL,
                         end_time TIMESTAMPTZ NOT NULL,
                         initial_metric_name VARCHAR NOT NULL,
@@ -85,7 +94,7 @@ public class AggregatedMetricsRepository {
                         id VARCHAR PRIMARY KEY
                     )
                     """);
-            Log.infof("Created OLAP DB table: main.aggregated_data");
+            Log.infof("Created OLAP DB table: aggregated_data");
         }
     }
 
@@ -95,7 +104,7 @@ public class AggregatedMetricsRepository {
             var skipped = 0;
             var count = 0;
             var startTime = Instant.now();
-            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO main.aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var metric = rowBuffer.poll(); metric != null; metric = rowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
@@ -164,7 +173,7 @@ public class AggregatedMetricsRepository {
     public Set<String> getAllMetrics() {
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM main.aggregated_data")) {
+                    try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data")) {
                         var result = statement.executeQuery();
                         var metrics = new HashSet<String>();
                         while (result.next()) {
@@ -182,7 +191,7 @@ public class AggregatedMetricsRepository {
     private Set<String> getAllJsonKeys(String column) {
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM main.aggregated_data")) {
+                    try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM aggregated_data")) {
                         return getStatementResultAsStrings(statement, true);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -196,7 +205,7 @@ public class AggregatedMetricsRepository {
         ensureIdentifierIsSafe(key);
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM main.aggregated_data".formatted(column, key))) {
+                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM aggregated_data".formatted(column, key))) {
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -236,7 +245,7 @@ public class AggregatedMetricsRepository {
 
         var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + "." + finalFormat);
         return getConnection().map((conn) -> {
-            try (var statement = conn.prepareStatement("COPY (SELECT * FROM main.aggregated_data WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
+            try (var statement = conn.prepareStatement("COPY (SELECT * FROM aggregated_data WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
                     + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
@@ -247,5 +256,50 @@ public class AggregatedMetricsRepository {
                 return null;
             }
         }).orElse(null);
+    }
+
+
+    // TODO implement name filter
+    public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
+        return getConnection().map((conn) -> {
+            var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
+            var finalEndDate = endDate == null ? Instant.now() : endDate;
+            Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
+
+            try (var statement = conn.prepareStatement("SELECT * FROM aggregated_data WHERE start_time >= ? AND end_time <= ?) ")) {
+                statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
+                statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
+                List<MetricEO> metrics = new ArrayList<>();
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        metrics.add(new MetricEO(
+                                resultSet.getString("id"),
+                                resultSet.getTimestamp("start_time").toInstant(),
+                                resultSet.getTimestamp("end_time").toInstant(),
+                                resultSet.getString("initial_metric_name"),
+                                resultSet.getString("entity_type"),
+                                resultSet.getString("name"),
+                                parseMap(resultSet.getString("tags")),
+                                parseMap(resultSet.getString("context")),
+                                resultSet.getDouble("value"),
+                                resultSet.getString("target")
+                        ));
+                    }
+                }
+                return metrics;
+            } catch (SQLException e) {
+                Log.error("Failed to export data", e);
+                return null;
+            }
+        }).orElse(Collections.emptyList());
+    }
+
+    private Map<String, String> parseMap(String content) {
+        try {
+            return OBJECT_MAPPER.readValue(content, MAP_STRING_STRING_TYPE_REF);
+        } catch (JsonProcessingException e) {
+            Log.errorf(e, "Failed to parse map content: %s", content);
+        }
+        return Collections.emptyMap();
     }
 }
