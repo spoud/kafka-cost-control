@@ -78,8 +78,7 @@ public class MetricsResource {
     @PermitAll
     @Query("metricContextKeys")
     public @NonNull List<@NonNull String> contextKeys() {
-        // TODO list the context keys we want to display in the UI
-        return List.of("appName", "team", "department");
+        return aggregatedMetricsRepository.getAllContextKeys().stream().sorted().toList();
     }
 
 }
