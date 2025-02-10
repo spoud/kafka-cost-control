@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.Tags;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
@@ -42,6 +43,7 @@ public class MetricEnricher {
     private final SerdeFactory serdes;
     private final GaugeRepository gaugeRepository;
     private final MetricReducer metricReducer;
+    private final AggregatedMetricsRepository aggregatedMetricsRepository;
 
     @Produces
     public Topology metricEnricherTopology() {
@@ -105,6 +107,8 @@ public class MetricEnricher {
                         Log.warnv("Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags(), e);
                     }
                 })
+                .peek((k, v) -> aggregatedMetricsRepository.insertRow(v),
+                        Named.as("insert-into-olap-db"))
                 .to(
                         configProperties.topicAggregated(),
                         Produced.with(serdes.getAggregatedKeySerde(), serdes.getAggregatedWindowedSerde()).withName("output-topic"));
