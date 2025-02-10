@@ -2,7 +2,6 @@ package io.spoud.kcc.aggregator.graphql;
 
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
-import io.spoud.kcc.aggregator.graphql.data.NameWithDefinitionTO;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import io.spoud.kcc.aggregator.olap.MetricEO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
@@ -78,9 +77,9 @@ public class MetricsResource {
 
     @PermitAll
     @Query("metricContextKeys")
-    public @NonNull List<@NonNull NameWithDefinitionTO> contextKeys() {
+    public @NonNull List<@NonNull String> contextKeys() {
         // TODO list the context keys we want to display in the UI
-        return Set.of("appName", "team", "department").stream().map(NameWithDefinitionTO::withNoDefinition).toList();
+        return List.of("appName", "team", "department");
     }
 
 }
