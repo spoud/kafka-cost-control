@@ -10,8 +10,8 @@
     <mat-form-field>
         <mat-label>Group by contexts</mat-label>
         <mat-select formControlName="groupByContext" multiple>
-            @for (nd of contextKeys(); track nd.name) {
-                <mat-option [value]="nd.name">{{ nd.definition || nd.name }}</mat-option>
+            @for (key of contextKeys(); track key) {
+                <mat-option [value]="key">{{ key }}</mat-option>
             }
         </mat-select>
     </mat-form-field>

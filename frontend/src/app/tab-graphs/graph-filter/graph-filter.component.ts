@@ -5,7 +5,7 @@ import {toSignal} from '@angular/core/rxjs-interop';
 import {debounceTime, firstValueFrom, map} from 'rxjs';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import {MetricContextKeysGQL, MetricNamesGQL} from '../../../generated/graphql/sdk';
-import {MetricNameEntity, NameWithDefinition} from '../../../generated/graphql/types';
+import {MetricNameEntity} from '../../../generated/graphql/types';
 import {MatDatepickerModule} from '@angular/material/datepicker';
 import {MatSelectModule} from '@angular/material/select';
 
@@ -15,13 +15,13 @@ import {MatSelectModule} from '@angular/material/select';
     templateUrl: './graph-filter.component.html',
     styleUrl: './graph-filter.component.scss'
 })
-export class GraphFilterComponent implements AfterViewInit{
+export class GraphFilterComponent implements AfterViewInit {
     graphFilter = output<GraphFilter>();
 
     metricContextKeysGql = inject(MetricContextKeysGQL);
     metricNamesGql = inject(MetricNamesGQL);
 
-    contextKeysResource = resource<NameWithDefinition[], never>({
+    contextKeysResource = resource<string[], never>({
         loader: () => firstValueFrom(this.metricContextKeysGql.fetch().pipe(map(res => res.data?.metricContextKeys)))
     });
     metricNamesResource = resource<MetricNameEntity[], never>({

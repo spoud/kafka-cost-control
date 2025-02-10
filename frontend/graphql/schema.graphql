@@ -50,11 +50,6 @@ type Mutation {
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
 }
 
-type NameWithDefinition {
-  definition: String
-  name: String!
-}
-
 type PricingRuleEntity {
   baseCost: Float!
   costFactor: Float!
@@ -75,7 +70,7 @@ type Query {
     "ISO-8601"
     to: DateTime
   ): [MetricHistory!]!
-  metricContextKeys: [NameWithDefinition!]!
+  metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
   pricingRules: [PricingRuleEntity!]!
 }
