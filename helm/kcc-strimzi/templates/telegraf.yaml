@@ -1,5 +1,6 @@
 {{ $caCert := (include "strimziCaCert" .) }}
 
+{{ if .Values.telegraf.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -59,3 +60,4 @@ spec:
               readOnly: true
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
+{{- end }}

@@ -1,4 +1,5 @@
 {{ $rawMetricsTopic := (include "telegrafTopic" .) }}
+{{ if .Values.telegraf.enabled }}
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaUser
 metadata:
@@ -39,3 +40,4 @@ spec:
           - Describe
           - Write
         host: "*"
+{{- end }}

@@ -9,6 +9,7 @@
 {{- end -}}
 {{ $caCert := (include "strimziCaCert" .) }}
 
+{{ if .Values.aggregator.enabled -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -37,6 +38,9 @@ spec:
       - name: kafka-cluster-ca
         secret:
           secretName: {{ $caCert }}
+      - name: aggregator-config
+        configMap:
+          name: {{ .Release.Name }}-kafka-cost-control-config
       - name: tmp
         emptyDir: {}
       containers:
@@ -106,6 +110,8 @@ spec:
             - name: kafka-cluster-ca
               mountPath: /etc/kafka
               readOnly: true
+            - name: aggregator-config
+              mountPath: /deployments/config
           startupProbe:
             httpGet:
               path: /q/health/started
@@ -147,3 +153,18 @@ spec:
         resources:
           requests:
             storage: {{ .Values.aggregator.volumeClaimTemplate.resources.requests.storage }}
+---
+apiVersion: v1
+data:
+  application.yaml: |
+  cc:
+    metrics:
+      transformations:
+        splitMetricAmongPrincipals:
+          kafka_server_brokertopicmetrics_bytesout_total: readers
+          kafka_server_brokertopicmetrics_bytesin_total: writers
+          kafka_log_log_size: writers
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control-config
+{{- end -}}

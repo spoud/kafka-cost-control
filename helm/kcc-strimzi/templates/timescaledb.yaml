@@ -3,6 +3,7 @@
 {{ $outputTable := printf "%s_aggregated_table_friendly" .Release.Name }}
 {{ $caCert := (include "strimziCaCert" .) }}
 
+{{- if .Values.timescaledb.enabled }}
 kind: Secret
 apiVersion: v1
 data:
@@ -129,6 +130,8 @@ metadata:
   creationTimestamp: null
   name: {{ .Release.Name }}-timescaledb-init
 ---
+{{- end -}}
+{{- if .Values.connect.enabled }}
 # Connect Stuff
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaUser
@@ -220,6 +223,8 @@ spec:
     key.converter: org.apache.kafka.connect.storage.StringConverter
     value.converter: org.apache.kafka.connect.json.JsonConverter
 ---
+{{- end -}}
+{{- if (and .Values.connect.createConnector .Values.timescaledb.enabled) }}
 # To use the KafkaConnector resource, you have to first enable the connector operator using
 # the strimzi.io/use-connector-resources annotation on the KafkaConnect custom resource.
 # From Apache Kafka 3.1.1 and 3.2.0, you also have to add the FileStreamSourceConnector
@@ -256,3 +261,4 @@ spec:
     "transforms.flatten.type": "org.apache.kafka.connect.transforms.Flatten$Value",
     "transforms.flatten.delimiter": "_"
   }
+{{- end }}

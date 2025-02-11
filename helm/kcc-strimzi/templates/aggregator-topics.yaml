@@ -24,6 +24,7 @@
 {{- end -}}
 {{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
 
+{{ if .Values.aggregator.enabled -}}
 apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaTopic
 metadata:
@@ -62,3 +63,4 @@ spec:
   partitions: {{ .Values.topics.aggregatedTableFriendly.partitions }}
   config:
     retention.ms: {{ .Values.topics.aggregatedTableFriendly.config.retentionMs }}
+{{ end -}}

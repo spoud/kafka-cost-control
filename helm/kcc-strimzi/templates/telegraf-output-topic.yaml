@@ -3,6 +3,7 @@
 {{- end -}}
 {{ $rawMetricsTopic := (include "telegrafTopic" .) }}
 
+{{- if .Values.telegraf.enabled }}
 apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaTopic
 metadata:
@@ -15,3 +16,4 @@ spec:
   partitions: {{ .Values.topics.rawMetrics.partitions }}
   config:
     retention.ms: {{ .Values.topics.rawMetrics.retentionMs }}
+{{- end }}
