@@ -206,9 +206,13 @@ spec:
       secretName: {{ .Release.Name }}-connect
       password: password
   tls:
+    {{- if $caCert }}
     trustedCertificates:
       - secretName: {{ $caCert }}
         certificate: "ca.crt"
+    {{- else }}
+    trustedCertificates: []
+    {{- end }}
   config:
     group.id: {{ .Release.Name }}-connect
     offset.storage.topic: {{ .Release.Name }}-connect-cluster-offsets
