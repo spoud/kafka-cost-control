@@ -31,6 +31,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 @Startup
 @RequiredArgsConstructor
@@ -53,11 +54,17 @@ public class AggregatedMetricsRepository {
     @PostConstruct
     public void init() {
         if (olapConfig.enabled()) {
+            Log.infof("OLAP module is enabled. Data will be written to %s", olapConfig.databaseUrl());
             getConnection().ifPresent((conn) -> {
                 try {
                     createTableIfNotExists(conn);
                 } catch (SQLException e) {
                     Log.error("Failed to create OLAP table", e);
+                }
+                try {
+                    olapConfig.databaseSeedDataPath().ifPresent(this::loadDataExport);
+                } catch (Exception e) {
+                    Log.warn("Failed to load seed data", e);
                 }
             });
         } else {
@@ -259,16 +266,25 @@ public class AggregatedMetricsRepository {
     }
 
 
-    // TODO implement name filter
     public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
         return getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
-            try (var statement = conn.prepareStatement("SELECT * FROM aggregated_data WHERE start_time >= ? AND end_time <= ?) ")) {
+            var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
+                    .collect(Collectors.joining(", ", "(", ")"));
+            try (var statement = conn.prepareStatement("""
+                SELECT * FROM aggregated_data
+                WHERE start_time >= ? AND end_time <= ?
+                """ + nameFilter)) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
+                var i = 3;
+                for (var name : names) {
+                    statement.setString(i, name);
+                    i++;
+                }
                 List<MetricEO> metrics = new ArrayList<>();
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
@@ -301,5 +317,16 @@ public class AggregatedMetricsRepository {
             Log.errorf(e, "Failed to parse map content: %s", content);
         }
         return Collections.emptyMap();
+    }
+
+    public void loadDataExport(String path) {
+        getConnection().ifPresent((conn) -> {
+            try (var statement = conn.prepareStatement("COPY aggregated_data FROM '" + path + "'  (AUTO_DETECT true)")) {
+                statement.execute();
+                Log.infof("Loaded seed data from %s", path);
+            } catch (SQLException e) {
+                Log.error("Failed to load data", e);
+            }
+        });
     }
 }

@@ -9,7 +9,7 @@ kafka:
 
 cc:
   olap:
-    enabled: true
+    enabled: false
     database:
       # technically this is already the default, but let's be explicit
       url: "jdbc:duckdb:"
