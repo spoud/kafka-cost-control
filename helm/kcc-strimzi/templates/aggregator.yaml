@@ -59,6 +59,12 @@ spec:
               cpu: {{ .Values.aggregator.resources.requests.cpu }}
               memory: {{ .Values.aggregator.resources.requests.memory }}
           env:
+            {{- if .Values.aggregator.olapEnabled }}
+            - name: CC_OLAP_ENABLED
+              value: "true"
+            - name: CC_OLAP_DATABASE_URL
+              value: "jdbc:duckdb:/home/jboss/kafka-stream/duckdb.db"
+            {{- end }}
             - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
               value: /home/jboss/kafka-stream/data/
             - name: KAFKA_APPLICATION_ID

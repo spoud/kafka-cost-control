@@ -111,6 +111,8 @@ schemaRegistry:
 
 aggregator:
   enabled: true
+  # Enable DuckDB integration
+  olapEnabled: false
   appId: kcc-aggregator
   image: spoud/kafka-cost-control:latest
   # Labels that will be added to the pod
