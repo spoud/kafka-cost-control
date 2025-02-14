@@ -3,7 +3,8 @@ package io.spoud.kcc.aggregator.olap;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
-import org.duckdb.DuckDBConnection;
+
+import java.util.Optional;
 
 /**
  * Configuration for the optional OLAP (online analytical processing) module.
@@ -41,4 +42,13 @@ public interface OlapConfigProperties {
     @WithDefault("1000")
     int databaseMaxBufferedRows();
 
+    /**
+     * If set to true, the database will be seeded with some initial data when the application starts.
+     * This is useful for development and testing. The file format is automatically detected.
+     * Typical formats are CSV, JSON and Parquet.
+     *
+     * @return path to the data to load
+     */
+    @WithName("database.seed-data-path")
+    Optional<String> databaseSeedDataPath();
 }

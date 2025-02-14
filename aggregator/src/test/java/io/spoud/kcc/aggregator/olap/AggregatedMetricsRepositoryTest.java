@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.data.EntityType;
+import lombok.Builder;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -14,10 +16,31 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
 class AggregatedMetricsRepositoryTest {
+
+    @DisplayName("Load Seed Data from CSV File")
+    @Test
+    void loadSeedData() {
+        var exportPath = AggregatedMetricsRepositoryTest.class.getClassLoader().getResource("data/olap-export.csv")
+                .getPath();
+        var repo = new AggregatedMetricsRepository(FakeOlapConfig
+                .builder()
+                .databaseSeedDataPath(exportPath)
+                .build());
+        repo.init();
+
+        // make sure we already have some data without inserting anything
+        assertThat(repo.getAllMetrics()).isNotEmpty();
+        assertThat(repo.getHistory(
+                Instant.parse("2025-02-12T16:00:00.00Z"),
+                Instant.parse("2025-02-12T18:00:00.00Z"),
+                Set.of("kafka_log_log_size")))
+                .isNotEmpty();
+    }
 
     @DisplayName("Inserted row is not immediately flushed to DB")
     @Test
@@ -212,27 +235,47 @@ class AggregatedMetricsRepositoryTest {
         assertThat(metricCount).isEqualTo(2);
     }
 
-    private static final OlapConfigProperties testOlapConfig = new OlapConfigProperties() {
+    @RequiredArgsConstructor
+    @Builder
+    private static class FakeOlapConfig implements OlapConfigProperties {
+        @Builder.Default
+        private final boolean enabled = true;
+        @Builder.Default
+        private final String databaseUrl = "jdbc:duckdb:";
+        @Builder.Default
+        private final int databaseFlushIntervalSeconds = 10;
+        @Builder.Default
+        private final int databaseMaxBufferedRows = 10;
+        @Builder.Default
+        private final String databaseSeedDataPath = null;
+
         @Override
         public boolean enabled() {
-            return true;
+            return enabled;
         }
 
         @Override
         public String databaseUrl() {
-            return "jdbc:duckdb:";
+            return databaseUrl;
         }
 
         @Override
         public int databaseFlushIntervalSeconds() {
-            return 10;
+            return databaseFlushIntervalSeconds;
         }
 
         @Override
         public int databaseMaxBufferedRows() {
-            return 10;
+            return databaseMaxBufferedRows;
         }
-    };
+
+        @Override
+        public Optional<String> databaseSeedDataPath() {
+            return Optional.ofNullable(databaseSeedDataPath);
+        }
+    }
+
+    private static final OlapConfigProperties testOlapConfig = FakeOlapConfig.builder().build();
 
     private static final Random random = new Random();
 

@@ -54,11 +54,17 @@ public class AggregatedMetricsRepository {
     @PostConstruct
     public void init() {
         if (olapConfig.enabled()) {
+            Log.infof("OLAP module is enabled. Data will be written to %s", olapConfig.databaseUrl());
             getConnection().ifPresent((conn) -> {
                 try {
                     createTableIfNotExists(conn);
                 } catch (SQLException e) {
                     Log.error("Failed to create OLAP table", e);
+                }
+                try {
+                    olapConfig.databaseSeedDataPath().ifPresent(this::loadDataExport);
+                } catch (Exception e) {
+                    Log.warn("Failed to load seed data", e);
                 }
             });
         } else {
@@ -311,5 +317,16 @@ public class AggregatedMetricsRepository {
             Log.errorf(e, "Failed to parse map content: %s", content);
         }
         return Collections.emptyMap();
+    }
+
+    public void loadDataExport(String path) {
+        getConnection().ifPresent((conn) -> {
+            try (var statement = conn.prepareStatement("COPY aggregated_data FROM '" + path + "'  (AUTO_DETECT true)")) {
+                statement.execute();
+                Log.infof("Loaded seed data from %s", path);
+            } catch (SQLException e) {
+                Log.error("Failed to load data", e);
+            }
+        });
     }
 }
