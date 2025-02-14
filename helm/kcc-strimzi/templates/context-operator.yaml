@@ -111,17 +111,21 @@ spec:
       volumes:
       - name: tmp
         emptyDir: {}
+      {{- if $caCert }}
       - name: kafka-cluster-ca
         secret:
           secretName: {{ $caCert }}
+      {{- end }}
       containers:
       - image: {{ .Values.strimzi.contextOperator.image }}
         securityContext:
           {{- .Values.strimzi.contextOperator.securityContext | toYaml | nindent 10 }}
         volumeMounts:
+        {{- if $caCert }}
         - name: kafka-cluster-ca
           mountPath: /etc/kafka
           readOnly: true
+        {{- end }}
         - name: tmp
           mountPath: /tmp
           readOny: false
@@ -156,18 +160,20 @@ spec:
         {{ if .Values.strimzi.scramOverTls }}
         - name: KAFKA_SECURITY_PROTOCOL
           value: SASL_SSL
+        {{- if $caCert }}
         - name: KAFKA_SSL_TRUSTSTORE_LOCATION
           value: /etc/kafka/ca.p12
         - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.strimzi.clusterCaCertSecret }}
+              name: {{ $caCert }}
               key: ca.password
-        {{ else }}
+        {{- end }} {{/* if $caCert */}}
+        {{ else }} {{/* if .Values.strimzi.scramOverTls */}}
         - name: KAFKA_SECURITY_PROTOCOL
           value: SASL_PLAINTEXT
-        {{ end }}
-        {{ end }}
+        {{ end }} {{/* if .Values.strimzi.scramOverTls */}}
+        {{ end }} {{/* if eq .Values.strimzi.auth "scram-sha-512" */}}
         name: strimzi-context-operator
         livenessProbe:
           httpGet:

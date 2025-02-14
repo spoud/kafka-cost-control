@@ -60,7 +60,7 @@ strimzi:
   clusterName: my-cluster
   bootstrapServer: my-cluster-kafka-bootstrap:9093
   # If you have a custom CA certificate stored in a secret, you can specify it here.
-  # Otherwise, every component talking to the Kafka cluster will try to mount the <clusterName>-cluster-ca-cert secret.
+  # If this value is not provided, no truststore will be configured and all containers will use their built-in truststores (these will usually trust known CAs like Let's Encrypt).
   # The custom secret must have the same structure as the strimzi-generated one. (i.e. it should contain ca.crt, ca.p12, ca.password keys)
   #clusterCaCertSecret: cost-control-cluster-ca-cert
 
@@ -111,6 +111,8 @@ schemaRegistry:
 
 aggregator:
   enabled: true
+  # Enable DuckDB integration
+  olapEnabled: false
   appId: kcc-aggregator
   image: spoud/kafka-cost-control:latest
   # Labels that will be added to the pod
