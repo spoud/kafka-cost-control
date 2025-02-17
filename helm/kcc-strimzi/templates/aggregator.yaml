@@ -5,7 +5,7 @@
 {{ $rawMetricsTopics := (include "rawMetricsTopics" .) }}
 
 {{- define "strimziCaCert" -}}
-{{- if .Values.strimzi.clusterCaCertSecret }}{{ .Values.strimzi.clusterCaCertSecret }}{{ else }}{{ printf "%s-cluster-ca-cert" .Values.strimzi.clusterName }}{{ end }}
+{{- default "" .Values.strimzi.clusterCaCertSecret }}
 {{- end -}}
 {{ $caCert := (include "strimziCaCert" .) }}
 
@@ -35,9 +35,11 @@ spec:
       securityContext:
         fsGroup: 185 # jboss
       volumes:
+      {{- if $caCert }}
       - name: kafka-cluster-ca
         secret:
           secretName: {{ $caCert }}
+      {{- end }}
       - name: aggregator-config
         configMap:
           name: {{ .Release.Name }}-kafka-cost-control-config
@@ -57,6 +59,12 @@ spec:
               cpu: {{ .Values.aggregator.resources.requests.cpu }}
               memory: {{ .Values.aggregator.resources.requests.memory }}
           env:
+            {{- if .Values.aggregator.olapEnabled }}
+            - name: CC_OLAP_ENABLED
+              value: "true"
+            - name: CC_OLAP_DATABASE_URL
+              value: "jdbc:duckdb:/home/jboss/kafka-stream/duckdb.db"
+            {{- end }}
             - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
               value: /home/jboss/kafka-stream/data/
             - name: KAFKA_APPLICATION_ID
@@ -86,18 +94,20 @@ spec:
             {{ if .Values.strimzi.scramOverTls }}
             - name: KAFKA_SECURITY_PROTOCOL
               value: SASL_SSL
+              {{- if $caCert }}
             - name: KAFKA_SSL_TRUSTSTORE_LOCATION
               value: /etc/kafka/ca.p12
             - name: KAFKA_SSL_TRUSTSTORE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.strimzi.clusterCaCertSecret }}
+                  name: {{ $caCert }}
                   key: ca.password
+              {{- end }} {{/* if $caCert */}}
             {{ else }}
             - name: KAFKA_SECURITY_PROTOCOL
               value: SASL_PLAINTEXT
-            {{ end }}
-            {{ end }}
+            {{ end }} {{/* if .Values.strimzi.scramOverTls */}}
+            {{ end }} {{/* if eq .Values.strimzi.auth "scram-sha-512" */}}
           ports:
             - containerPort: 8080
               name: http
@@ -107,9 +117,11 @@ spec:
               readOny: false
             - name: kstream-data
               mountPath: /home/jboss/kafka-stream/
+            {{- if $caCert }}
             - name: kafka-cluster-ca
               mountPath: /etc/kafka
               readOnly: true
+            {{- end }}
             - name: aggregator-config
               mountPath: /deployments/config
           startupProbe:
@@ -157,13 +169,13 @@ spec:
 apiVersion: v1
 data:
   application.yaml: |
-  cc:
-    metrics:
-      transformations:
-        splitMetricAmongPrincipals:
-          kafka_server_brokertopicmetrics_bytesout_total: readers
-          kafka_server_brokertopicmetrics_bytesin_total: writers
-          kafka_log_log_size: writers
+    cc:
+      metrics:
+        transformations:
+          splitMetricAmongPrincipals:
+            kafka_server_brokertopicmetrics_bytesout_total: readers
+            kafka_server_brokertopicmetrics_bytesin_total: writers
+            kafka_log_log_size: writers
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-kafka-cost-control-config

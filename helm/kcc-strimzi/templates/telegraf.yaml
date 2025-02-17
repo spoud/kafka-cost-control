@@ -28,9 +28,11 @@ spec:
             name: {{ .Release.Name }}-telegraf-config
             defaultMode: 420
             optional: false
+        {{- if $caCert }}
         - name: kafka-cluster-ca
           secret:
             secretName: {{ $caCert }}
+        {{- end }}
       containers:
         - name: telegraf
           securityContext:
@@ -55,9 +57,11 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/telegraf
+            {{- if $caCert }}
             - name: kafka-cluster-ca
               mountPath: /etc/kafka
               readOnly: true
+            {{- end }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
 {{- end }}
