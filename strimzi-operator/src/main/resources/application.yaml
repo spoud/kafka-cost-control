@@ -31,6 +31,8 @@ avro:
       imports: entity-type-enum.avsc
 
 kafka:
+  group:
+    id: kcc
   schema:
     registry:
 
@@ -40,6 +42,19 @@ mp:
       smallrye-kafka:
         schema:
           registry:
+
+    incoming:
+      context-data-in:
+        connector: smallrye-kafka
+        topic: ${cc.strimzi.operator.topics.context-data}
+        value:
+          deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        key:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        apicurio:
+          registry:
+            auto:
+              register: true
 
     outgoing:
       context-data-out:
