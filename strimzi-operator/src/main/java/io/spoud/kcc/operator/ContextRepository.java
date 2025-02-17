@@ -13,6 +13,10 @@ public class ContextRepository {
 
     @Incoming("context-data-in")
     void updateContext(Record<String, ContextData> record) {
+        if (record.value() == null) {
+            contexts.remove(record.key());
+            return;
+        }
         contexts.put(record.key(), record.value());
     }
 
@@ -23,5 +27,9 @@ public class ContextRepository {
     public boolean containsContext(String key, ContextData value) {
         var ctx = contexts.get(key);
         return ctx != null && ctx.getContext().equals(value.getContext()) && ctx.getRegex().equals(value.getRegex());
+    }
+
+    void clear() {
+        contexts.clear();
     }
 }

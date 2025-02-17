@@ -70,6 +70,9 @@ class OperatorTest {
     @Inject
     CacheManager cacheManager;
 
+    @Inject
+    ContextRepository contextRepository;
+
     final String TOPIC_NAME = "test-topic";
     final String TOPIC_APP = "test-app";
     final String TOPIC_APP_KEY = "application";
@@ -132,7 +135,7 @@ class OperatorTest {
     }
 
     @Test
-    @DisplayName("Test that a KafkaUser reconciliation triggers reconciliation of all topics")
+    @DisplayName("Test that a KafkaUser reconciliation triggers reconciliation of all relevant topics")
     void testUserChangeTriggersTopicReconciliation() throws Exception {
         var username = "another-reader";
         var anotherGroup = UUID.randomUUID().toString();
@@ -143,11 +146,11 @@ class OperatorTest {
         addKafkaUser(user);
         delayedAsyncRun(() -> userReconciler.reconcile(user, Mockito.mock(Context.class)));
 
-        // make sure that both topics are reconciled
+        // make sure that only the topic that the user has access to has its context updated
         var records = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class
                 )
-                .fromTopics(config.contextDataTopic()).awaitNextRecords(2, Duration.ofSeconds(5))
+                .fromTopics(config.contextDataTopic()).awaitNextRecords(1, Duration.ofSeconds(5))
                 .getRecords();
 
         // make sure that the context of TOPIC_NAME now contains a new reader
@@ -162,6 +165,7 @@ class OperatorTest {
     @Test
     @DisplayName("Test that a KafkaTopic reconciliation produces a context for each topic")
     void testReconcileAllTopics() {
+        contextRepository.clear();
         delayedAsyncRun(topicReconciler::reconcileAllTopics);
 
         // just make sure that the amount of records is correct, for a more detailed dive into the records see the other tests

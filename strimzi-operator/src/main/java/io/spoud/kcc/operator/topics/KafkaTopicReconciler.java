@@ -61,7 +61,7 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
                 }
             });
         } else {
-            Log.debugv("Context data for key {0} has not changed, skipping update", t.getMetadata().getName());
+            Log.infov("Context data for key {0} has not changed, skipping update", t.getMetadata().getName());
         }
     }
 
