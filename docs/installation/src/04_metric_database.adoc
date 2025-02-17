@@ -38,7 +38,6 @@ Once the integration is enabled, you can export collected metrics from the DuckD
 
 [source,shell]
 ----
-curl -X GET http://localhost:8080/olap/export
 # Get all metrics from the last 30 days in CSV format
 curl -H "Accept: text/csv" http://localhost:8083/olap/export > out.csv
 # Get all metrics from the last 30 days in JSON format
