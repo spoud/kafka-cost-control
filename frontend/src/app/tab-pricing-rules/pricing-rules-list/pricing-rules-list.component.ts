@@ -5,6 +5,7 @@ import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
 import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import {BytesToGbPipe} from './cost-factor.pipe';
 
 @Component({
     selector: 'app-pricing-rules-list',
@@ -12,7 +13,8 @@ import {MatSnackBar} from '@angular/material/snack-bar';
     styleUrl: './pricing-rules-list.component.scss',
     imports: [
         MatTableModule,
-        MatSortModule
+        MatSortModule,
+        BytesToGbPipe
     ]
 })
 export class PricingRulesListComponent implements OnInit, AfterViewInit {
@@ -50,13 +52,5 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
         } else {
             this._liveAnnouncer.announce('Sorting cleared');
         }
-    }
-
-
-    computeCostFactorGb(element: PricingRuleEntity): number | undefined {
-        if (element.metricName.endsWith("bytes")) {
-            return Math.round(element.costFactor * 1024 * 1024 * 1024 * 100000) / 100000;
-        }
-        return undefined;
     }
 }

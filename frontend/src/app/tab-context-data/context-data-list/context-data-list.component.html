@@ -1,17 +1,22 @@
+<button mat-fab extended color="primary" type="button" (click)="openCreateDialog()" style="margin-bottom: 1rem">
+    <mat-icon>add</mat-icon>
+    Add context data
+</button>
+<mat-divider></mat-divider>
 <table mat-table [dataSource]="dataSource" (matSortChange)="announceSortChange($event)" matSort
        class="mat-elevation-z8">
 
     <ng-container matColumnDef="creationTime">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Creation time</th>
-        <td mat-cell *matCellDef="let element"> {{ element.creationTime }}</td>
+        <td mat-cell *matCellDef="let element"> {{ element.creationTime | date:'medium' }}</td>
     </ng-container>
     <ng-container matColumnDef="validFrom">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Valid from</th>
-        <td mat-cell *matCellDef="let element"> {{ element.validFrom }}</td>
+        <td mat-cell *matCellDef="let element"> {{ element.validFrom | date:'medium' }}</td>
     </ng-container>
     <ng-container matColumnDef="validUntil">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Valid until</th>
-        <td mat-cell *matCellDef="let element"> {{ element.validUntil }}</td>
+        <td mat-cell *matCellDef="let element"> {{ element.validUntil | date:'medium' }}</td>
     </ng-container>
     <ng-container matColumnDef="entityType">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Entity type</th>
