@@ -10,8 +10,19 @@ import {MatButton, MatMiniFabButton} from '@angular/material/button';
 import {MatFormField, MatLabel, MatSuffix} from '@angular/material/form-field';
 import {MatInput} from '@angular/material/input';
 import {MatOption, MatSelect} from '@angular/material/select';
-import {FormArray, FormBuilder, FormControl, ReactiveFormsModule, Validators} from '@angular/forms';
-import {Entry_String_StringInput, SaveContextDataGQL,} from '../../../generated/graphql/sdk';
+import {
+    FormArray,
+    FormControl,
+    FormGroup,
+    NonNullableFormBuilder,
+    ReactiveFormsModule,
+    Validators
+} from '@angular/forms';
+import {
+    ContextDataSaveRequestInput,
+    Entry_String_StringInput,
+    SaveContextDataGQL,
+} from '../../../generated/graphql/sdk';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {MatDatepicker, MatDatepickerInput, MatDatepickerToggle} from '@angular/material/datepicker';
 import {EntityType} from '../../../generated/graphql/types';
@@ -41,14 +52,21 @@ import {MatIcon} from '@angular/material/icon';
         MatMiniFabButton
     ],
     templateUrl: './context-data-create.component.html',
+    styleUrl: './context-data-create.component.scss'
 })
 export class ContextDataCreateComponent {
 
-    saveForm;
+    saveForm: FormGroup<{
+        validFrom: FormControl<Date | null>;
+        validUntil: FormControl<Date | null>;
+        entityType: FormControl<EntityType | null>;
+        regex: FormControl<string | null>;
+        context: FormArray<FormControl<Entry_String_StringInput>>;
+    }>
 
     constructor(private contextDataService: SaveContextDataGQL,
                 private dialogReg: MatDialogRef<ContextDataCreateComponent>,
-                private formBuilder: FormBuilder,
+                private formBuilder: NonNullableFormBuilder,
                 private snackBar: MatSnackBar) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -59,12 +77,12 @@ export class ContextDataCreateComponent {
             entityType: new FormControl<EntityType>(EntityType.Topic, Validators.required),
             regex: new FormControl<string>('', {validators: Validators.required}),
             context: this.formBuilder.array<Entry_String_StringInput>([]),
-        })
+        });
         this.addKeyValuePair();
     }
 
     get keyValuePairs(): FormArray {
-        return this.saveForm.controls.context as FormArray;
+        return this.saveForm.controls.context;
     }
 
     addKeyValuePair() {
@@ -80,13 +98,13 @@ export class ContextDataCreateComponent {
     }
 
     saveDialog() {
-        const variables = {
+        const variables: { request: ContextDataSaveRequestInput } = {
             request: {
                 validFrom: this.saveForm.value.validFrom,
                 validUntil: this.saveForm.value.validUntil,
                 entityType: EntityType.Topic,
                 regex: this.saveForm.value.regex ?? '',
-                context: this.saveForm.value.context?.filter(x => !!x) ?? []
+                context: this.saveForm.value.context ?? []
             }
         };
         this.contextDataService.mutate(variables).subscribe({
