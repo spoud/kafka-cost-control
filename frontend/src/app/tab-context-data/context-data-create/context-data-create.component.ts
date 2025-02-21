@@ -102,7 +102,7 @@ export class ContextDataCreateComponent {
             request: {
                 validFrom: this.saveForm.value.validFrom,
                 validUntil: this.saveForm.value.validUntil,
-                entityType: EntityType.Topic,
+                entityType: this.saveForm.value.entityType ?? EntityType.Unknown,
                 regex: this.saveForm.value.regex ?? '',
                 context: this.saveForm.value.context ?? []
             }
