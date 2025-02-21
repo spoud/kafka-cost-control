@@ -9,6 +9,7 @@ import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.EntityType;
 import io.spoud.kcc.operator.ContextExtractor;
+import io.spoud.kcc.operator.ContextRepository;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,15 +26,18 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
     private final ContextExtractor contextExtractor;
     private final OperatorConfig config;
     private final Emitter<Record<String, ContextData>> contextEmitter;
+    private final ContextRepository contextRepository;
 
     public KafkaTopicReconciler(KubernetesClient client,
                                 ContextExtractor contextExtractor,
                                 OperatorConfig config,
-                                @Channel(CONTEXT_CHANNEL) Emitter<Record<String, ContextData>> contextEmitter) {
+                                @Channel(CONTEXT_CHANNEL) Emitter<Record<String, ContextData>> contextEmitter,
+                                ContextRepository contextRepository) {
         this.client = client;
         this.config = config;
         this.contextExtractor = contextExtractor;
         this.contextEmitter = contextEmitter;
+        this.contextRepository = contextRepository;
     }
 
     private void reconcileSingleTopic(KafkaTopic t) {
@@ -41,21 +45,24 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
         var context = contextExtractor.getContextOfTopic(t);
         var suffix = config.contextRegexSuffix().orElse("");
         var prefix = config.contextRegexPrefix().orElse("");
-        // publish the context to a Kafka topic
-        var record = Record.of(t.getMetadata().getName(), ContextData.newBuilder()
+        var key = t.getMetadata().getName();
+        var value = ContextData.newBuilder()
                 .setCreationTime(Instant.now())
                 .setContext(context)
                 .setEntityType(EntityType.TOPIC)
                 .setRegex(String.format("%s%s%s", prefix, t.getMetadata().getName().replaceAll("[.]", "[.]"), suffix))
-                .build()
-        );
-        contextEmitter.send(record).whenComplete((unused, throwable) -> {
-            if (throwable != null) {
-                Log.errorv("Unable to send context to kafka for key {0}: {1}", t.getMetadata().getName(), context, throwable);
-            } else {
-                Log.debugv("Context data updated on kafka for key {0}: {1}", t.getMetadata().getName(), context);
-            }
-        });
+                .build();
+        if (!contextRepository.containsContext(key, value)) { // only publish if the context has changed
+            contextEmitter.send(Record.of(key, value)).whenComplete((unused, throwable) -> {
+                if (throwable != null) {
+                    Log.errorv("Unable to send context to kafka for key {0}: {1}", t.getMetadata().getName(), context, throwable);
+                } else {
+                    Log.debugv("Context data updated on kafka for key {0}: {1}", t.getMetadata().getName(), context);
+                }
+            });
+        } else {
+            Log.infov("Context data for key {0} has not changed, skipping update", t.getMetadata().getName());
+        }
     }
 
     /**

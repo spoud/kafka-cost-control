@@ -70,9 +70,17 @@ spec:
     acls:
     - host: '*'
       operations:
+      - Read
+      resource:
+        name: {{ .Release.Name }}-context-operator
+        patternType: literal
+        type: group
+    - host: '*'
+      operations:
       - Create
       - Describe
       - Write
+      - Read
       resource:
         name: {{ $ctxTopic }}
         patternType: literal
@@ -137,6 +145,8 @@ spec:
         - name: QUARKUS_LOG_CATEGORY__IO_SPOUD__LEVEL
           value: debug
         {{ end }}
+        - name: KAFKA_GROUP_ID
+          value: "{{ .Release.Name }}-context-operator"
         - name: QUARKUS_HTTP_PORT
           value: "8090"
         - name: QUARKUS_OPERATOR_SDK_CRD_GENERATE
