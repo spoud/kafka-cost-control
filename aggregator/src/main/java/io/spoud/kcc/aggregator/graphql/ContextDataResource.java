@@ -6,6 +6,7 @@ import io.spoud.kcc.aggregator.graphql.data.ContextDataDeleteRequest;
 import io.spoud.kcc.aggregator.graphql.data.ContextDataSaveRequest;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import jakarta.annotation.security.PermitAll;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Mutation;
@@ -27,7 +28,7 @@ public class ContextDataResource {
 
     @Authenticated
     @Mutation("saveContextData")
-    public @NonNull ContextDataEntity saveContextData(ContextDataSaveRequest request) {
+    public @NonNull ContextDataEntity saveContextData(@Valid ContextDataSaveRequest request) {
         return contextDataRepository.save(request.id(), request.toAvro());
     }
 
