@@ -5,6 +5,9 @@
   "projects": {
     "kafka-cost-control-frontend": {
       "projectType": "application",
+      "i18n": {
+        "sourceLocale": "en-CH"
+      },
       "schematics": {
         "@schematics/angular:component": {
           "style": "scss"
