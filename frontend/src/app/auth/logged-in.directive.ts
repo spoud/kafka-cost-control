@@ -1,4 +1,4 @@
-import {Directive, effect, Signal, TemplateRef, ViewContainerRef} from '@angular/core';
+import {Directive, effect, TemplateRef, ViewContainerRef} from '@angular/core';
 import {BasicAuthServiceService} from './basic-auth-service.service';
 
 @Directive({
@@ -13,12 +13,12 @@ export class LoggedInDirective<T = unknown> {
     ) {
         const authenticated = this.authService.authenticated();
         effect(() => {
-            this.updateView(authenticated);
+            this.updateView(authenticated());
         });
     }
 
-    private updateView(authenticated: Signal<boolean>) {
-        if (authenticated()) {
+    private updateView(authenticated: boolean) {
+        if (authenticated) {
             this.viewContainerRef.createEmbeddedView(this.templateRef);
         } else {
             this.viewContainerRef.clear();
