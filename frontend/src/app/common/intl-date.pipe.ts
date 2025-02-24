@@ -11,7 +11,7 @@ export class IntlDatePipe implements PipeTransform {
     ) {
     }
 
-    transform(date: string, timeZone?: string): string | null {
+    transform(date: Date | string, timeZone?: string): string | null {
         if (!date) {
             return null;
         }

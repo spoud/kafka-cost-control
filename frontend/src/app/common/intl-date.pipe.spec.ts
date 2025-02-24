@@ -15,4 +15,8 @@ describe('IntlDatePipe', () => {
     it('should handle milliseconds', () => {
         expect(pipe.transform('2025-02-21T08:36:51.999Z', 'CET')).toBe('21.02.2025, 09:36:51');
     });
+
+    it('should accept Date types', () => {
+        expect(pipe.transform(new Date('2025-02-21T08:36:51.999Z'), 'CET')).toBe('21.02.2025, 09:36:51');
+    });
 });
