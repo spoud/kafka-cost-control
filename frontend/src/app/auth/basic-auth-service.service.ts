@@ -1,7 +1,7 @@
 import {Injectable, Signal, signal} from '@angular/core';
 import {map, Observable, Subject} from 'rxjs';
 import {LoginTestGQL} from '../../generated/graphql/sdk';
-import {AdditionalHeadersService} from './additional-headers.service';
+import {AdditionalHeadersService} from '../services/additional-headers.service';
 
 export const LOCAL_STORAGE_BASIC_AUTH = 'kcc-basic-auth-hash';
 export const HEADER_AUTHORIZATION = 'Authorization';

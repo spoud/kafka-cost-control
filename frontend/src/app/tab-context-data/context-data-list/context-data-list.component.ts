@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, OnInit, ViewChild} from '@angular/core';
+import {AfterViewInit, Component, Inject, OnInit, ViewChild} from '@angular/core';
 import {GetContextDatasGQL} from '../../../generated/graphql/sdk';
 import {ContextDataEntity} from '../../../generated/graphql/types';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
@@ -10,8 +10,10 @@ import {MatFabButton} from '@angular/material/button';
 import {MatIcon} from '@angular/material/icon';
 import {ContextDataCreateComponent} from '../context-data-create/context-data-create.component';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
-import {DatePipe} from '@angular/common';
 import {MatDivider} from '@angular/material/divider';
+import {LoggedInDirective} from '../../auth/logged-in.directive';
+import {BROWSER_LOCALE} from '../../app.config';
+import {IntlDatePipe} from '../../common/intl-date.pipe';
 
 @Component({
     selector: 'app-context-data-list',
@@ -23,8 +25,9 @@ import {MatDivider} from '@angular/material/divider';
         KeyValueListComponent,
         MatFabButton,
         MatIcon,
-        DatePipe,
-        MatDivider
+        MatDivider,
+        LoggedInDirective,
+        IntlDatePipe
     ]
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
@@ -36,7 +39,13 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
     public displayedColumns: string[] = ['creationTime', 'validFrom', 'validUntil', 'entityType', 'regex', 'context'];
 
-    constructor(private contextDataService: GetContextDatasGQL, private _liveAnnouncer: LiveAnnouncer, private _snackBar: MatSnackBar, private dialog: MatDialog) {
+    constructor(
+        private contextDataService: GetContextDatasGQL,
+        private _liveAnnouncer: LiveAnnouncer,
+        private _snackBar: MatSnackBar,
+        private dialog: MatDialog,
+        @Inject(BROWSER_LOCALE) public browserLocale: string,
+    ) {
     }
 
     ngOnInit(): void {

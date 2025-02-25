@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, Inject} from '@angular/core';
 import {
     MatDialogActions,
     MatDialogClose,
@@ -7,7 +7,7 @@ import {
     MatDialogTitle
 } from '@angular/material/dialog';
 import {MatButton, MatMiniFabButton} from '@angular/material/button';
-import {MatFormField, MatLabel, MatSuffix} from '@angular/material/form-field';
+import {MatError, MatFormField, MatLabel, MatSuffix} from '@angular/material/form-field';
 import {MatInput} from '@angular/material/input';
 import {MatOption, MatSelect} from '@angular/material/select';
 import {
@@ -28,6 +28,8 @@ import {MatDatepicker, MatDatepickerInput, MatDatepickerToggle} from '@angular/m
 import {EntityType} from '../../../generated/graphql/types';
 import {MatDivider} from '@angular/material/divider';
 import {MatIcon} from '@angular/material/icon';
+import {DateAdapter} from '@angular/material/core';
+import {BROWSER_LOCALE} from '../../app.config';
 
 @Component({
     selector: 'app-context-data-create',
@@ -49,7 +51,8 @@ import {MatIcon} from '@angular/material/icon';
         MatDatepicker,
         MatDivider,
         MatIcon,
-        MatMiniFabButton
+        MatMiniFabButton,
+        MatError
     ],
     templateUrl: './context-data-create.component.html',
     styleUrl: './context-data-create.component.scss'
@@ -67,7 +70,13 @@ export class ContextDataCreateComponent {
     constructor(private contextDataService: SaveContextDataGQL,
                 private dialogReg: MatDialogRef<ContextDataCreateComponent>,
                 private formBuilder: NonNullableFormBuilder,
-                private snackBar: MatSnackBar) {
+                private snackBar: MatSnackBar,
+                private dateAdapter: DateAdapter<unknown>,
+                @Inject(BROWSER_LOCALE) browserLocale: string,
+    ) {
+        if (browserLocale) {
+            this.dateAdapter.setLocale(browserLocale);
+        }
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -76,7 +85,7 @@ export class ContextDataCreateComponent {
             validUntil: new FormControl<Date | null>(null),
             entityType: new FormControl<EntityType>(EntityType.Topic, Validators.required),
             regex: new FormControl<string>('', {validators: Validators.required}),
-            context: this.formBuilder.array<Entry_String_StringInput>([]),
+            context: this.formBuilder.array<Entry_String_StringInput>([], Validators.required),
         });
         this.addKeyValuePair();
     }
