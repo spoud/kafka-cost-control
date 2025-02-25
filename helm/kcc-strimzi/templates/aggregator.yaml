@@ -67,7 +67,7 @@ spec:
             - name: CC_OLAP_DATABASE_URL
               value: "jdbc:duckdb:/home/jboss/kafka-stream/duckdb.db"
             - name: CC_OLAP_DATABASE_MEMORY_LIMIT_PERCENT
-              value: "30"
+              value: "{{ default "30" .Values.aggregator.olapDatabaseMemoryLimitPercent }}"
             - name: CC_OLAP_TOTAL_MEMORY_LIMIT_MB
               valueFrom:
                 resourceFieldRef:
