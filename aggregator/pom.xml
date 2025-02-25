@@ -3,7 +3,6 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-
     <groupId>io.spoud</groupId>
     <artifactId>kafka-cost-control</artifactId>
     <version>1.0.0-SNAPSHOT</version> 
@@ -14,7 +13,7 @@
         <skipITs>false</skipITs>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.18.3</quarkus.platform.version>
+        <quarkus.platform.version>3.18.4</quarkus.platform.version>
 
         <sonar.organization>spoud</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -23,10 +22,10 @@
         </sonar.coverage.jacoco.xmlReportPaths>
 
         <maven.compiler.release>21</maven.compiler.release>
-        <compiler-plugin.version>3.13.0</compiler-plugin.version>
+        <compiler-plugin.version>3.14.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.2</surefire-plugin.version>
         <kafka.version>3.9.0</kafka.version>
-        <confluent.platform.version>7.8.1</confluent.platform.version>
+        <confluent.platform.version>7.9.0</confluent.platform.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -184,7 +183,7 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <version>4.2.2</version>
+            <version>4.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

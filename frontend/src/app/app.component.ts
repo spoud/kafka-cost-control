@@ -4,7 +4,7 @@ import {MatTabsModule} from '@angular/material/tabs';
 import {MatToolbar} from '@angular/material/toolbar';
 import {MatIcon} from '@angular/material/icon';
 import {MatButton} from '@angular/material/button';
-import {BasicAuthServiceService} from './services/basic-auth-service.service';
+import {BasicAuthServiceService} from './auth/basic-auth-service.service';
 import {MatTooltip} from '@angular/material/tooltip';
 import {MatDialog} from '@angular/material/dialog';
 import {SignInDialogComponent} from './common/sign-in-dialog/sign-in-dialog.component';
