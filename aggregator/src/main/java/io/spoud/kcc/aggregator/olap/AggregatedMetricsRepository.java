@@ -61,6 +61,7 @@ public class AggregatedMetricsRepository {
                 } catch (SQLException e) {
                     Log.error("Failed to create OLAP table", e);
                 }
+                setDbMemoryLimit(conn);
                 try {
                     olapConfig.databaseSeedDataPath().ifPresent(this::loadDataExport);
                 } catch (Exception e) {
@@ -69,6 +70,23 @@ public class AggregatedMetricsRepository {
             });
         } else {
             Log.info("OLAP module is disabled.");
+        }
+    }
+
+    private void setDbMemoryLimit(Connection conn) {
+        if (olapConfig.databaseMemoryLimitMib().isEmpty()) {
+            Log.warn("""
+                    No memory limit set for OLAP database. Using DuckDB default of 80% of system memory.
+                    Please consider setting a limit to avoid out-of-memory errors, by setting the `cc.olap.total.memory.limit.mb` and `cc.olap.database.memory.limit.percent` properties.
+                    """);
+            return;
+        }
+        var memLimit = olapConfig.databaseMemoryLimitMib().orElseThrow();
+        try (var statement = conn.createStatement()) {
+            statement.execute("SET memory_limit = '" + memLimit + "MiB'");
+            Log.infof("Set memory limit for OLAP database to %d MiB", memLimit);
+        } catch (SQLException e) {
+            Log.error("Failed to set memory limit for OLAP database", e);
         }
     }
 
@@ -278,9 +296,9 @@ public class AggregatedMetricsRepository {
             var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
                     .collect(Collectors.joining(", ", "(", ")"));
             try (var statement = conn.prepareStatement("""
-                SELECT * FROM aggregated_data
-                WHERE start_time >= ? AND end_time <= ?
-                """ + nameFilter)) {
+                    SELECT * FROM aggregated_data
+                    WHERE start_time >= ? AND end_time <= ?
+                    """ + nameFilter)) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
                 var i = 3;

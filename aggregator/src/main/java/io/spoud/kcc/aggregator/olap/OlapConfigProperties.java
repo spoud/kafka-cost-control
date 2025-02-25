@@ -16,6 +16,37 @@ public interface OlapConfigProperties {
     boolean enabled();
 
     /**
+     * The total memory limit avaiable to the aggregator. This is used to calculate the memory limit for the DuckDB database.
+     * The value is expected to be in Mebibytes (MiB) (1 MiB = 1024 KiB, 1 KiB = 1024 bytes).
+     * If not set, the `database.memory.limit.percent` property will have no effect.
+     * @return the total memory limit in MiB
+     */
+    @WithName("total.memory.limit.mb")
+    Optional<Integer> totalMemoryLimitMb();
+
+    /**
+     * Maximum percentage of RAM that can be used by the DuckDB database.
+     * Note that this limit will not be enforced unless the `total.memory.limit.mb` property is set.
+     *
+     * @return the percentage of RAM to use
+     */
+    @WithName("database.memory.limit.percent")
+    @WithDefault("30")
+    int databaseMemoryLimitPercent();
+
+    /**
+     * Calculate the memory limit for the DuckDB database based on the total memory limit and the percentage of RAM to use.
+     * If the total memory limit is not set, this method will return an empty Optional.
+     *
+     * @return the memory limit for the DuckDB database in MiB (1 MiB = 1024 KiB, 1 KiB = 1024 bytes), returned value is rounded down to the nearest integer
+     */
+    default Optional<Integer> databaseMemoryLimitMib() {
+        return totalMemoryLimitMb()
+                .map(totalMemory -> totalMemory * (databaseMemoryLimitPercent() / 100.0))
+                .map(Double::intValue);
+    }
+
+    /**
      * The JDBC URL to connect to the DuckDB database. To use an in-memory database, use "jdbc:duckdb:".
      * Otherwise, specify the path to the database file, e.g. "jdbc:duckdb:/path/to/database.db".
      */
