@@ -59,11 +59,20 @@ spec:
               cpu: {{ .Values.aggregator.resources.requests.cpu }}
               memory: {{ .Values.aggregator.resources.requests.memory }}
           env:
+            - name: JAVA_MAX_MEM_RATIO
+              value: "50"
             {{- if .Values.aggregator.olapEnabled }}
             - name: CC_OLAP_ENABLED
               value: "true"
             - name: CC_OLAP_DATABASE_URL
               value: "jdbc:duckdb:/home/jboss/kafka-stream/duckdb.db"
+            - name: CC_OLAP_DATABASE_MEMORY_LIMIT_PERCENT
+              value: "30"
+            - name: CC_OLAP_TOTAL_MEMORY_LIMIT_MB
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+                  divisor: 1Mi
             {{- end }}
             - name: QUARKUS_KAFKA_STREAMS_STATE_DIR
               value: /home/jboss/kafka-stream/data/

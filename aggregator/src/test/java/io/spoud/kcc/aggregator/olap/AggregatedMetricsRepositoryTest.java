@@ -22,6 +22,24 @@ import java.util.Set;
 
 class AggregatedMetricsRepositoryTest {
 
+    @DisplayName("DB memory limit respects given constraint")
+    @Test
+    void dbMemoryLimit() {
+        var conf1 = FakeOlapConfig
+                .builder()
+                .databaseMemoryLimitPercent(50)
+                .totalMemoryLimitMb(Optional.of(256))
+                .build();
+        assertThat(conf1.databaseMemoryLimitMib()).isEqualTo(Optional.of(128));
+
+        var conf2 = FakeOlapConfig
+                .builder()
+                .databaseMemoryLimitPercent(50)
+                .totalMemoryLimitMb(Optional.empty())
+                .build();
+        assertThat(conf2.databaseMemoryLimitMib()).isEmpty();
+    }
+
     @DisplayName("Load Seed Data from CSV File")
     @Test
     void loadSeedData() {
@@ -248,6 +266,10 @@ class AggregatedMetricsRepositoryTest {
         private final int databaseMaxBufferedRows = 10;
         @Builder.Default
         private final String databaseSeedDataPath = null;
+        @Builder.Default
+        private final Optional<Integer> totalMemoryLimitMb = Optional.ofNullable(1024);
+        @Builder.Default
+        private final int databaseMemoryLimitPercent = 50;
 
         @Override
         public boolean enabled() {
@@ -267,6 +289,16 @@ class AggregatedMetricsRepositoryTest {
         @Override
         public int databaseMaxBufferedRows() {
             return databaseMaxBufferedRows;
+        }
+
+        @Override
+        public Optional<Integer> totalMemoryLimitMb() {
+            return totalMemoryLimitMb;
+        }
+
+        @Override
+        public int databaseMemoryLimitPercent() {
+            return databaseMemoryLimitPercent;
         }
 
         @Override

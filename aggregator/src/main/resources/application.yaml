@@ -90,6 +90,6 @@ quarkus:
       "org.apache.kafka":
         level: WARN
       "io.spoud.kcc":
-        level: DEBUG
+        level: INFO
   container-image:
     build: true
