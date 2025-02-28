@@ -146,7 +146,7 @@ public class MetricEnricher {
         if (pricingRule != null) {
             builder.setCost(pricingRule.getBaseCost() + pricingRule.getCostFactor() * data.getValue());
         } else {
-            Log.infov("No pricing rules found for \"{0}\"", data.getInitialMetricName());
+            Log.debugv("No pricing rules found for \"{0}\"", data.getInitialMetricName());
         }
         return builder.build();
     }
