@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
@@ -126,8 +127,8 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s")
-    public void flushToDb() {
+    @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    synchronized void flushToDb() {
         getConnection().ifPresent((conn) -> {
             var skipped = 0;
             var count = 0;
@@ -186,7 +187,13 @@ public class AggregatedMetricsRepository {
         }
         rowBuffer.add(row);
         if (rowBuffer.size() >= olapConfig.databaseMaxBufferedRows()) {
-            flushToDb();
+            CompletableFuture.runAsync(() -> {
+                try {
+                    flushToDb();
+                } catch (Exception e) {
+                    Log.error("Failed to flush to DB", e);
+                }
+            });
         }
     }
 

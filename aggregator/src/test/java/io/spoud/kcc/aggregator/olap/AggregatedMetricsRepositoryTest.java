@@ -150,10 +150,25 @@ class AggregatedMetricsRepositoryTest {
             repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
         }
 
+        // wait a split-second (because the flush happens asynchronously in a separate thread)
+        // then check that no data has been flushed yet
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         assertThat(repo.getAllMetrics()).isEmpty();
 
         // now insert one more
         repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
+
+        // wait a split-second, because the flush happens asynchronously in a separate thread
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         assertThat(repo.getAllMetrics()).isNotEmpty();
     }
