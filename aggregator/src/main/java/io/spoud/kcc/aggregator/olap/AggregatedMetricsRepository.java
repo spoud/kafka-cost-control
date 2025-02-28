@@ -21,15 +21,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
@@ -130,11 +122,19 @@ public class AggregatedMetricsRepository {
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     synchronized void flushToDb() {
         getConnection().ifPresent((conn) -> {
+            Queue<AggregatedDataWindowed> finalRowBuffer;
+            // Drain the buffer. This flush will deal only with the current buffer elements, not with any new rows added while this flush is running
+            // This prevents the potential edge-case where the buffer is emptied and filled at the same rate, causing the flush to never finish.
+            // Note that since adding to the buffer happens from the stream processing thread, this carries a slight risk of slowing down the stream processing.
+            synchronized (rowBuffer) {
+                finalRowBuffer = new ArrayDeque<>(rowBuffer);
+                rowBuffer.clear();
+            }
             var skipped = 0;
             var count = 0;
             var startTime = Instant.now();
             try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-                for (var metric = rowBuffer.poll(); metric != null; metric = rowBuffer.poll()) {
+                for (var metric = finalRowBuffer.poll(); metric != null; metric = finalRowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
                     var end = metric.getEndTime();
