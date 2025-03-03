@@ -9,41 +9,34 @@ import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Startup
-@RequiredArgsConstructor
 @ApplicationScoped
 public class AggregatedMetricsRepository {
     public static final TypeReference<Map<String, String>> MAP_STRING_STRING_TYPE_REF = new TypeReference<>() {
     };
 
     private final OlapConfigProperties olapConfig;
-    private final Queue<AggregatedDataWindowed> rowBuffer = new ConcurrentLinkedQueue<>();
+    private final BlockingQueue<AggregatedDataWindowed> rowBuffer;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private Connection connection;
+
+    public AggregatedMetricsRepository(OlapConfigProperties olapConfig) {
+        this.olapConfig = olapConfig;
+        this.rowBuffer = new ArrayBlockingQueue<>(olapConfig.databaseMaxBufferedRows());
+    }
 
     private static void ensureIdentifierIsSafe(String identifier) {
         if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
@@ -126,14 +119,19 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s")
-    public void flushToDb() {
+    @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    synchronized void flushToDb() {
         getConnection().ifPresent((conn) -> {
+            // Drain the buffer. This flush will deal only with the current buffer elements, not with any new rows added while this flush is running
+            // This prevents the potential edge-case where the buffer is emptied and filled at the same rate, causing the flush to never finish.
+            // Note that since adding to the buffer happens from the stream processing thread, this carries a slight risk of slowing down the stream processing.
+            var finalRowBuffer = new ArrayDeque<>(rowBuffer);
+            rowBuffer.drainTo(finalRowBuffer);
             var skipped = 0;
             var count = 0;
             var startTime = Instant.now();
             try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-                for (var metric = rowBuffer.poll(); metric != null; metric = rowBuffer.poll()) {
+                for (var metric = finalRowBuffer.poll(); metric != null; metric = finalRowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
                     var end = metric.getEndTime();
@@ -186,7 +184,13 @@ public class AggregatedMetricsRepository {
         }
         rowBuffer.add(row);
         if (rowBuffer.size() >= olapConfig.databaseMaxBufferedRows()) {
-            flushToDb();
+            CompletableFuture.runAsync(() -> {
+                try {
+                    flushToDb();
+                } catch (Exception e) {
+                    Log.error("Failed to flush to DB", e);
+                }
+            });
         }
     }
 
