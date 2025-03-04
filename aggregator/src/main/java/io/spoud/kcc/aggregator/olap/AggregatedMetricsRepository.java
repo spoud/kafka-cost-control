@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
+import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.data.AggregatedDataWindowed;
@@ -63,6 +64,22 @@ public class AggregatedMetricsRepository {
             });
         } else {
             Log.info("OLAP module is disabled.");
+        }
+    }
+
+    @Shutdown
+    public void cleanUp() {
+        if (olapConfig.enabled()) {
+            Log.info("Shutting down OLAP module. Performing final flush and closing connection...");
+            flushToDb();
+            getConnection().ifPresent((conn) -> {
+                try {
+                    conn.close();
+                    Log.info("Closed OLAP database connection");
+                } catch (SQLException e) {
+                    Log.error("Failed to close OLAP database connection", e);
+                }
+            });
         }
     }
 
