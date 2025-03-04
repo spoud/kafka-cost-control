@@ -125,7 +125,7 @@ public class AggregatedMetricsRepository {
             // Drain the buffer. This flush will deal only with the current buffer elements, not with any new rows added while this flush is running
             // This prevents the potential edge-case where the buffer is emptied and filled at the same rate, causing the flush to never finish.
             // Note that since adding to the buffer happens from the stream processing thread, this carries a slight risk of slowing down the stream processing.
-            var finalRowBuffer = new ArrayDeque<>(rowBuffer);
+            var finalRowBuffer = new ArrayDeque<AggregatedDataWindowed>(rowBuffer.size());
             rowBuffer.drainTo(finalRowBuffer);
             var skipped = 0;
             var count = 0;
