@@ -10,6 +10,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle} from '@angular/material/dialog';
 import {MatDivider} from '@angular/material/divider';
 import {ApolloQueryResult} from '@apollo/client';
+import {MatTab, MatTabGroup} from '@angular/material/tabs';
 
 @Component({
     selector: 'app-context-data-test',
@@ -25,7 +26,9 @@ import {ApolloQueryResult} from '@apollo/client';
         MatDialogActions,
         MatDialogClose,
         MatDialogTitle,
-        MatDivider
+        MatDivider,
+        MatTabGroup,
+        MatTab
     ],
     templateUrl: './context-data-test.component.html',
     styleUrl: './context-data-test.component.scss'
