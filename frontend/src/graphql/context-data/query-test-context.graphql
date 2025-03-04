@@ -1,0 +1,14 @@
+query testContext($testString: String!){
+    contextTest(testString: $testString) {
+        id
+        creationTime
+        validFrom
+        validUntil
+        entityType
+        regex
+        context{
+            key
+            value
+        }
+    }
+}
