@@ -61,6 +61,9 @@ type PricingRuleEntity {
 "Query root"
 type Query {
   contextData: [ContextDataEntity!]!
+  contextTest(
+    testString: String!
+  ): [ContextDataEntity!]!
   currentUser: String!
   history(
     "ISO-8601"

@@ -5,6 +5,7 @@ import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.data.ContextData;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 
@@ -48,9 +49,11 @@ public class CachedContextDataManager {
             List<CachedContextData> list = new ArrayList<>();
             try (final KeyValueIterator<String, ContextData> iterator = store.all()) {
                 while (iterator.hasNext()) {
-                    ContextData contextData = iterator.next().value;
+                    KeyValue<String, ContextData> next = iterator.next();
+                    String key = next.key;
+                    ContextData contextData = next.value;
 
-                    list.add(new CachedContextData(contextData));
+                    list.add(new CachedContextData(key, contextData));
                 }
             }
             lastUpdate = Instant.now();
@@ -68,10 +71,13 @@ public class CachedContextDataManager {
 
     public static class CachedContextData {
         @Getter
+        private final String key;
+        @Getter
         private final ContextData contextData;
         private final Pattern pattern;
 
-        public CachedContextData(ContextData contextData) {
+        public CachedContextData(String key, ContextData contextData) {
+            this.key = key;
             this.contextData = contextData;
             this.pattern = Pattern.compile(contextData.getRegex(), Pattern.CASE_INSENSITIVE);
         }

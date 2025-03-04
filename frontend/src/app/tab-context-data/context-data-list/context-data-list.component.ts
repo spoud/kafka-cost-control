@@ -6,14 +6,14 @@ import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
 import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
-import {MatFabButton} from '@angular/material/button';
+import {MatButton, MatFabButton} from '@angular/material/button';
 import {MatIcon} from '@angular/material/icon';
 import {ContextDataCreateComponent} from '../context-data-create/context-data-create.component';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
-import {MatDivider} from '@angular/material/divider';
 import {LoggedInDirective} from '../../auth/logged-in.directive';
 import {BROWSER_LOCALE} from '../../app.config';
 import {IntlDatePipe} from '../../common/intl-date.pipe';
+import {ContextDataTestComponent} from '../context-data-test/context-data-test.component';
 
 @Component({
     selector: 'app-context-data-list',
@@ -25,9 +25,9 @@ import {IntlDatePipe} from '../../common/intl-date.pipe';
         KeyValueListComponent,
         MatFabButton,
         MatIcon,
-        MatDivider,
         LoggedInDirective,
-        IntlDatePipe
+        IntlDatePipe,
+        MatButton
     ]
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
@@ -83,5 +83,9 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
                 this.loadContextData();
             }
         });
+    }
+
+    openTestDialog() {
+        this.dialog.open(ContextDataTestComponent);
     }
 }

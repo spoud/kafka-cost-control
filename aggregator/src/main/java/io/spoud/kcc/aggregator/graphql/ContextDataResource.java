@@ -27,6 +27,12 @@ public class ContextDataResource {
     }
 
     @Authenticated
+    @Query("contextTest")
+    public @NonNull List<@NonNull ContextDataEntity> testContextData(String testString) {
+        return contextDataRepository.testContext(testString);
+    }
+
+    @Authenticated
     @Mutation("saveContextData")
     public @NonNull ContextDataEntity saveContextData(@Valid ContextDataSaveRequest request) {
         return contextDataRepository.save(request.id(), request.toAvro());
