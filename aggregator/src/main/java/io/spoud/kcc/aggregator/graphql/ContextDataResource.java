@@ -2,6 +2,7 @@ package io.spoud.kcc.aggregator.graphql;
 
 import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
+import io.spoud.kcc.aggregator.data.ContextTestResponse;
 import io.spoud.kcc.aggregator.graphql.data.ContextDataDeleteRequest;
 import io.spoud.kcc.aggregator.graphql.data.ContextDataSaveRequest;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
@@ -28,7 +29,7 @@ public class ContextDataResource {
 
     @Authenticated
     @Query("contextTest")
-    public @NonNull List<@NonNull ContextDataEntity> testContextData(String testString) {
+    public @NonNull List<@NonNull ContextTestResponse> testContextData(String testString) {
         return contextDataRepository.testContext(testString);
     }
 

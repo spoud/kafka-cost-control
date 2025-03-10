@@ -3,11 +3,12 @@ package io.spoud.kcc.aggregator.repository;
 import io.quarkus.logging.Log;
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
-import io.spoud.kcc.aggregator.data.Metric;
+import io.spoud.kcc.aggregator.data.ContextTestResponse;
+import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.stream.CachedContextDataManager;
 import io.spoud.kcc.aggregator.stream.MetricEnricher;
+import io.spoud.kcc.aggregator.stream.TelegrafDataWrapper;
 import io.spoud.kcc.data.ContextData;
-import io.spoud.kcc.data.EntityType;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StoreQueryParameters;
@@ -19,9 +20,7 @@ import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 
 @ApplicationScoped
@@ -72,25 +71,24 @@ public class ContextDataRepository {
         return list;
     }
 
-    public List<ContextDataEntity> testContext(String testString) {
+    public List<ContextTestResponse> testContext(String testString) {
         List<CachedContextDataManager.CachedContextData> cachedContextData = cachedContextDataManager.getCachedContextData();
-        Metric dummyTopicMetric = new Metric(EntityType.TOPIC, testString);
-        Metric dummyPrincipalMetric = new Metric(EntityType.PRINCIPAL, testString);
-        List<ContextDataEntity> matchedTopicList = findMatchedContextData(cachedContextData, dummyTopicMetric);
-        List<ContextDataEntity> matchedPrincipalList = findMatchedContextData(cachedContextData, dummyPrincipalMetric);
 
-        return Stream.concat(
-                matchedTopicList.stream(),
-                matchedPrincipalList.stream()
-        ).toList();
+        RawTelegrafData dummyTopicData = new RawTelegrafData(Instant.now(), null, Map.of(), Map.of(TelegrafDataWrapper.TOPIC_TAG, testString));
+        RawTelegrafData dummyPrincipalData = new RawTelegrafData(Instant.now(), null, Map.of(), Map.of(TelegrafDataWrapper.PRINCIPAL_ID_TAG, testString));
+        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForTopic = findMatchedContext(cachedContextData, dummyTopicData);
+        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForPrincipal = findMatchedContext(cachedContextData, dummyPrincipalData);
+
+        return Stream.of(aggregatedForTopic, aggregatedForPrincipal)
+                .flatMap(Optional::stream)
+                .map(info -> new ContextTestResponse(info.type(), info.context()))
+                .toList();
     }
 
-    private static List<ContextDataEntity> findMatchedContextData(List<CachedContextDataManager.CachedContextData> cachedContextData, Metric metricToTest) {
-        return cachedContextData.stream()
-                // the matcher is only returned if it matches (and contextData is in correct time range, i.e. valid for "Instant.now()")
-                .filter(contextData -> contextData.getMatcher(metricToTest, Instant.now()).isPresent())
-                .map(contextData -> ContextDataEntity.fromAvro(contextData.getKey(), contextData.getContextData()))
-                .toList();
+    private static Optional<TelegrafDataWrapper.AggregatedDataInfo> findMatchedContext(List<CachedContextDataManager.CachedContextData> cachedContextData, RawTelegrafData dummyData) {
+        TelegrafDataWrapper wrapper = new TelegrafDataWrapper(dummyData);
+        // here we find matching regexes and replace capturing groups
+        return wrapper.enrichWithContext(cachedContextData);
     }
 
     public ReadOnlyKeyValueStore<String, ContextData> getStore() {

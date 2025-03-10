@@ -14,6 +14,11 @@ type ContextDataEntity {
   validUntil: DateTime
 }
 
+type ContextTestResponse {
+    entityType: EntityType!
+    context: [Entry_String_String!]!
+}
+
 type Entry_String_String {
   key: String
   value: String
@@ -63,7 +68,7 @@ type Query {
   contextData: [ContextDataEntity!]!
   contextTest(
     testString: String!
-  ): [ContextDataEntity!]!
+  ): [ContextTestResponse!]!
   currentUser: String!
   history(
     "ISO-8601"

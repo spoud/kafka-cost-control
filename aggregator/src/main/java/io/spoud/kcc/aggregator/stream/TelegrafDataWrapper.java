@@ -6,7 +6,10 @@ import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.data.EntityType;
 import org.apache.commons.lang3.math.NumberUtils;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class TelegrafDataWrapper {
@@ -17,7 +20,7 @@ public class TelegrafDataWrapper {
     public static final String PRINCIPAL_ID_TAG = "principal_id";
     private final RawTelegrafData telegrafData;
 
-    TelegrafDataWrapper(final RawTelegrafData telegrafData) {
+    public TelegrafDataWrapper(final RawTelegrafData telegrafData) {
         this.telegrafData = telegrafData;
     }
 
