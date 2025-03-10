@@ -84,3 +84,5 @@ docs/.asciidoctor
 
 .env-telegraf
 .env-scraper
+
+docker-compose.override.yaml

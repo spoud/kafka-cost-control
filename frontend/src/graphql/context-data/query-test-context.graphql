@@ -1,0 +1,9 @@
+query testContext($testString: String!){
+    contextTest(testString: $testString) {
+        entityType
+        context{
+            key
+            value
+        }
+    }
+}

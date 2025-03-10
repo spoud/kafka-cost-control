@@ -3,7 +3,11 @@ package io.spoud.kcc.aggregator.repository;
 import io.quarkus.logging.Log;
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
+import io.spoud.kcc.aggregator.data.ContextTestResponse;
+import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.stream.CachedContextDataManager;
 import io.spoud.kcc.aggregator.stream.MetricEnricher;
+import io.spoud.kcc.aggregator.stream.TelegrafDataWrapper;
 import io.spoud.kcc.data.ContextData;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.kafka.streams.KafkaStreams;
@@ -15,22 +19,25 @@ import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Stream;
 
 @ApplicationScoped
 public class ContextDataRepository {
 
     private final Emitter<Record<String, ContextData>> contextEmitter;
     private final KafkaStreams kafkaStreams;
+    private final CachedContextDataManager cachedContextDataManager;
 
     public ContextDataRepository(
             @Channel("context-data-out") Emitter<Record<String, ContextData>> contextEmitter,
-            KafkaStreams kafkaStreams
+            KafkaStreams kafkaStreams,
+            CachedContextDataManager cachedContextDataManager
     ) {
         this.contextEmitter = contextEmitter;
         this.kafkaStreams = kafkaStreams;
+        this.cachedContextDataManager = cachedContextDataManager;
     }
 
     public ContextDataEntity deleteContext(String id) {
@@ -62,6 +69,26 @@ public class ContextDataRepository {
             iterator.forEachRemaining(kv -> list.add(ContextDataEntity.fromAvro(kv.key, kv.value)));
         }
         return list;
+    }
+
+    public List<ContextTestResponse> testContext(String testString) {
+        List<CachedContextDataManager.CachedContextData> cachedContextData = cachedContextDataManager.getCachedContextData();
+
+        RawTelegrafData dummyTopicData = new RawTelegrafData(Instant.now(), null, Map.of(), Map.of(TelegrafDataWrapper.TOPIC_TAG, testString));
+        RawTelegrafData dummyPrincipalData = new RawTelegrafData(Instant.now(), null, Map.of(), Map.of(TelegrafDataWrapper.PRINCIPAL_ID_TAG, testString));
+        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForTopic = findMatchedContext(cachedContextData, dummyTopicData);
+        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForPrincipal = findMatchedContext(cachedContextData, dummyPrincipalData);
+
+        return Stream.of(aggregatedForTopic, aggregatedForPrincipal)
+                .flatMap(Optional::stream)
+                .map(info -> new ContextTestResponse(info.type(), info.context()))
+                .toList();
+    }
+
+    private static Optional<TelegrafDataWrapper.AggregatedDataInfo> findMatchedContext(List<CachedContextDataManager.CachedContextData> cachedContextData, RawTelegrafData dummyData) {
+        TelegrafDataWrapper wrapper = new TelegrafDataWrapper(dummyData);
+        // here we find matching regexes and replace capturing groups
+        return wrapper.enrichWithContext(cachedContextData);
     }
 
     public ReadOnlyKeyValueStore<String, ContextData> getStore() {
