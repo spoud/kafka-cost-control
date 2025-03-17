@@ -1,8 +1,13 @@
-<button *appLoggedIn mat-fab extended color="primary" type="button" class="mb-1" (click)="openCreateDialog()">
-    <mat-icon>add</mat-icon>
-    Add context data
-</button>
-<mat-divider></mat-divider>
+<div class="flex-container mb-1">
+    <button *appLoggedIn mat-raised-button color="grey" type="button" (click)="openTestDialog()">
+        <mat-icon>search</mat-icon>
+        Test context data
+    </button>
+    <button *appLoggedIn mat-fab extended color="primary" type="button" (click)="openCreateDialog()">
+        <mat-icon>add</mat-icon>
+        Add context data
+    </button>
+</div>
 <table mat-table [dataSource]="dataSource" (matSortChange)="announceSortChange($event)" matSort
        class="mat-elevation-z8">
 

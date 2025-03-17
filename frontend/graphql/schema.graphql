@@ -14,6 +14,11 @@ type ContextDataEntity {
   validUntil: DateTime
 }
 
+type ContextTestResponse {
+    entityType: EntityType!
+    context: [Entry_String_String!]!
+}
+
 type Entry_String_String {
   key: String
   value: String
@@ -61,6 +66,9 @@ type PricingRuleEntity {
 "Query root"
 type Query {
   contextData: [ContextDataEntity!]!
+  contextTest(
+    testString: String!
+  ): [ContextTestResponse!]!
   currentUser: String!
   history(
     "ISO-8601"
