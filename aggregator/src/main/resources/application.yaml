@@ -79,6 +79,7 @@ quarkus:
       basic: true
   smallrye-graphql:
     schema-include-scalars: true
+    error-extension-fields: exception,code,classification
     ui:
       enable: true
       root-path: /graphql-ui
