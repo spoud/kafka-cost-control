@@ -26,7 +26,10 @@ public class MetricNameRepository {
 
   public List<MetricNameEntity> getMetricNames() {
     return metricNames.entrySet().stream()
-        .map(entry -> new MetricNameEntity(entry.getKey(), entry.getValue(), metricReducer.getAggregationType(entry.getKey()).name()))
+        .map(entry -> new MetricNameEntity(
+                entry.getKey(),
+                entry.getValue(),
+                metricReducer.getAggregationType(entry.getKey()).name()))
         .sorted(Comparator.comparing(MetricNameEntity::metricName))
         .collect(Collectors.toList());
   }
