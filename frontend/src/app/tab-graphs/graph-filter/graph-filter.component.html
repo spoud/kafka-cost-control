@@ -1,5 +1,5 @@
 <form [formGroup]="form">
-    <mat-form-field>
+    <mat-form-field class="form-full-width">
         <mat-label>Metric Name</mat-label>
         <mat-select formControlName="metricName">
             @for (metricName of metricNames(); track metricName.metricName) {
@@ -8,8 +8,8 @@
         </mat-select>
     </mat-form-field>
     <mat-form-field>
-        <mat-label>Group by contexts</mat-label>
-        <mat-select formControlName="groupByContext" multiple>
+        <mat-label>Group by context</mat-label>
+        <mat-select formControlName="groupByContext">
             @for (key of contextKeys(); track key) {
                 <mat-option [value]="key">{{ key }}</mat-option>
             }
