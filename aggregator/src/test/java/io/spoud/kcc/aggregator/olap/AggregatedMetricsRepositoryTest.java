@@ -4,10 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.aggregator.repository.MetricNameRepository;
+import io.spoud.kcc.aggregator.stream.MetricReducer;
+import io.spoud.kcc.aggregator.stream.TestConfigProperties;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.data.EntityType;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +25,14 @@ import java.util.Random;
 import java.util.Set;
 
 class AggregatedMetricsRepositoryTest {
+
+    AggregatedMetricsRepository repo;
+
+    @BeforeEach
+    void setUp() {
+        MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()));
+        repo = new AggregatedMetricsRepository(testOlapConfig, metricNameRepository);
+    }
 
     @DisplayName("DB memory limit respects given constraint")
     @Test
@@ -48,7 +60,8 @@ class AggregatedMetricsRepositoryTest {
         var repo = new AggregatedMetricsRepository(FakeOlapConfig
                 .builder()
                 .databaseSeedDataPath(exportPath)
-                .build());
+                .build(),
+                null);
         repo.init();
 
         // make sure we already have some data without inserting anything
@@ -56,14 +69,14 @@ class AggregatedMetricsRepositoryTest {
         assertThat(repo.getHistory(
                 Instant.parse("2025-02-12T16:00:00.00Z"),
                 Instant.parse("2025-02-12T18:00:00.00Z"),
-                Set.of("kafka_log_log_size")))
+                Set.of("kafka_log_log_size")
+        ))
                 .isNotEmpty();
     }
 
     @DisplayName("Inserted row is not immediately flushed to DB")
     @Test
     void insertRow() {
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
 
@@ -78,7 +91,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Rows for different time windows do not overwrite each other")
     @Test
     void insertRowDifferentTimeWindows() {
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
 
         var start = Instant.now();
@@ -98,7 +110,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get only rows that match the specified metric name")
     @Test
     void filterHistoryRowsByMetricName() {
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
 
         var start = Instant.now();
@@ -127,7 +138,6 @@ class AggregatedMetricsRepositoryTest {
         var randomDp1 = randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).build();
         var randomDp2 = randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(2).build();
 
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
 
         repo.insertRow(randomDp1);
@@ -143,7 +153,6 @@ class AggregatedMetricsRepositoryTest {
     @Test
     @DisplayName("Flush to DB occurs automatically if buffer is full")
     void insertRowBufferFull() {
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
 
         for (int i = 0; i < testOlapConfig.databaseMaxBufferedRows() - 1; i++) {
@@ -177,7 +186,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all tag keys")
     void getAllTagKeys() {
         // insert to db and flush, make sure we get all the tags we specified
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandnorth", "stage", "test")).build());
         repo.flushToDb();
@@ -188,7 +196,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all context keys")
     void getAllContextKeys() {
         // insert to db and flush, make sure we get all the context keys we specified
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic")).build());
         repo.flushToDb();
@@ -199,7 +206,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all metric names")
     void getAllMetrics() {
         // insert to db and flush, make sure we get all the metrics we specified
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").build());
@@ -211,7 +217,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all tag values for a given key")
     void getAllTagValues() {
         // insert to db and flush, make sure we get all the tag values we specified
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandnorth", "stage", "test")).build());
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandwest", "stage", "prod")).build());
@@ -224,7 +229,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all context values for a given key")
     void getAllContextValues() {
         // insert to db and flush, make sure we get all the context values we specified
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic")).build());
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic-2")).build());
@@ -237,7 +241,6 @@ class AggregatedMetricsRepositoryTest {
     @Test
     @DisplayName("Export metrics to jsonl file")
     void getAllMetricsJsonExport() throws IOException {
-        var repo = new AggregatedMetricsRepository(testOlapConfig);
         repo.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
@@ -319,6 +322,11 @@ class AggregatedMetricsRepositoryTest {
         @Override
         public Optional<String> databaseSeedDataPath() {
             return Optional.ofNullable(databaseSeedDataPath);
+        }
+
+        @Override
+        public Optional<Integer> insertSyntheticDays() {
+            return Optional.empty();
         }
     }
 
