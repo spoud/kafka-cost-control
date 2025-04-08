@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator;
 
 import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import jakarta.validation.constraints.NotNull;
 
@@ -57,4 +58,32 @@ public interface CostControlConfigProperties {
      */
     @WithName("metrics.transformations.splitMetricAmongPrincipals")
     Map<String, String> splitTopicMetricAmongPrincipals();
+
+    @WithName("metrics.transformations.config.splitMetricAmongPrincipals.missingKeyHandling")
+    Map<String, MissingKeyHandling> splitMetricAmongPrincipalsMissingKeyHandling();
+
+    /**
+     * This is the fallback principal that will be used if the context key is missing or empty.
+     * If the context key is missing, the metric will be assigned to a single fallback principal.
+     * This only applies if the missingKeyHandling for a metric is set to ASSIGN_TO_FALLBACK.
+     * @return the fallback principal name
+     */
+    @WithName("metrics.transformations.config.splitMetricAmongPrincipals.fallbackPrincipal")
+    @WithDefault("unknown")
+    String splitMetricAmongPrincipalsFallbackPrincipal();
+
+    enum MissingKeyHandling {
+        /**
+         * If the key is missing, the metric will not be split, but passed through as is.
+         */
+        PASS_THROUGH,
+        /**
+         * If the key is missing, the metric will be assigned to a single fallback principal.
+         */
+        ASSIGN_TO_FALLBACK,
+        /**
+         * If the key is missing, the metric will be dropped.
+         */
+        DROP
+    }
 }

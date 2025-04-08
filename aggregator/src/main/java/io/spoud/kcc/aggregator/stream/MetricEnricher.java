@@ -201,13 +201,22 @@ public class MetricEnricher {
         if (keyToSplitBy == null) {
             return Stream.of(metric);
         }
+        var missingKeyHandling = configProperties.splitMetricAmongPrincipalsMissingKeyHandling().getOrDefault(metric.getInitialMetricName(), CostControlConfigProperties.MissingKeyHandling.ASSIGN_TO_FALLBACK);
         var splitBy = Optional.of(metric)
                 .map(AggregatedData::getContext)
                 .map(context -> context.get(keyToSplitBy))
                 .map(value -> value.split(","))
-                .orElse(null);
+                .orElse(missingKeyHandling == CostControlConfigProperties.MissingKeyHandling.ASSIGN_TO_FALLBACK
+                        ? new String[]{configProperties.splitMetricAmongPrincipalsFallbackPrincipal()}
+                        : null);
         if (splitBy == null) {
-            return Stream.of(metric);
+            if (missingKeyHandling == CostControlConfigProperties.MissingKeyHandling.DROP) {
+                return Stream.empty();
+            } else if (missingKeyHandling == CostControlConfigProperties.MissingKeyHandling.PASS_THROUGH) {
+                return Stream.of(metric);
+            } else {
+                throw new IllegalStateException("Unknown missing key handling: " + missingKeyHandling);
+            }
         }
         var valuePerSplit = metric.getValue() / splitBy.length;
         var costPerSplit = metric.getCost() != null ? metric.getCost() / splitBy.length : null;

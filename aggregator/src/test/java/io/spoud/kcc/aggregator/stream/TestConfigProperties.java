@@ -18,6 +18,8 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private String topicAggregated;
     private Map<String, String> metricsAggregations;
     private Map<String, String> splitValueAmongListMembers;
+    private Map<String, MissingKeyHandling> splitMetricAmongPrincipalsMissingKeyHandling;
+    private String splitMetricAmongPrincipalsFallbackPrincipal;
 
     @Override
     public String adminPassword() {
@@ -62,5 +64,15 @@ public class TestConfigProperties implements CostControlConfigProperties {
     @Override
     public Map<String, String> splitTopicMetricAmongPrincipals() {
         return splitValueAmongListMembers;
+    }
+
+    @Override
+    public Map<String, MissingKeyHandling> splitMetricAmongPrincipalsMissingKeyHandling() {
+        return splitMetricAmongPrincipalsMissingKeyHandling;
+    }
+
+    @Override
+    public String splitMetricAmongPrincipalsFallbackPrincipal() {
+        return splitMetricAmongPrincipalsFallbackPrincipal;
     }
 }
