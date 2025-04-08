@@ -57,3 +57,19 @@ The advantage over the original metric is that each such transformed metric will
 Kafka broker metrics (as is the case in Strimzi deployments, for example), because here only topic-level metrics are generated natively. This transformation allows to turn
 these topic-focused metrics into principal-focused ones.
 
+Some metrics that are configured this way may not have a matching context key in the context. To handle such cases, cost control offers three different strategies
+that can be enabled by setting the `cc.metrics.transformations.config.splitMetricAmongPrincipals.missingKeyHandling` property in `application.properties`:
+
+- `ASSIGN_TO_FALLBACK`: The metric will be handled as if the context key existed and contained a single principal name. This fallback principal name is set to "unknown" per default but can be changed
+  by setting the `metrics.transformations.config.splitMetricAmongPrincipals.fallbackPrincipal` property in `application.properties`.
+- `DROP`: The metric will not be forwarded downstream and will be dropped.
+- `PASS_THROUGH`: The metric will be passed downstream without any changes. This is the default behavior.
+
+Note that `cc.metrics.transformations.config.splitMetricAmongPrincipals.missingKeyHandling` is expected to be a map of metric names to one of the above strategies.
+For example:
+
+```properties
+cc.metrics.transformations.config.splitMetricAmongPrincipals.missingKeyHandling={bytesin:'ASSIGN_TO_FALLBACK',bytesout:'DROP'}
+```
+
+If no strategy is specified for a metric, then `ASSIGN_TO_FALLBACK` will be used.
