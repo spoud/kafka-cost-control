@@ -123,7 +123,7 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-              readOny: false
+              readOnly: false
             - name: kstream-data
               mountPath: /home/jboss/kafka-stream/
             {{- if $caCert }}
