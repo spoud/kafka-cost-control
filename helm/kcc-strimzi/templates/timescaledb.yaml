@@ -11,6 +11,9 @@ data:
 metadata:
   labels:
   name: {{ .Release.Name }}-timescaledb-secret 
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation
 ---
 kind: Service
 apiVersion: v1
