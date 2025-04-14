@@ -4,6 +4,7 @@ import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
@@ -76,7 +77,15 @@ class MetricEnricherTest {
                 .topicRawData(List.of(TOPIC_RAW_TELEGRAF))
                 .topicContextData(TOPIC_CONTEXT_DATA)
                 .metricsAggregations(Map.of("confluent_kafka_server_retained_bytes", "max"))
-                .splitValueAmongListMembers(Map.of("bytesin_transposable", "writers"))
+                .splitValueAmongListMembers(Map.of("bytesin_transposable", "writers", "bytesout_transposable", "readers"))
+                .splitMetricAmongPrincipalsFallbackPrincipal("fallback-team")
+                .splitMetricAmongPrincipalsMissingKeyHandling(
+                        Map.of(
+                                "bytesin_transposable", CostControlConfigProperties.MissingKeyHandling.ASSIGN_TO_FALLBACK,
+                                "bytesout_transposable", CostControlConfigProperties.MissingKeyHandling.DROP,
+                                "log_size_transposable", CostControlConfigProperties.MissingKeyHandling.PASS_THROUGH
+                        )
+                )
                 .build();
         metricReducer = Mockito.spy(new MetricReducer(configProperties));
         metricRepository = new MetricNameRepository(metricReducer);
@@ -387,9 +396,9 @@ class MetricEnricherTest {
     }
 
     @Test
-    void should_not_transform_topic_into_principal_metric_if_principal_context_missing() {
+    void should_turn_topic_metric_into_principal_metric_using_fallback() {
         contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
-                EntityType.TOPIC, "spoud_.*", Map.of("readers", "alice,bob", "application", "flux-capacitor"))); // we replaced "writers" with "readers" (above we configured the application to only split among "writers")
+                EntityType.TOPIC, "spoud_.*", Map.of("application", "flux-capacitor")));
         final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
 
         rawTelegrafDataTopic.pipeInput(topicMetric);
@@ -397,11 +406,38 @@ class MetricEnricherTest {
         assertThat(aggregatedTopic.getQueueSize()).isEqualTo(1);
         final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
         assertThat(list).hasSize(1);
-        assertThat(list.getFirst().getEntityType()).isEqualTo(EntityType.TOPIC);
-        assertThat(list.getFirst().getName()).isEqualTo("spoud_topic_v1");
-        assertThat(list.getFirst().getContext()).containsOnlyKeys("readers", "application");
-        assertThat(list.getFirst().getContext()).containsEntry("readers", "alice,bob");
+        assertThat(list.getFirst().getEntityType()).isEqualTo(EntityType.PRINCIPAL);
+        assertThat(list.getFirst().getName()).isEqualTo("fallback-team");
+        assertThat(list.getFirst().getContext()).containsOnlyKeys("topic", "application");
+        assertThat(list.getFirst().getContext()).containsEntry("topic", "spoud_topic_v1");
         assertThat(list.getFirst().getValue()).isEqualTo(10);
+    }
+
+    @Test
+    void should_pass_through_topic_metric_if_unable_to_split() {
+        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.TOPIC, "spoud_.*", Map.of("application", "flux-capacitor")));
+        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "log_size_transposable", "spoud_topic_v1", 10.0);
+
+        rawTelegrafDataTopic.pipeInput(topicMetric);
+
+        assertThat(aggregatedTopic.getQueueSize()).isEqualTo(1);
+        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
+        assertThat(list).hasSize(1);
+        assertThat(list.getFirst().getEntityType()).isEqualTo(EntityType.TOPIC);
+        assertThat(list.getFirst().getContext()).containsOnlyKeys("application");
+        assertThat(list.getFirst().getValue()).isEqualTo(10);
+    }
+
+    @Test
+    void should_drop_metric_if_unable_to_split() {
+        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.TOPIC, "spoud_.*", Map.of("application", "flux-capacitor")));
+        final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesout_transposable", "spoud_topic_v1", 10.0);
+
+        rawTelegrafDataTopic.pipeInput(topicMetric);
+
+        assertThat(aggregatedTopic.getQueueSize()).isEqualTo(0);
     }
 
     @Test
