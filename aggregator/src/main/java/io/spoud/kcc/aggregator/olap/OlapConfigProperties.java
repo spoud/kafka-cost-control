@@ -19,6 +19,7 @@ public interface OlapConfigProperties {
      * The total memory limit avaiable to the aggregator. This is used to calculate the memory limit for the DuckDB database.
      * The value is expected to be in Mebibytes (MiB) (1 MiB = 1024 KiB, 1 KiB = 1024 bytes).
      * If not set, the `database.memory.limit.percent` property will have no effect.
+     *
      * @return the total memory limit in MiB
      */
     @WithName("total.memory.limit.mb")
@@ -74,7 +75,7 @@ public interface OlapConfigProperties {
     int databaseMaxBufferedRows();
 
     /**
-     * If set to true, the database will be seeded with some initial data when the application starts.
+     * If set the database will be seeded with some initial data when the application starts.
      * This is useful for development and testing. The file format is automatically detected.
      * Typical formats are CSV, JSON and Parquet.
      *
@@ -82,4 +83,12 @@ public interface OlapConfigProperties {
      */
     @WithName("database.seed-data-path")
     Optional<String> databaseSeedDataPath();
+
+    /**
+     * If set synthetic data will be inserted for this amount of past days from today,
+     * e.g. to generate synthetic data for every day for the last month set to 31.
+     * Used for development and testing purposes.
+     */
+    @WithName("database.insert-synthetic-days")
+    Optional<Integer> insertSyntheticDays();
 }
