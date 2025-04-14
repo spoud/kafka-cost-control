@@ -34,6 +34,7 @@ export class AppComponent {
     navLinksSignal: Signal<Link[]> = computed(() => {
         const list = [
             {path: '/graphs', label: 'Graphs'},
+            {path: '/reporting', label: 'Reporting'},
             {path: '/context-data', label: 'Context Data'},
             {path: '/pricing-rules', label: 'Pricing Rules'},
         ];
