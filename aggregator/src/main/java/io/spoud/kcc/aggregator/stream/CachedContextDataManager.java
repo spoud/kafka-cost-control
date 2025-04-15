@@ -1,5 +1,6 @@
 package io.spoud.kcc.aggregator.stream;
 
+import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.data.ContextData;
@@ -53,7 +54,11 @@ public class CachedContextDataManager {
                     String key = next.key;
                     ContextData contextData = next.value;
 
-                    list.add(new CachedContextData(key, contextData));
+                    try {
+                        list.add(new CachedContextData(key, contextData));
+                    } catch (Exception e) {
+                        Log.warnf("Error while creating CachedContextData for key %s: %s. This context will not be considered: %s", key, contextData, e.getMessage());
+                    }
                 }
             }
             lastUpdate = Instant.now();
