@@ -58,7 +58,7 @@ public class CachedContextDataManager {
                         list.add(new CachedContextData(key, contextData));
                     } catch (Exception e) {
                         Log.warnf("Error while creating CachedContextData for key %s: %s. This context will not be considered: %s", key, contextData, e.getMessage());
-                        Log.debug("Previous warning due to", e)
+                        Log.debug("Previous warning due to", e);
                     }
                 }
             }
