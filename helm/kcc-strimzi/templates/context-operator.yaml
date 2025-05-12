@@ -136,7 +136,7 @@ spec:
         {{- end }}
         - name: tmp
           mountPath: /tmp
-          readOny: false
+          readOnly: false
         ports:
         - containerPort: 8090
           name: http
