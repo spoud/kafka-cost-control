@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
@@ -25,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Startup
@@ -37,12 +39,14 @@ public class AggregatedMetricsRepository {
     private final BlockingQueue<AggregatedDataWindowed> rowBuffer;
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final MeterRegistry meterRegistry;
     private Connection connection;
 
-    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, MetricNameRepository metricNameRepository) {
+    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, MetricNameRepository metricNameRepository, MeterRegistry meterRegistry) {
         this.olapConfig = olapConfig;
         this.rowBuffer = new ArrayBlockingQueue<>(olapConfig.databaseMaxBufferedRows());
         this.metricNameRepository = metricNameRepository;
+        this.meterRegistry = meterRegistry;
     }
 
     private static void ensureIdentifierIsSafe(String identifier) {
@@ -55,6 +59,12 @@ public class AggregatedMetricsRepository {
     public void init() {
         if (olapConfig.enabled()) {
             Log.infof("OLAP module is enabled. Data will be written to %s", olapConfig.databaseUrl());
+            try {
+                Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
+            } catch (Exception e) {
+                Log.error("Failed to load DuckDB driver", e);
+                throw new RuntimeException("Failed to load DuckDB driver", e);
+            }
             getConnection().ifPresent((conn) -> {
                 try {
                     createTableIfNotExists(conn);
@@ -63,6 +73,22 @@ public class AggregatedMetricsRepository {
                 }
                 setDbMemoryLimit(conn);
                 importData();
+                meterRegistry.gauge("olap.memory.usage", this, (t) -> {
+                    try {
+                        var c = t.getConnection()
+                                .orElseThrow(() -> new SQLException("Failed to get OLAP connection"));
+                        var res = c.createStatement()
+                                .executeQuery("SELECT SUM(memory_usage_bytes) FROM duckdb_memory();");
+                        if (res.next()) {
+                            return res.getDouble(1);
+                        } else {
+                            throw new SQLException("Failed to get OLAP memory usage");
+                        }
+                    } catch (SQLException e) {
+                        Log.error("Failed to get OLAP memory usage", e);
+                        return 0.0;
+                    }
+                });
             });
         } else {
             Log.info("OLAP module is disabled.");
@@ -108,8 +134,8 @@ public class AggregatedMetricsRepository {
         }
         try {
             if (connection == null || connection.isClosed()) {
-                Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
                 connection = DriverManager.getConnection(olapConfig.databaseUrl());
+                Log.infof("Opened OLAP database connection: %s", olapConfig.databaseUrl());
             }
             return Optional.of(connection);
         } catch (Exception e) {
@@ -201,7 +227,14 @@ public class AggregatedMetricsRepository {
         if (!olapConfig.enabled()) {
             return;
         }
-        rowBuffer.add(row);
+        try {
+            boolean success = rowBuffer.offer(row, 3000, TimeUnit.MILLISECONDS);
+            if (!success) {
+                Log.warn("Failed to insert row to buffer. Row was dropped.");
+            }
+        } catch (InterruptedException ignored) {
+            Log.warn("Interrupted while inserting row to buffer. Ignoring...");
+        }
         if (rowBuffer.size() >= olapConfig.databaseMaxBufferedRows()) {
             CompletableFuture.runAsync(() -> {
                 try {

@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.olap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
@@ -31,7 +32,7 @@ class AggregatedMetricsRepositoryTest {
     @BeforeEach
     void setUp() {
         MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()));
-        repo = new AggregatedMetricsRepository(testOlapConfig, metricNameRepository);
+        repo = new AggregatedMetricsRepository(testOlapConfig, metricNameRepository, new SimpleMeterRegistry());
     }
 
     @DisplayName("DB memory limit respects given constraint")
@@ -61,7 +62,7 @@ class AggregatedMetricsRepositoryTest {
                 .builder()
                 .databaseSeedDataPath(exportPath)
                 .build(),
-                null);
+                null, new SimpleMeterRegistry());
         repo.init();
 
         // make sure we already have some data without inserting anything
