@@ -5,8 +5,8 @@ import {MetricHistory} from '../../../../../generated/graphql/types';
 import {firstValueFrom, map} from 'rxjs';
 import {BarChartComponent} from '../../../../tab-graphs/graph-panel/bar-chart/bar-chart.component';
 import {PanelStore} from '../../../store/panel.store';
-import {GraphPanelComponent} from '../../../../tab-graphs/graph-panel/graph-panel.component';
 import {EChartsType} from 'echarts/core';
+import {GraphPanelComponent} from '../../../../tab-graphs/graph-panel/graph-panel.component';
 
 @Component({
     imports: [
@@ -21,8 +21,6 @@ export class BarChartPanelComponent {
     historyGql = inject(MetricHistoryGQL);
 
     id = input.required<string>();
-
-    type = input.required<BarOrLine>();
 
     filter: Signal<GraphFilter> = computed(() => {
         const panel = this.panelStore.entityMap()[this.id()];
@@ -51,5 +49,3 @@ export class BarChartPanelComponent {
         this.panelStore.updatePanel(this.id(), {eChartsInstance: $event});
     }
 }
-
-export type BarOrLine = 'Bar' | 'Line';

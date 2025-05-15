@@ -5,6 +5,8 @@ import {Maybe, MetricHistory, Scalars} from '../../../../generated/graphql/types
 import * as echarts from 'echarts/core';
 import {EChartsCoreOption, EChartsType} from 'echarts/core';
 
+export type BarOrLine = 'bar' | 'line';
+
 @Component({
     selector: 'app-bar-chart',
     imports: [
@@ -24,7 +26,7 @@ export class BarChartComponent {
 
     metricsData = input.required<MetricHistory[]>();
 
-    type = input.required<'bar' | 'line'>();
+    type = input.required<BarOrLine>();
 
     options = computed<EChartsCoreOption>(() => {
         /* we create a dataset looking like this:
@@ -103,7 +105,7 @@ export class BarChartComponent {
                         }
                     }
                 }
-                // type = line
+                // type === line
                 return {
                     name: metricHistory.name,
                     type: 'line',

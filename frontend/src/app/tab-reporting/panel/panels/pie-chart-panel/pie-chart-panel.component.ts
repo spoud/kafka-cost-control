@@ -1,5 +1,4 @@
 import {Component, computed, inject, input, resource} from '@angular/core';
-import {GraphFilter} from '../../../../tab-graphs/tab-graphs.component';
 import {MetricHistory} from '../../../../../generated/graphql/types';
 import {firstValueFrom, map} from 'rxjs';
 import {MetricHistoryGQL} from '../../../../../generated/graphql/sdk';
@@ -21,13 +20,13 @@ export class PieChartPanelComponent {
     id = input.required<string>();
 
     filter = computed(() => {
-        return this.panelStore.entities().filter(panel => panel.id === this.id())
-            .map(panel => (<GraphFilter>{
-                from: panel.from,
-                to: panel.to,
-                metricName: panel.metricName,
-                groupByContext: panel.groupByContext
-            }))[0];
+        const panel = this.panelStore.entityMap()[this.id()];
+        return {
+            from: panel.from,
+            to: panel.to,
+            metricName: panel.metricName,
+            groupByContext: panel.groupByContext
+        };
     });
 
     historyData = resource({

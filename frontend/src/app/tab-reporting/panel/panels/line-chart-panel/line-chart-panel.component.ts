@@ -23,8 +23,6 @@ export class LineChartPanelComponent {
 
     id = input.required<string>();
 
-    type = input.required<BarOrLine>();
-
     filter: Signal<GraphFilter> = computed(() => {
         const panel = this.panelStore.entityMap()[this.id()];
         return {
@@ -52,5 +50,3 @@ export class LineChartPanelComponent {
         this.panelStore.updatePanel(this.id(), {eChartsInstance: $event});
     }
 }
-
-export type BarOrLine = 'Bar' | 'Line';
