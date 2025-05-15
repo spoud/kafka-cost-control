@@ -14,7 +14,7 @@ import {GraphFilterService} from './graph-filter.service';
     templateUrl: './graph-filter.component.html',
     styleUrl: './graph-filter.component.scss'
 })
-export class GraphFilterComponent {
+export class GraphFilterComponent implements AfterViewInit {
     graphFilterService = inject(GraphFilterService);
 
     existingFilter = input<GraphFilter>()
@@ -55,4 +55,7 @@ export class GraphFilterComponent {
 
     }
 
+    ngAfterViewInit(): void {
+        this.graphFilter.emit(this.form.value);
+    }
 }

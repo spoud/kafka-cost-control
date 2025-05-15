@@ -15,7 +15,7 @@ import {EChartsType} from 'echarts/core';
     ],
     templateUrl: './bar-chart-panel.component.html',
 })
-export class BarChartPanel {
+export class BarChartPanelComponent {
 
     panelStore = inject(PanelStore);
     historyGql = inject(MetricHistoryGQL);

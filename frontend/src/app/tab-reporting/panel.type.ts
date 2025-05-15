@@ -1,4 +1,4 @@
-import {BarChartPanel} from './panel/panels/bar-chart-panel/bar-chart-panel.component';
+import {BarChartPanelComponent} from './panel/panels/bar-chart-panel/bar-chart-panel.component';
 import {PieChartPanelComponent} from './panel/panels/pie-chart-panel/pie-chart-panel.component';
 import {EChartsType} from 'echarts/core';
 import {LineChartPanelComponent} from './panel/panels/line-chart-panel/line-chart-panel.component';
@@ -23,7 +23,7 @@ export type Panel = {
 }
 
 export const TYPE_TO_COMPONENT_MAPPING = {
-    'StackedBar': BarChartPanel,
+    'StackedBar': BarChartPanelComponent,
     'Line': LineChartPanelComponent,
     'Pie': PieChartPanelComponent,
 }
