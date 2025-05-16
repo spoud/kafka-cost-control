@@ -8,11 +8,24 @@ import {BasicAuthServiceService} from './auth/basic-auth-service.service';
 import {MatTooltip} from '@angular/material/tooltip';
 import {MatDialog} from '@angular/material/dialog';
 import {SignInDialogComponent} from './common/sign-in-dialog/sign-in-dialog.component';
+import {provideEchartsCore} from 'ngx-echarts';
+import * as echarts from 'echarts/core';
+import {BarChart, LineChart, PieChart} from 'echarts/charts';
+import {
+    DatasetComponent,
+    DataZoomComponent,
+    GridComponent,
+    LegendComponent,
+    TooltipComponent
+} from 'echarts/components';
+import {CanvasRenderer} from 'echarts/renderers';
 
 interface Link {
     path: string;
     label: string;
 }
+
+echarts.use([LineChart, BarChart, GridComponent, CanvasRenderer, LegendComponent, PieChart, TooltipComponent, DatasetComponent, DataZoomComponent]);
 
 @Component({
     selector: 'app-root',
@@ -27,6 +40,9 @@ interface Link {
         MatIcon,
         MatButton,
         MatTooltip
+    ],
+    providers: [
+        provideEchartsCore({echarts}),
     ]
 })
 export class AppComponent {

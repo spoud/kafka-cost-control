@@ -8,6 +8,8 @@ import JSPDF from 'jspdf';
 import {PanelStore} from './store/panel.store';
 import {EChartsType} from 'echarts/core';
 import {ResizeOpts} from 'echarts/types/dist/shared';
+import {provideEchartsCore} from 'ngx-echarts';
+import * as echarts from 'echarts/core';
 
 @Component({
     selector: 'app-tab-reporting',
@@ -22,7 +24,10 @@ import {ResizeOpts} from 'echarts/types/dist/shared';
         MatButton
     ],
     templateUrl: './tab-reporting.component.html',
-    styleUrl: './tab-reporting.component.scss'
+    styleUrl: './tab-reporting.component.scss',
+    providers: [
+        provideEchartsCore({echarts}),
+    ]
 })
 export class TabReportingComponent {
 

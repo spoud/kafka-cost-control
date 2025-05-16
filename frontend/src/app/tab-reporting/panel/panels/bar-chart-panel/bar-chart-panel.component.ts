@@ -6,7 +6,6 @@ import {GraphFilterService} from '../../../../tab-graphs/graph-filter/graph-filt
 
 @Component({
     imports: [
-        // TODO: we require provider provideEchartsCore({echarts}) from here...
         BarChartComponent
     ],
     templateUrl: './bar-chart-panel.component.html',
