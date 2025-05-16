@@ -11,7 +11,6 @@ import {
     withEntities
 } from '@ngrx/signals/entities';
 import {GraphFilter} from '../../tab-graphs/tab-graphs.component';
-import {compact} from '@apollo/client/utilities';
 
 const PANEL_KEY = 'kcc_panels';
 
@@ -26,16 +25,16 @@ const initialState: PanelState = {
     availablePanels: [
         {
             id: '1a',
-            title: 'Area Chart',
-            description: 'An Area Chart',
+            title: 'Bar Chart',
+            description: 'A stacked bar chart',
             type: 'StackedBar',
             from: DEFAULT_FROM,
             groupByContext: [],
         },
         {
             id: '1b',
-            title: 'Area Line Chart',
-            description: 'An Area Line Chart',
+            title: 'Area Chart',
+            description: 'A stacked area chart',
             type: 'Line',
             from: DEFAULT_FROM,
             groupByContext: [],

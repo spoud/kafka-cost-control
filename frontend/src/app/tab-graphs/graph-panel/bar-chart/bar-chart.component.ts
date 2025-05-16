@@ -4,6 +4,10 @@ import {NgxEchartsDirective, provideEchartsCore} from 'ngx-echarts';
 import {Maybe, MetricHistory, Scalars} from '../../../../generated/graphql/types';
 import * as echarts from 'echarts/core';
 import {EChartsCoreOption, EChartsType} from 'echarts/core';
+import {saveAs} from 'file-saver-es';
+import {MatButton} from '@angular/material/button';
+import {MatIcon} from '@angular/material/icon';
+import {Panel} from '../../../tab-reporting/panel.type';
 
 export type BarOrLine = 'bar' | 'line';
 
@@ -11,9 +15,12 @@ export type BarOrLine = 'bar' | 'line';
     selector: 'app-bar-chart',
     imports: [
         MatCheckbox,
-        NgxEchartsDirective
+        NgxEchartsDirective,
+        MatButton,
+        MatIcon
     ],
     templateUrl: './bar-chart.component.html',
+    styleUrls: ['./bar-chart.component.scss'],
     providers: [
         provideEchartsCore({echarts}),
     ]
@@ -25,6 +32,8 @@ export class BarChartComponent {
     normalized = signal(false);
 
     metricsData = input.required<MetricHistory[]>();
+
+    panelData = input<Panel>();
 
     type = input.required<BarOrLine>();
 
@@ -124,6 +133,22 @@ export class BarChartComponent {
             legend: {}
         };
     });
+
+    exportToCsv() {
+        const csvLines: string[] = [];
+        this.metricsData().forEach(history => {
+            for (let i = 0; i < history.times.length; i++) {
+                const time = history.times[i];
+                const value = history.values[i];
+                csvLines.push(`${time},${history.name},${value}`);
+            }
+        })
+        csvLines.sort();
+        const withHeader = ["time,name,value", ...csvLines];
+        const blob = new Blob([withHeader.join('\n')], {type: 'text/csv'});
+        const name = (this.panelData()?.title ?? '') + new Date().toISOString();
+        saveAs(blob, name + ".csv");
+    }
 
     private normalize(timeSeries: Array<string | number | null>, total: number) {
         // start loop with 1, first element is the timestamp
