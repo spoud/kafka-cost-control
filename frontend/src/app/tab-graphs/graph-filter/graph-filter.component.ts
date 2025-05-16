@@ -1,13 +1,12 @@
-import {AfterViewInit, Component, computed, effect, inject, output, resource} from '@angular/core';
+import {AfterViewInit, Component, effect, inject, input, output} from '@angular/core';
 import {GraphFilter} from '../tab-graphs.component';
 import {FormBuilder, FormGroup, ReactiveFormsModule} from '@angular/forms';
 import {toSignal} from '@angular/core/rxjs-interop';
-import {debounceTime, firstValueFrom, map} from 'rxjs';
+import {debounceTime} from 'rxjs';
 import {MatFormFieldModule} from '@angular/material/form-field';
-import {MetricContextKeysGQL, MetricNamesGQL} from '../../../generated/graphql/sdk';
-import {MetricNameEntity} from '../../../generated/graphql/types';
 import {MatDatepickerModule} from '@angular/material/datepicker';
 import {MatSelectModule} from '@angular/material/select';
+import {GraphFilterService} from './graph-filter.service';
 
 @Component({
     selector: 'app-graph-filter',
@@ -16,20 +15,11 @@ import {MatSelectModule} from '@angular/material/select';
     styleUrl: './graph-filter.component.scss'
 })
 export class GraphFilterComponent implements AfterViewInit {
+    graphFilterService = inject(GraphFilterService);
+
+    existingFilter = input<GraphFilter>()
+
     graphFilter = output<GraphFilter>();
-
-    metricContextKeysGql = inject(MetricContextKeysGQL);
-    metricNamesGql = inject(MetricNamesGQL);
-
-    contextKeysResource = resource<string[], never>({
-        loader: () => firstValueFrom(this.metricContextKeysGql.fetch().pipe(map(res => res.data?.metricContextKeys)))
-    });
-    metricNamesResource = resource<MetricNameEntity[], never>({
-        loader: () => firstValueFrom(this.metricNamesGql.fetch().pipe(map(res => res.data?.metricNames)))
-    });
-
-    contextKeys = computed(() => this.contextKeysResource.value() || []);
-    metricNames = computed(() => this.metricNamesResource.value() || []);
 
     form: FormGroup;
 
@@ -40,6 +30,22 @@ export class GraphFilterComponent implements AfterViewInit {
             metricName: [''],
             groupByContext: ['']
         });
+
+        effect(() => {
+            const newValues = this.existingFilter();
+            if (!newValues) {
+                return;
+            }
+            // we only apply new / incoming filter if it's different from current one
+            if (JSON.stringify(this.form.value) !== JSON.stringify(newValues)) {
+                this.form.patchValue({
+                    from: newValues.from,
+                    to: newValues.to,
+                    metricName: newValues.metricName,
+                    groupByContext: newValues.groupByContext,
+                });
+            }
+        })
 
         const values = toSignal(this.form.valueChanges.pipe(debounceTime(300)));
 

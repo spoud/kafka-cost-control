@@ -3,19 +3,23 @@ import {Routes} from '@angular/router';
 export const routes: Routes = [
     {
         path: 'graphs',
-        loadChildren: () => import('./tab-graphs/tab-graphs.module').then(m => m.TabGraphsModule)
+        loadComponent: () => import('./tab-graphs/tab-graphs.component').then(m => m.TabGraphsComponent),
+    },
+    {
+        path: 'reporting',
+        loadComponent: () => import('./tab-reporting/tab-reporting.component').then(m => m.TabReportingComponent),
     },
     {
         path: 'context-data',
-        loadChildren: () => import('./tab-context-data/tab-context-data.module').then(m => m.TabContextDataModule)
+        loadComponent: () => import('./tab-context-data/context-data-list/context-data-list.component').then(m => m.ContextDataListComponent),
     },
     {
         path: 'pricing-rules',
-        loadChildren: () => import('./tab-pricing-rules/tab-pricing-rules.module').then(m => m.TabPricingRulesModule)
+        loadComponent: () => import('./tab-pricing-rules/pricing-rules-list/pricing-rules-list.component').then(m => m.PricingRulesListComponent),
     },
     {
         path: 'others',
-        loadChildren: () => import('./tab-others/tab-others.module').then(m => m.TabOthersModule)
+        loadComponent: () => import('./tab-others/others/others.component').then(m => m.OthersComponent),
     },
     {
         path: '',

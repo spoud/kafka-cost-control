@@ -1,6 +1,8 @@
 import {IntlDatePipe} from './intl-date.pipe';
+import {IntlDateService} from '../services/intl-date.service';
 
-const pipe = new IntlDatePipe('de-CH', 'en-US');
+const service = new IntlDateService('de-CH', 'en-US');
+const pipe = new IntlDatePipe(service);
 
 describe('IntlDatePipe', () => {
     it('create an instance', () => {
