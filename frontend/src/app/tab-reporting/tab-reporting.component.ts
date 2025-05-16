@@ -6,10 +6,10 @@ import {IntlDatePipe} from '../common/intl-date.pipe';
 import {MatMenu, MatMenuItem, MatMenuTrigger} from '@angular/material/menu';
 import JSPDF from 'jspdf';
 import {PanelStore} from './store/panel.store';
+import * as echarts from 'echarts/core';
 import {EChartsType} from 'echarts/core';
 import {ResizeOpts} from 'echarts/types/dist/shared';
 import {provideEchartsCore} from 'ngx-echarts';
-import * as echarts from 'echarts/core';
 
 @Component({
     selector: 'app-tab-reporting',

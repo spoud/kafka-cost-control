@@ -1,9 +1,6 @@
-import {Component, inject, resource, signal} from '@angular/core';
+import {Component, inject, signal} from '@angular/core';
 import {GraphFilterComponent} from './graph-filter/graph-filter.component';
 import {GraphPanelComponent} from './graph-panel/graph-panel.component';
-import {MetricHistoryGQL} from '../../generated/graphql/sdk';
-import {firstValueFrom, map} from 'rxjs';
-import {MetricHistory} from '../../generated/graphql/types';
 import {GraphFilterService} from './graph-filter/graph-filter.service';
 
 
