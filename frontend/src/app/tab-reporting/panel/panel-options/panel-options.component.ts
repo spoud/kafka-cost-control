@@ -41,7 +41,6 @@ export class PanelOptionsComponent {
     });
 
     updateFilter($event: GraphFilter) {
-        console.log("filter updated...", $event);
         this.panelStore.updatePanel(this.panelData().id, {...$event});
     }
 }

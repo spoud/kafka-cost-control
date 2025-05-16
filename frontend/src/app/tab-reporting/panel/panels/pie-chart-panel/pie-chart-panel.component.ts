@@ -1,10 +1,8 @@
-import {Component, computed, inject, input, resource} from '@angular/core';
-import {MetricHistory} from '../../../../../generated/graphql/types';
-import {firstValueFrom, map} from 'rxjs';
-import {MetricHistoryGQL} from '../../../../../generated/graphql/sdk';
+import {Component, inject, input} from '@angular/core';
 import {PieChartComponent} from '../../../../tab-graphs/graph-panel/pie-chart/pie-chart.component';
 import {PanelStore} from '../../../store/panel.store';
 import {EChartsType} from 'echarts/core';
+import {GraphFilterService} from '../../../../tab-graphs/graph-filter/graph-filter.service';
 
 @Component({
     imports: [
@@ -15,32 +13,12 @@ import {EChartsType} from 'echarts/core';
 export class PieChartPanelComponent {
 
     panelStore = inject(PanelStore);
-    historyGql = inject(MetricHistoryGQL);
+    graphFilterService = inject(GraphFilterService);
 
     id = input.required<string>();
 
-    filter = computed(() => {
-        const panel = this.panelStore.entityMap()[this.id()];
-        return {
-            from: panel.from,
-            to: panel.to,
-            metricName: panel.metricName,
-            groupByContext: panel.groupByContext
-        };
-    });
-
-    historyData = resource({
-        request: () => {
-            return {
-                from: this.filter()?.from,
-                to: this.filter()?.to || new Date(),
-                metricNames: this.filter()?.metricName || [],
-                groupByContextKeys: this.filter()?.groupByContext || []
-            }
-        },
-        loader: ({request}): Promise<MetricHistory[]> => firstValueFrom(this.historyGql.fetch(request)
-            .pipe(map(res => res.data?.history)))
-    });
+    filter = this.panelStore.filter(this.id);
+    historyData = this.graphFilterService.historyResource(this.filter);
 
     chartInit($event: EChartsType) {
         this.panelStore.updatePanel(this.id(), {eChartsInstance: $event});

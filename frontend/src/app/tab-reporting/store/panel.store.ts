@@ -1,7 +1,7 @@
 import {patchState, signalStore, withHooks, withMethods, withState} from '@ngrx/signals';
 import {Panel} from '../panel.type';
 import {v4 as uuidv4} from 'uuid';
-import {effect} from '@angular/core';
+import {computed, effect, Signal} from '@angular/core';
 import {
     addEntities,
     addEntity,
@@ -10,6 +10,8 @@ import {
     updateEntity,
     withEntities
 } from '@ngrx/signals/entities';
+import {GraphFilter} from '../../tab-graphs/tab-graphs.component';
+import {compact} from '@apollo/client/utilities';
 
 const PANEL_KEY = 'kcc_panels';
 
@@ -101,6 +103,17 @@ export const PanelStore = signalStore(
         },
         removePanel(id: string): void {
             patchState(store, removeEntity(id));
+        },
+        filter(id: Signal<string>): Signal<GraphFilter> {
+            return computed(() => {
+                const panel = store.entityMap()[id()];
+                return {
+                    from: panel.from,
+                    to: panel.to,
+                    metricName: panel.metricName,
+                    groupByContext: panel.groupByContext
+                };
+            });
         },
     }))
 );
