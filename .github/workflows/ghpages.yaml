@@ -1,4 +1,4 @@
-name: GitHub Pages Publish
+name: GitHub Pages + Helm Publish
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
@@ -18,3 +20,15 @@ jobs:
           asciidoctor_params: -r asciidoctor-diagram
           source_dir: docs/ # default is .
           post_build: 'find . -name "*.svg" | xargs git add -f'
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: helm
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
