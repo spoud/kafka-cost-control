@@ -4,8 +4,8 @@
 
 
 html, body {
-    height: 100%;
     background: rgba(1, 1, 1, 0.05);
+    min-height: 100vh;
 }
 
 body {

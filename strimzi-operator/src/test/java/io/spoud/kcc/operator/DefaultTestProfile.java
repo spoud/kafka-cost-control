@@ -17,7 +17,8 @@ public class DefaultTestProfile implements QuarkusTestProfile {
                 "kafka.linger.ms", "0",
                 "quarkus.log.category.\"io.spoud.kcc\".level", "DEBUG",
                 "quarkus.operator-sdk.start-operator", "false",
-                "quarkus.log.console.format", "[%X{testName}] %d{HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n"
+                "quarkus.log.console.format", "[%X{testName}] %d{HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n",
+                "quarkus.kafka.devservices.image-name", "redpandadata/redpanda:v25.1.1"
         );
     }
 }
