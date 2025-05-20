@@ -111,6 +111,7 @@ schemaRegistry:
 
 aggregator:
   enabled: true
+  aggregationWindowSize: PT1H
   # Enable DuckDB integration
   olapEnabled: false
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
