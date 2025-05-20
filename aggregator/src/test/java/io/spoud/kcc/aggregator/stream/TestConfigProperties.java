@@ -20,6 +20,13 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private Map<String, String> splitValueAmongListMembers;
     private Map<String, MissingKeyHandling> splitMetricAmongPrincipalsMissingKeyHandling;
     private String splitMetricAmongPrincipalsFallbackPrincipal;
+    @Builder.Default
+    private String aggregationWindowSize = "PT1H";
+
+    @Override
+    public String aggregationWindowSize() {
+        return aggregationWindowSize;
+    }
 
     @Override
     public String adminPassword() {
