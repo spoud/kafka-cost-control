@@ -15,6 +15,10 @@ public interface CostControlConfigProperties {
     @NotNull
     String adminPassword();
 
+    @WithName("aggregation-window-size")
+    @WithDefault("PT1H")
+    String aggregationWindowSize();
+
     @WithName("topics.raw-data")
     @NotNull
     List<String> rawTopics();
