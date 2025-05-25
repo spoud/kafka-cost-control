@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.util.concurrent.AtomicDouble;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
@@ -15,6 +16,8 @@ import io.spoud.kcc.data.AggregatedDataWindowed;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.duckdb.DuckDBConnection;
+import org.duckdb.DuckDBDriver;
 
 import java.nio.file.Path;
 import java.sql.*;
@@ -27,6 +30,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Startup
@@ -40,7 +45,8 @@ public class AggregatedMetricsRepository {
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final MeterRegistry meterRegistry;
-    private Connection connection;
+    private DuckDBConnection connection;
+    private final AtomicDouble latestMemoryUsage = new AtomicDouble(0.0);
 
     public AggregatedMetricsRepository(OlapConfigProperties olapConfig, MetricNameRepository metricNameRepository, MeterRegistry meterRegistry) {
         this.olapConfig = olapConfig;
@@ -55,63 +61,75 @@ public class AggregatedMetricsRepository {
         }
     }
 
+    @Scheduled(every = "10s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    public void printDbInfo() {
+        var writeUsage = getMemoryUsage(connection);
+        Log.infof("OLAP DB memory usage: %.2f MiB", writeUsage / 1024 / 1024);
+    }
+
     @PostConstruct
     public void init() {
         if (olapConfig.enabled()) {
             Log.infof("OLAP module is enabled. Data will be written to %s", olapConfig.databaseUrl());
             try {
                 Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
+                Properties props = new Properties();
+                props.setProperty(DuckDBDriver.JDBC_STREAM_RESULTS, String.valueOf(true));
+                connection = (DuckDBConnection) DriverManager.getConnection(olapConfig.databaseUrl(), props);
+                Log.info("Connections have been created");
             } catch (Exception e) {
                 Log.error("Failed to load DuckDB driver", e);
                 throw new RuntimeException("Failed to load DuckDB driver", e);
             }
-            getConnection().ifPresent((conn) -> {
+            withConnection((conn) -> {
                 try {
                     createTableIfNotExists(conn);
                 } catch (SQLException e) {
                     Log.error("Failed to create OLAP table", e);
                 }
-                setDbMemoryLimit(conn);
+                setDbParameters(conn);
                 importData();
-                meterRegistry.gauge("olap.memory.usage", this, (t) -> {
-                    try {
-                        var c = t.getConnection()
-                                .orElseThrow(() -> new SQLException("Failed to get OLAP connection"));
-                        var res = c.createStatement()
-                                .executeQuery("SELECT SUM(memory_usage_bytes) FROM duckdb_memory();");
-                        if (res.next()) {
-                            return res.getDouble(1);
-                        } else {
-                            throw new SQLException("Failed to get OLAP memory usage");
-                        }
-                    } catch (SQLException e) {
-                        Log.error("Failed to get OLAP memory usage", e);
-                        return 0.0;
-                    }
-                });
+                meterRegistry.gauge("olap.memory.usage", latestMemoryUsage);
             });
         } else {
             Log.info("OLAP module is disabled.");
         }
     }
 
-    @Shutdown
-    public void cleanUp() {
-        if (olapConfig.enabled()) {
-            Log.info("Shutting down OLAP module. Performing final flush and closing connection...");
-            flushToDb();
-            getConnection().ifPresent((conn) -> {
-                try {
-                    conn.close();
-                    Log.info("Closed OLAP database connection");
-                } catch (SQLException e) {
-                    Log.error("Failed to close OLAP database connection", e);
-                }
-            });
+    private double getMemoryUsage(Connection c) {
+        try {
+            var res = c.createStatement()
+                    .executeQuery("SELECT tag, memory_usage_bytes FROM duckdb_memory();");
+            double totalMemory = 0.0; // instead of doing SUM, we sum manually because we are also interested in individual memory usage
+            while (res.next()) {
+                var tag = res.getString(1);
+                var usageMb = res.getDouble(2) / 1024 / 1024;
+                Log.debugv("Memory usage for tag {0}: {1} MiB", tag, usageMb);
+                totalMemory += res.getDouble(2);
+            }
+            return totalMemory;
+        } catch (SQLException e) {
+            Log.error("Failed to get OLAP memory usage", e);
+            return 0.0;
         }
     }
 
-    private void setDbMemoryLimit(Connection conn) {
+    @Shutdown
+    public void cleanUp() throws SQLException {
+        if (olapConfig.enabled()) {
+            Log.info("Shutting down OLAP module. Performing final flush and closing connection...");
+            flushToDb();
+            connection.close();
+        }
+    }
+
+    private void setDbParameters(Connection conn) {
+        try (var statement = conn.createStatement()) {
+            statement.execute("SET preserve_insertion_order = false");
+            Log.info("Set preserve_insertion_order to false");
+        } catch (SQLException e) {
+            Log.error("Failed to set preserve_insertion_order", e);
+        }
         if (olapConfig.databaseMemoryLimitMib().isEmpty()) {
             Log.warn("""
                     No memory limit set for OLAP database. Using DuckDB default of 80% of system memory.
@@ -128,19 +146,26 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    private Optional<Connection> getConnection() {
-        if (!olapConfig.enabled()) {
+    private <T> Optional<T> withConnection(Function<Connection, T> function) {
+        try (var c = connection.duplicate()) {
+            var res = Optional.of(function.apply(c));
+            latestMemoryUsage.set(getMemoryUsage(c));
+            return res;
+        } catch (Exception e) {
+            Log.error("Failed to get read-write connection to OLAP database", e);
             return Optional.empty();
         }
-        try {
-            if (connection == null || connection.isClosed()) {
-                connection = DriverManager.getConnection(olapConfig.databaseUrl());
-                Log.infof("Opened OLAP database connection: %s", olapConfig.databaseUrl());
-            }
-            return Optional.of(connection);
+    }
+
+    private void withConnection(Consumer<Connection> consumer) {
+        Log.info("Acquiring connection to OLAP database...");
+        DriverManager.setLoginTimeout(10);
+        try (var c = connection.duplicate()) {
+            Log.info("Connection acquired");
+            consumer.accept(c);
+            latestMemoryUsage.set(getMemoryUsage(c));
         } catch (Exception e) {
-            Log.warn("Failed to get read-write connection to OLAP database", e);
-            return Optional.empty();
+            Log.error("Failed to get read-write connection to OLAP database", e);
         }
     }
 
@@ -157,7 +182,7 @@ public class AggregatedMetricsRepository {
                         context JSON NOT NULL,
                         value DOUBLE NOT NULL,
                         target VARCHAR NOT NULL,
-                        id VARCHAR PRIMARY KEY
+                        id VARCHAR
                     )
                     """);
             Log.infof("Created OLAP DB table: aggregated_data");
@@ -166,7 +191,10 @@ public class AggregatedMetricsRepository {
 
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     synchronized void flushToDb() {
-        getConnection().ifPresent((conn) -> {
+        if (rowBuffer.isEmpty()) {
+            return;
+        }
+        withConnection((conn) -> {
             // Drain the buffer. This flush will deal only with the current buffer elements, not with any new rows added while this flush is running
             // This prevents the potential edge-case where the buffer is emptied and filled at the same rate, causing the flush to never finish.
             // Note that since adding to the buffer happens from the stream processing thread, this carries a slight risk of slowing down the stream processing.
@@ -174,8 +202,11 @@ public class AggregatedMetricsRepository {
             rowBuffer.drainTo(finalRowBuffer);
             var skipped = 0;
             var count = 0;
+            if (finalRowBuffer.isEmpty()) {
+                return;
+            }
             var startTime = Instant.now();
-            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            try (var stmt = conn.prepareStatement("INSERT INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var metric = finalRowBuffer.poll(); metric != null; metric = finalRowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
@@ -228,7 +259,7 @@ public class AggregatedMetricsRepository {
             return;
         }
         try {
-            boolean success = rowBuffer.offer(row, 3000, TimeUnit.MILLISECONDS);
+            boolean success = rowBuffer.offer(row, 30000, TimeUnit.MILLISECONDS);
             if (!success) {
                 Log.warn("Failed to insert row to buffer. Row was dropped.");
             }
@@ -255,8 +286,7 @@ public class AggregatedMetricsRepository {
     }
 
     public Set<String> getAllMetrics() {
-        return getConnection()
-                .map(conn -> {
+        return withConnection(conn -> {
                     try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data")) {
                         var result = statement.executeQuery();
                         var metrics = new HashSet<String>();
@@ -273,8 +303,7 @@ public class AggregatedMetricsRepository {
     }
 
     private Set<String> getAllJsonKeys(String column) {
-        return getConnection()
-                .map(conn -> {
+        return withConnection(conn -> {
                     try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM aggregated_data")) {
                         return getStatementResultAsStrings(statement, true);
                     } catch (Exception e) {
@@ -287,8 +316,7 @@ public class AggregatedMetricsRepository {
 
     private Set<String> getAllJsonKeyValues(String column, String key) {
         ensureIdentifierIsSafe(key);
-        return getConnection()
-                .map(conn -> {
+        return withConnection(conn -> {
                     try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM aggregated_data".formatted(column, key))) {
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
@@ -328,9 +356,14 @@ public class AggregatedMetricsRepository {
         Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
         var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + "." + finalFormat);
-        return getConnection().map((conn) -> {
-            try (var statement = conn.prepareStatement("COPY (SELECT * FROM aggregated_data WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
-                    + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
+        return withConnection((conn) -> {
+            try (var statement = conn.prepareStatement("""
+                    COPY (
+                        SELECT aggdata.id, ANY_VALUE(aggdata.start_time) AS start_time, ANY_VALUE(aggdata.end_time) AS end_time, ANY_VALUE(aggdata.initial_metric_name) AS initial_metric_name, ANY_VALUE(aggdata.entity_type) AS entity_type, ANY_VALUE(aggdata.name) AS name, ANY_VALUE(aggdata.tags) AS tags, ANY_VALUE(aggdata.context) AS context, ANY_VALUE(aggdata.target) AS target, MAX(aggdata.value) AS value
+                        FROM aggregated_data aggdata
+                        WHERE aggdata.start_time >= ? AND aggdata.end_time <= ?
+                        GROUP BY id
+                    ) TO '""" + tmpFileName + "'" + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
                 statement.execute();
@@ -344,17 +377,20 @@ public class AggregatedMetricsRepository {
 
 
     public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
-        return getConnection().map((conn) -> {
+        return withConnection((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
-            var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
+            var nameFilter = names.isEmpty() ? "" : " AND aggdata.initial_metric_name IN " + names.stream().map(s -> "?")
                     .collect(Collectors.joining(", ", "(", ")"));
             try (var statement = conn.prepareStatement("""
-                    SELECT * FROM aggregated_data
-                    WHERE start_time >= ? AND end_time <= ?
-                    """ + nameFilter)) {
+                    SELECT aggdata.id, ANY_VALUE(aggdata.start_time) AS start_time, ANY_VALUE(aggdata.end_time) AS end_time, ANY_VALUE(aggdata.initial_metric_name) AS initial_metric_name, ANY_VALUE(aggdata.entity_type) AS entity_type, ANY_VALUE(aggdata.name) AS name, ANY_VALUE(aggdata.tags) AS tags, ANY_VALUE(aggdata.context) AS context, ANY_VALUE(aggdata.target) AS target, MAX(aggdata.value) AS value
+                    FROM aggregated_data aggdata
+                    WHERE aggdata.start_time >= ? AND aggdata.end_time <= ?
+                    """ + nameFilter + """
+                    GROUP BY aggdata.id
+                    """)) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
                 statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
                 var i = 3;
@@ -387,23 +423,38 @@ public class AggregatedMetricsRepository {
         }).orElse(Collections.emptyList());
     }
 
+    /**
+     * Retrieves a collection of grouped metric histories within a given time period.
+     * This method fetches metric history data from the database, filters it based on the provided
+     * time range and metric names, and groups the data by the specified context key.
+     *
+     * @param startDate the start of the time range for the query. If null, a default of 30 days before the current date will be used.
+     * @param endDate the end of the time range for the query. If null, the current date will be used.
+     * @param names a set of metric names to filter the results. If empty, no filtering will occur.
+     * @param groupByContextKey the key used to group the metric data based on the context.
+     *
+     * @return a collection of {@code MetricHistoryTO} objects containing the grouped metric data. If an error occurs or
+     *         no data is found, an empty collection may be returned.
+     */
     public Collection<MetricHistoryTO> getHistoryGrouped(Instant startDate, Instant endDate, Set<String> names, String groupByContextKey) {
-        return getConnection().map((conn) -> {
+        return withConnection((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s, grouped for context '%s'", finalStartDate, finalEndDate, groupByContextKey);
 
-            var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
+            var nameFilter = names.isEmpty() ? "" : " AND aggdata.initial_metric_name IN " + names.stream().map(s -> "?")
                     .collect(Collectors.joining(", ", "(", ")"));
             // we use a subquery so we can guarantee binding of the same value for `json_value(context, ?)`
             // which is used in select and in group by clause
             String sql = """
                     select subquery.context, subquery.start_time, sum(subquery.value) as sum
                     from (
-                        select json_value(context, ?) as context, start_time, value
-                        from aggregated_data
-                        where start_time >= ? and end_time <= ?
-                    """ + nameFilter + ") as subquery" +
+                        SELECT aggdata.id, ANY_VALUE(aggdata.start_time) AS start_time, json_value(ANY_VALUE(aggdata.context), ?) AS context, MAX(aggdata.value) AS value
+                        FROM aggregated_data aggdata
+                        WHERE aggdata.start_time >= ? AND aggdata.end_time <= ?
+                    """ + nameFilter + """
+                     GROUP BY id
+                    ) as subquery""" +
                     " group by context, start_time" +
                     " order by start_time";
             try (var statement = conn.prepareStatement(sql)) {
@@ -462,13 +513,13 @@ public class AggregatedMetricsRepository {
     }
 
     public void importSeedData(String path) {
-        getConnection().ifPresent((conn) -> {
+        withConnection((conn) -> {
             loadDataExport(path, conn);
         });
     }
 
     private void insertSyntheticDays(int days) {
-        getConnection().ifPresent(conn -> insertGeneratedData(conn, days));
+        withConnection((Consumer<Connection>) conn -> insertGeneratedData(conn, days));
     }
 
     private void insertGeneratedData(Connection conn, int days) {
@@ -545,7 +596,7 @@ public class AggregatedMetricsRepository {
     }
 
     private void addExistingMetrics() {
-        getConnection().ifPresent(conn -> {
+        withConnection(conn -> {
             try (PreparedStatement statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data");
                  ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {

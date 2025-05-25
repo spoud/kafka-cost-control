@@ -130,6 +130,40 @@ class AggregatedMetricsRepositoryTest {
         assertThat(history.stream().map(MetricEO::initialMetricName)).containsOnly("bytesin");
     }
 
+    @DisplayName("Get history grouped by context key")
+    @Test
+    void getHistoryGroupedByContextKey() {
+        repo.init();
+
+        // period to aggregate over
+        var start = Instant.now();
+        var end = start.plus(Duration.ofHours(6));
+
+        // scraped at time t
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setContext(Map.of("org", "spoud", "region", "de")).setValue(1.0).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setContext(Map.of("org", "spoud", "region", "ch")).setValue(2.0).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setContext(Map.of("org", "spoud2", "region", "de")).setValue(1.0).build());
+        // scraped at time t+1
+        repo.insertRow(randomDatapoint().setStartTime(start.plus(Duration.ofHours(1))).setEndTime(end).setInitialMetricName("my-awesome-metric").setContext(Map.of("org", "spoud", "region", "ch")).setValue(2.0).build());
+
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start.minusSeconds(1), end.plusSeconds(1), Set.of("my-awesome-metric"), "org");
+        assertThat(history).hasSize(2);
+        for (var v : history) {
+            if (v.getName().equals("spoud")) {
+                // For spoud, we have two values. We have in time t two rows with the same context key are aggregated into one row.
+                // Then at time t+1 we have another row with the same context key that is aggregated into another row due to having a different time.
+                assertThat(v.getValues()).containsExactlyInAnyOrder(3.0, 2.0);
+            } else if (v.getName().equals("spoud2")) {
+                // For spoud2, we have only one row with the context key, so we expect only one value.
+                assertThat(v.getValues()).containsExactlyInAnyOrder(1.0);
+            } else {
+                throw new AssertionError("Unexpected context key: " + v.getName());
+            }
+        }
+    }
+
     @DisplayName("Rows that only differ in value overwrite each other")
     @Test
     void upsertRow() {
