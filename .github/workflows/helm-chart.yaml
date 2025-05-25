@@ -1,27 +1,20 @@
-name: GitHub Pages + Helm Publish
+name: Release Charts
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
-  build:
+  release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # important parameter
-
-      - name: asciidoctor-ghpages
-        uses: manoelcampos/asciidoctor-ghpages-action@v2
-        with:
-          pdf_build: true
-          asciidoctor_params: -r asciidoctor-diagram
-          source_dir: docs/ # default is .
-          post_build: 'find . -name "*.svg" | xargs git add -f'
+          fetch-depth: 0
 
       - name: Configure Git
         run: |
