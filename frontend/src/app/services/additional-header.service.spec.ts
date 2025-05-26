@@ -1,6 +1,6 @@
-import { TestBed } from '@angular/core/testing';
+import {TestBed} from '@angular/core/testing';
 
-import { AdditionalHeadersService } from './additional-headers.service';
+import {AdditionalHeadersService} from './additional-headers.service';
 
 describe('AdditionalHeaderService', () => {
   let service: AdditionalHeadersService;
