@@ -3,7 +3,6 @@ name: GitHub Pages + Helm Release and Publish
 on:
   push:
     branches: [ master ]
-  workflow_dispatch: {}
 jobs:
   build:
     permissions:
@@ -24,6 +23,8 @@ jobs:
             #Ignores directories . and .git
             find . -not -path './.git*' -not -name '.' -exec rm -rf {} \; || true
             mv /tmp/source/* .
+            # preserve index.yaml
+            curl https://spoud.github.io/kafka-cost-control/index.yaml -o index.yaml
             chown -R root:root .
             chmod -R 777 .
             git add .
