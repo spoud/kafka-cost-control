@@ -1,8 +1,0 @@
-mutation saveContextData($request: ContextDataSaveRequestInput!) {
-    saveContextData(request: $request) {
-        validFrom
-        validUntil
-        entityType
-        regex
-    }
-}
