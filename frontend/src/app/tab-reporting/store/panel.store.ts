@@ -112,7 +112,7 @@ export const PanelStore = signalStore(
                     metricName: panel.metricName,
                     groupByContext: panel.groupByContext
                 };
-            });
+            }, {equal: (a, b) => JSON.stringify(a) === JSON.stringify(b)});
         },
     }))
 );

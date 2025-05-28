@@ -32,13 +32,15 @@ export class PanelOptionsComponent {
     panelData = input.required<Panel>();
 
     graphFilter: Signal<GraphFilter> = computed(() => {
-        return {
-            from: this.panelData().from,
-            to: this.panelData().to,
-            metricName: this.panelData().metricName,
-            groupByContext: this.panelData().groupByContext,
-        }
-    });
+            return {
+                from: this.panelData().from,
+                to: this.panelData().to,
+                metricName: this.panelData().metricName,
+                groupByContext: this.panelData().groupByContext,
+            }
+        },
+        {equal: (a, b) => JSON.stringify(a) === JSON.stringify(b)}
+    );
 
     updateFilter($event: GraphFilter) {
         this.panelStore.updatePanel(this.panelData().id, {...$event});
