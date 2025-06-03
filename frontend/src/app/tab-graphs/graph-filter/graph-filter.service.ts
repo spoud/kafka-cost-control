@@ -1,4 +1,4 @@
-import {computed, inject, Injectable, resource, Signal} from '@angular/core';
+import {computed, inject, Injectable, resource, ResourceRef, Signal} from '@angular/core';
 import {firstValueFrom, map} from 'rxjs';
 import {MetricContextKeysGQL, MetricHistoryGQL, MetricNamesGQL} from '../../../generated/graphql/sdk';
 import {MetricHistory, MetricNameEntity} from '../../../generated/graphql/types';
@@ -22,9 +22,9 @@ export class GraphFilterService {
     contextKeys = computed(() => this.contextKeysResource.value() || []);
     metricNames = computed(() => this.metricNamesResource.value() || []);
 
-    historyResource(filter: Signal<GraphFilter | undefined>) {
+    historyResource(filter: Signal<GraphFilter | undefined>):ResourceRef<MetricHistory[]|undefined> {
         return resource({
-            request: () => {
+            params: () => {
                 const _filter = filter();
                 if (!_filter) {
                     return undefined;
@@ -36,7 +36,7 @@ export class GraphFilterService {
                     groupByContextKeys: _filter.groupByContext || []
                 }
             },
-            loader: ({request}): Promise<MetricHistory[]> => firstValueFrom(this.historyGql.fetch(request)
+            loader: ({params}): Promise<MetricHistory[]> => firstValueFrom(this.historyGql.fetch(params)
                 .pipe(map(res => res.data?.history)))
         })
     }
