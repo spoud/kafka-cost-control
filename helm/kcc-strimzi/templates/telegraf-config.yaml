@@ -9,7 +9,7 @@ data:
         env = "{{ .Values.env }}"
 
     [agent]
-        interval = "10s"
+        interval = "{{ .Values.telegraf.scrapeIntervalSeconds }}s"
         round_interval = true
         metric_batch_size = 100
         metric_buffer_limit = 10000
@@ -39,7 +39,7 @@ data:
     
     [[aggregators.basicstats]]
         namepass = ["kafka_log_log_size"]
-        period = "3600s"
+        period = "{{ .Values.telegraf.aggregationWindowSizeSeconds }}s"
         delay = "10s"
         grace = "10s"
         drop_original = true
@@ -47,7 +47,7 @@ data:
 
     [[aggregators.basicstats]]
         namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
-        period = "600s"
+        period = "{{ div .Values.telegraf.aggregationWindowSizeSeconds 6 }}s"
         delay = "10s"
         grace = "10s"
         drop_original = true
