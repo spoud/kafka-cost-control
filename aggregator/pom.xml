@@ -25,7 +25,7 @@
         <compiler-plugin.version>3.14.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.3</surefire-plugin.version>
         <kafka.version>3.9.0</kafka.version>
-        <confluent.platform.version>7.9.1</confluent.platform.version>
+        <confluent.platform.version>8.0.0</confluent.platform.version>
     </properties>
     <dependencyManagement>
         <dependencies>
