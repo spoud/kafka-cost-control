@@ -193,6 +193,9 @@ spec:
   replicas: 1
   bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
   template:
+    connectContainer:
+      env:
+        {{- .Values.connect.env | toYaml | nindent 8 }}
     pod:
       metadata:
         labels:
