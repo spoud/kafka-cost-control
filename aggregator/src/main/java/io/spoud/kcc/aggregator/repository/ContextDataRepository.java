@@ -96,10 +96,25 @@ public class ContextDataRepository {
                 .toList();
     }
 
+    /**
+     * Enrich the telegraf data wrapper with context information from this repository. Only context data whose regex
+     * matches this resource will be used. The context data is expected to be sorted by creation time.
+     * If it is not sorted, it is not guaranteed that the newest context data will be used in case of conflicts.
+     *
+     * @param telegrafDataWrapper the telegraf data wrapper to enrich with context
+     * @return context-enriched data
+     */
+    public Optional<TelegrafDataWrapper.AggregatedDataInfo> enrichWithContext(TelegrafDataWrapper telegrafDataWrapper) {
+        return telegrafDataWrapper.toMetric().map(metric -> {
+            var context = getContextDataForName(metric.type(), metric.objectName(), telegrafDataWrapper.getTimestamp());
+            return new TelegrafDataWrapper.AggregatedDataInfo(metric.type(), metric.objectName(), context);
+        });
+    }
+
     private Optional<TelegrafDataWrapper.AggregatedDataInfo> findMatchedContext(RawTelegrafData dummyData) {
         TelegrafDataWrapper wrapper = new TelegrafDataWrapper(dummyData);
         // here we find matching regexes and replace capturing groups
-        return wrapper.enrichWithContext(this);
+        return enrichWithContext(wrapper);
     }
 
     /**

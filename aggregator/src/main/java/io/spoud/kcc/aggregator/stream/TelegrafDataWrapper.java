@@ -6,6 +6,7 @@ import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.data.EntityType;
 import org.apache.commons.lang3.math.NumberUtils;
+import java.time.Instant;
 
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +23,15 @@ public class TelegrafDataWrapper {
         this.telegrafData = telegrafData;
     }
 
+    /**
+     * Get the timestamp of the telegraf data.
+     *
+     * @return the timestamp
+     */
+    public Instant getTimestamp() {
+        return telegrafData.timestamp();
+    }
+
     public Optional<Metric> toMetric() {
         Map<String, String> tags = telegrafData.tags();
         if (tags.containsKey(TOPIC_TAG)) {
@@ -32,20 +42,6 @@ public class TelegrafDataWrapper {
         return Optional.empty();
     }
 
-    /**
-     * Enrich the current data with context information from the supplied context data. Only context data whose regex
-     * matches this resource will be used. The supplied context data is expected to be sorted by creation time.
-     * If it is not sorted, it is not guaranteed that the newest context data will be used in case of conflicts.
-     *
-     * @param contextDataRepository the context data repository from which to pick contexts that the telegraf data should be enriched with
-     * @return context-enriched data
-     */
-    public Optional<AggregatedDataInfo> enrichWithContext(ContextDataRepository contextDataRepository) {
-        return toMetric().map(metric -> {
-            var context = contextDataRepository.getContextDataForName(metric.type(), metric.objectName(), telegrafData.timestamp());
-            return new AggregatedDataInfo(metric.type(), metric.objectName(), context);
-        });
-    }
 
     /**
      * Get the value of the metric. If the metric is a gauge, the gauge value is returned. If the metric is a counter, the

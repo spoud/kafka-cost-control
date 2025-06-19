@@ -133,7 +133,7 @@ public class MetricEnricher {
                 .setValue(telegrafData.getValue())
                 .setTags(rawTelegrafData.tags())
                 .setContext(Collections.emptyMap());
-        telegrafData.enrichWithContext(contextDataRepository).ifPresent(aggregatedDataInfo -> aggregatedData
+        contextDataRepository.enrichWithContext(telegrafData).ifPresent(aggregatedDataInfo -> aggregatedData
                 .setName(aggregatedDataInfo.name())
                 .setContext(aggregatedDataInfo.context())
                 .setEntityType(aggregatedDataInfo.type()));
