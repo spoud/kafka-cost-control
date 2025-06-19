@@ -84,7 +84,7 @@ public class MetricEnricher {
                         Named.as("filter-null"))
                 .flatMapValues(this::splitTopicMetricToPrincipalMetrics, Named.as("map-topic-metric-to-principal-metric"))
                 .selectKey(
-                        (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName(),
+                        (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName() + "_" + value.getContext().hashCode(),
                         Named.as("unique-key-for-windowing"))
                 .groupByKey(Grouped.as("group-by-key"))
                 .windowedBy(tumblingWindow)
