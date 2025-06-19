@@ -6,11 +6,8 @@ import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.data.EntityType;
 import org.apache.commons.lang3.math.NumberUtils;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 public class TelegrafDataWrapper {
 
@@ -24,7 +21,7 @@ public class TelegrafDataWrapper {
         this.telegrafData = telegrafData;
     }
 
-    public Optional<Metric> getEntityType() {
+    public Optional<Metric> toMetric() {
         Map<String, String> tags = telegrafData.tags();
         if (tags.containsKey(TOPIC_TAG)) {
             return Optional.of(new Metric(EntityType.TOPIC, tags.get(TOPIC_TAG)));
@@ -39,31 +36,12 @@ public class TelegrafDataWrapper {
      * matches this resource will be used. The supplied context data is expected to be sorted by creation time.
      * If it is not sorted, it is not guaranteed that the newest context data will be used in case of conflicts.
      *
-     * @param contextData the context data from which to pick contexts that the telegraf data should be enriched with
+     * @param cachedContextDataManager the context data manager from which to pick contexts that the telegraf data should be enriched with
      * @return context-enriched data
      */
-    public Optional<AggregatedDataInfo> enrichWithContext(List<CachedContextDataManager.CachedContextData> contextData) {
-        return getEntityType().map(metric -> {
-            Map<String, String> context = new HashMap<>();
-            // This is the join with regex
-            contextData.forEach(cachedContext -> {
-                cachedContext.getMatcher(metric, telegrafData.timestamp())
-                        .ifPresent(matcher -> {
-                            // TODO add to a list instead of overriding the context
-                            context.putAll(cachedContext.getContextData().getContext().entrySet().stream()
-                                    // replace all the regex variable in the value
-                                    .map(entry -> {
-                                        try {
-                                            return Map.entry(entry.getKey(), matcher.replaceAll(entry.getValue()));
-                                        } catch (IndexOutOfBoundsException ex) {
-                                            Log.warnv(ex, "Unable to replace regex variable for the entry \"{0}\" with the regex \"{1}\" and the context \"{2}={3}\"",
-                                                    metric.objectName(), cachedContext.getContextData().getRegex(), entry.getKey(), entry.getValue());
-                                            return entry;
-                                        }
-                                    })
-                                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (l, r) -> r)));
-                        });
-            });
+    public Optional<AggregatedDataInfo> enrichWithContext(CachedContextDataManager cachedContextDataManager) {
+        return toMetric().map(metric -> {
+            var context = cachedContextDataManager.getContextDataForName(metric.type(), metric.objectName(), telegrafData.timestamp());
             return new AggregatedDataInfo(metric.type(), metric.objectName(), context);
         });
     }

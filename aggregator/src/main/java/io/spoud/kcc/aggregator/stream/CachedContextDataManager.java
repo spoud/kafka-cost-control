@@ -1,9 +1,9 @@
 package io.spoud.kcc.aggregator.stream;
 
 import io.quarkus.logging.Log;
-import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.data.ContextData;
+import io.spoud.kcc.data.EntityType;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
 import org.apache.kafka.streams.KeyValue;
@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Looking into globalKTable take an insane amount of time, so we cache the data for a little while.
@@ -70,6 +71,31 @@ public class CachedContextDataManager {
         return cachedContextData;
     }
 
+    public Map<String, String> getContextDataForName(EntityType entityType, String objectName, Instant timestamp) {
+        // Get the cached context data
+        List<CachedContextData> contextDataList = getCachedContextData();
+        Map<String, String> context = new HashMap<>();
+        // This is the join with regex
+        contextDataList.forEach(cachedContext -> {
+            cachedContext.getMatcher(entityType, objectName, timestamp)
+                    .ifPresent(matcher -> {
+                        context.putAll(cachedContext.getContextData().getContext().entrySet().stream()
+                                // replace all the regex variable in the value
+                                .map(entry -> {
+                                    try {
+                                        return Map.entry(entry.getKey(), matcher.replaceAll(entry.getValue()));
+                                    } catch (IndexOutOfBoundsException ex) {
+                                        Log.warnv(ex, "Unable to replace regex variable for the entry \"{0}\" with the regex \"{1}\" and the context \"{2}={3}\"",
+                                                objectName, cachedContext.getContextData().getRegex(), entry.getKey(), entry.getValue());
+                                        return entry;
+                                    }
+                                })
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (l, r) -> r)));
+                    });
+        });
+        return context;
+    }
+
     public synchronized void clearCache() {
         cachedContextData = null;
     }
@@ -91,10 +117,10 @@ public class CachedContextDataManager {
         /**
          * Get the Matcher object, but only if the current metric is eligible and satisfy the regex
          */
-        public Optional<Matcher> getMatcher(Metric metric, Instant timestamp) {
-            if (contextData.getEntityType().equals(metric.type())
+        public Optional<Matcher> getMatcher(EntityType type, String objectName, Instant timestamp) {
+            if (contextData.getEntityType().equals(type)
                     && isInContextDataTimeRange(timestamp, contextData)) {
-                return Optional.of(pattern.matcher(metric.objectName()))
+                return Optional.of(pattern.matcher(objectName))
                         // only if there is a match
                         .filter(Matcher::matches);
             } else {

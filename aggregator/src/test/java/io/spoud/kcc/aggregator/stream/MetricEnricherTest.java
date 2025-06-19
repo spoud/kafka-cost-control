@@ -375,6 +375,10 @@ class MetricEnricherTest {
     void should_turn_topic_metric_into_principal_metric() {
         contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
                 EntityType.TOPIC, "spoud_.*", Map.of("writers", "alice,bob", "application", "flux-capacitor")));
+        contextDataStore.put("id2", new ContextData(Instant.now().minusSeconds(10), null, null,
+            EntityType.PRINCIPAL, "alice", Map.of("application", "alice-app")));
+        contextDataStore.put("id3", new ContextData(Instant.now().minusSeconds(10), null, null,
+            EntityType.PRINCIPAL, "bob", Map.of("application", "bob-app")));
         final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
 
         rawTelegrafDataTopic.pipeInput(topicMetric);
@@ -386,12 +390,14 @@ class MetricEnricherTest {
         assertThat(list.getFirst().getName()).isEqualTo("alice");
         assertThat(list.getFirst().getContext()).containsOnlyKeys("topic", "application");
         assertThat(list.getFirst().getContext()).containsEntry("topic", "spoud_topic_v1");
+        assertThat(list.getFirst().getContext()).containsEntry("application", "alice-app"); // make sure that the application field from the principal context is used, not the one from the topic context
         assertThat(list.getFirst().getValue()).isEqualTo(5);
 
         assertThat(list.getLast().getEntityType()).isEqualTo(EntityType.PRINCIPAL);
         assertThat(list.getLast().getName()).isEqualTo("bob");
         assertThat(list.getLast().getContext()).containsOnlyKeys("topic", "application");
         assertThat(list.getLast().getContext()).containsEntry("topic", "spoud_topic_v1");
+        assertThat(list.getLast().getContext()).containsEntry("application", "bob-app"); // make sure that the application field from the principal context is used, not the one from the topic context
         assertThat(list.getLast().getValue()).isEqualTo(5);
     }
 
@@ -399,6 +405,8 @@ class MetricEnricherTest {
     void should_turn_topic_metric_into_principal_metric_using_fallback() {
         contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
                 EntityType.TOPIC, "spoud_.*", Map.of("application", "flux-capacitor")));
+        contextDataStore.put("id2", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.PRINCIPAL, "fallback-team", Map.of("application", "unknown-application")));
         final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
 
         rawTelegrafDataTopic.pipeInput(topicMetric);
@@ -410,6 +418,7 @@ class MetricEnricherTest {
         assertThat(list.getFirst().getName()).isEqualTo("fallback-team");
         assertThat(list.getFirst().getContext()).containsOnlyKeys("topic", "application");
         assertThat(list.getFirst().getContext()).containsEntry("topic", "spoud_topic_v1");
+        assertThat(list.getFirst().getContext()).containsEntry("application", "unknown-application");
         assertThat(list.getFirst().getValue()).isEqualTo(10);
     }
 

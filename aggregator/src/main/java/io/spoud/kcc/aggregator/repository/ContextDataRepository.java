@@ -72,12 +72,10 @@ public class ContextDataRepository {
     }
 
     public List<ContextTestResponse> testContext(String testString) {
-        List<CachedContextDataManager.CachedContextData> cachedContextData = cachedContextDataManager.getCachedContextData();
-
         RawTelegrafData dummyTopicData = new RawTelegrafData(Instant.now(), null, Map.of(), Map.of(TelegrafDataWrapper.TOPIC_TAG, testString));
         RawTelegrafData dummyPrincipalData = new RawTelegrafData(Instant.now(), null, Map.of(), Map.of(TelegrafDataWrapper.PRINCIPAL_ID_TAG, testString));
-        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForTopic = findMatchedContext(cachedContextData, dummyTopicData);
-        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForPrincipal = findMatchedContext(cachedContextData, dummyPrincipalData);
+        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForTopic = findMatchedContext(cachedContextDataManager, dummyTopicData);
+        Optional<TelegrafDataWrapper.AggregatedDataInfo> aggregatedForPrincipal = findMatchedContext(cachedContextDataManager, dummyPrincipalData);
 
         return Stream.of(aggregatedForTopic, aggregatedForPrincipal)
                 .flatMap(Optional::stream)
@@ -85,10 +83,10 @@ public class ContextDataRepository {
                 .toList();
     }
 
-    private static Optional<TelegrafDataWrapper.AggregatedDataInfo> findMatchedContext(List<CachedContextDataManager.CachedContextData> cachedContextData, RawTelegrafData dummyData) {
+    private static Optional<TelegrafDataWrapper.AggregatedDataInfo> findMatchedContext(CachedContextDataManager cachedContextDataManager, RawTelegrafData dummyData) {
         TelegrafDataWrapper wrapper = new TelegrafDataWrapper(dummyData);
         // here we find matching regexes and replace capturing groups
-        return wrapper.enrichWithContext(cachedContextData);
+        return wrapper.enrichWithContext(cachedContextDataManager);
     }
 
     public ReadOnlyKeyValueStore<String, ContextData> getStore() {

@@ -132,11 +132,10 @@ public class MetricEnricher {
                 .setValue(telegrafData.getValue())
                 .setTags(rawTelegrafData.tags())
                 .setContext(Collections.emptyMap());
-        List<CachedContextDataManager.CachedContextData> cachedContextData = cachedContextDataManager.getCachedContextData();
-        telegrafData.enrichWithContext(cachedContextData).ifPresent(context -> aggregatedData
-                .setName(context.name())
-                .setContext(context.context())
-                .setEntityType(context.type()));
+        telegrafData.enrichWithContext(cachedContextDataManager).ifPresent(aggregatedDataInfo -> aggregatedData
+                .setName(aggregatedDataInfo.name())
+                .setContext(aggregatedDataInfo.context())
+                .setEntityType(aggregatedDataInfo.type()));
 
         return aggregatedData.build();
     }
@@ -248,11 +247,10 @@ public class MetricEnricher {
         if (principalName == null) {
             return metric;
         }
-        var newContext = metric.getContext() != null
-                ? new HashMap<>(metric.getContext()) : new HashMap<String, String>();
+        var newContext = cachedContextDataManager.getContextDataForName(EntityType.PRINCIPAL,
+                principalName, metric.getTimestamp());
         newContext.put("topic", metric.getName());
-        newContext.remove(keyToMapBy);
-        return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName, metric.getInitialMetricName(),
-                metric.getValue(), metric.getCost(), metric.getTags(), newContext);
+        return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName,
+                metric.getInitialMetricName(), metric.getValue(), metric.getCost(), metric.getTags(), newContext);
     }
 }
