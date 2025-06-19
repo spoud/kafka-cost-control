@@ -19,6 +19,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,20 +91,20 @@ class MetricEnricherTest {
         metricReducer = Mockito.spy(new MetricReducer(configProperties));
         metricRepository = new MetricNameRepository(metricReducer);
         gaugeRepository = new GaugeRepository(new SimpleMeterRegistry());
-        ContextDataRepository contextDataRepository = Mockito.mock(ContextDataRepository.class);
+        var kafkaStreams = Mockito.mock(KafkaStreams.class);
+        ContextDataRepository contextDataRepository = new ContextDataRepository(Mockito.mock(Emitter.class), kafkaStreams);
 
-        final CachedContextDataManager cachedContextDataManager = new CachedContextDataManager(contextDataRepository);
         Properties kafkaProperties = createKafkaProperties();
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, cachedContextDataManager, configProperties, serdeFactory, gaugeRepository, metricReducer, Mockito.mock(AggregatedMetricsRepository.class));
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, contextDataRepository, configProperties, serdeFactory, gaugeRepository, metricReducer, Mockito.mock(AggregatedMetricsRepository.class));
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
         testDriver = new TopologyTestDriver(topology, kafkaProperties);
         contextDataStore = testDriver.getKeyValueStore(MetricEnricher.CONTEXT_DATA_TABLE_NAME);
-        Mockito.when(contextDataRepository.getStore()).thenReturn(contextDataStore);
+        Mockito.when(kafkaStreams.store(Mockito.any())).thenReturn(contextDataStore);
 
         rawTelegrafDataTopic = testDriver.createInputTopic(
                 TOPIC_RAW_TELEGRAF,

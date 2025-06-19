@@ -2,7 +2,6 @@ package io.spoud.kcc.aggregator.repository;
 
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.aggregator.data.ContextTestResponse;
-import io.spoud.kcc.aggregator.stream.CachedContextDataManager;
 import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.EntityType;
 import org.apache.kafka.streams.KafkaStreams;
@@ -11,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,16 +32,15 @@ class ContextDataRepositoryTest {
     Emitter<Record<String, ContextData>> contextEmitter;
     @Mock
     KafkaStreams kafkaStreams;
-    @Mock
-    CachedContextDataManager cachedContextDataManager;
 
+    @Spy
     @InjectMocks
     ContextDataRepository contextDataRepository;
 
     @Test
     void testContext_noCachedContextData_resultConsistsOfEmptyArrays() {
         // given
-        when(cachedContextDataManager.getCachedContextData()).thenReturn(Collections.emptyList());
+        doReturn(Collections.emptyList()).when(contextDataRepository).getCachedContextData();
 
         // when
         List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
@@ -68,16 +68,16 @@ class ContextDataRepositoryTest {
                 EntityType.TOPIC, "^testxxxxxx.*", Map.of("key5", "value"));
         ContextData principalContext = new ContextData(Instant.now(), Instant.now().minusSeconds(100), null,
                 EntityType.PRINCIPAL, "^test.*", Map.of("key6", "value"));
-        when(cachedContextDataManager.getCachedContextData()).thenReturn(
+        doReturn(
                 List.of(
-                        new CachedContextDataManager.CachedContextData("valid", valid),
-                        new CachedContextDataManager.CachedContextData("validFromYesterday", validFromYesterday),
-                        new CachedContextDataManager.CachedContextData(UUID.randomUUID().toString(), noLongerValid),
-                        new CachedContextDataManager.CachedContextData(UUID.randomUUID().toString(), notYetValid),
-                        new CachedContextDataManager.CachedContextData(UUID.randomUUID().toString(), regexDoesNotMatch),
-                        new CachedContextDataManager.CachedContextData("validPrincipal", principalContext)
+                        new ContextDataRepository.CachedContextData("valid", valid),
+                        new ContextDataRepository.CachedContextData("validFromYesterday", validFromYesterday),
+                        new ContextDataRepository.CachedContextData(UUID.randomUUID().toString(), noLongerValid),
+                        new ContextDataRepository.CachedContextData(UUID.randomUUID().toString(), notYetValid),
+                        new ContextDataRepository.CachedContextData(UUID.randomUUID().toString(), regexDoesNotMatch),
+                        new ContextDataRepository.CachedContextData("validPrincipal", principalContext)
                 )
-        );
+        ).when(contextDataRepository).getCachedContextData();
 
         // when
         List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
@@ -99,12 +99,12 @@ class ContextDataRepositoryTest {
         ContextData validFromYesterday = new ContextData(Instant.now().plusSeconds(2), yesterday.minusSeconds(100), null,
                 EntityType.TOPIC, "^test.*", Map.of("key1", "newValue"));
 
-        when(cachedContextDataManager.getCachedContextData()).thenReturn(
+        doReturn(
                 List.of(
-                        new CachedContextDataManager.CachedContextData("valid", valid),
-                        new CachedContextDataManager.CachedContextData("validFromYesterday", validFromYesterday)
+                        new ContextDataRepository.CachedContextData("valid", valid),
+                        new ContextDataRepository.CachedContextData("validFromYesterday", validFromYesterday)
                 )
-        );
+        ).when(contextDataRepository).getCachedContextData();
 
         // when
         List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
@@ -125,11 +125,11 @@ class ContextDataRepositoryTest {
                         "third-capturing-group", "$3",
                         "all-together", "$1;$2;$3"));
 
-        when(cachedContextDataManager.getCachedContextData()).thenReturn(
+        doReturn(
                 List.of(
-                        new CachedContextDataManager.CachedContextData("valid", valid)
+                        new ContextDataRepository.CachedContextData("valid", valid)
                 )
-        );
+        ).when(contextDataRepository).getCachedContextData();
 
         // when
         List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");

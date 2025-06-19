@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.stream;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.data.EntityType;
 import org.apache.commons.lang3.math.NumberUtils;
 
@@ -36,12 +37,12 @@ public class TelegrafDataWrapper {
      * matches this resource will be used. The supplied context data is expected to be sorted by creation time.
      * If it is not sorted, it is not guaranteed that the newest context data will be used in case of conflicts.
      *
-     * @param cachedContextDataManager the context data manager from which to pick contexts that the telegraf data should be enriched with
+     * @param contextDataRepository the context data repository from which to pick contexts that the telegraf data should be enriched with
      * @return context-enriched data
      */
-    public Optional<AggregatedDataInfo> enrichWithContext(CachedContextDataManager cachedContextDataManager) {
+    public Optional<AggregatedDataInfo> enrichWithContext(ContextDataRepository contextDataRepository) {
         return toMetric().map(metric -> {
-            var context = cachedContextDataManager.getContextDataForName(metric.type(), metric.objectName(), telegrafData.timestamp());
+            var context = contextDataRepository.getContextDataForName(metric.type(), metric.objectName(), telegrafData.timestamp());
             return new AggregatedDataInfo(metric.type(), metric.objectName(), context);
         });
     }
