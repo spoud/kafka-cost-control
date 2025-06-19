@@ -1,19 +1,21 @@
-{{ $postgresPw := randAlphaNum 10 }}
+{{ $postgresPw := (randAlphaNum 10) | b64enc }}
 {{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
 {{ $outputTable := printf "%s_aggregated_table_friendly" .Release.Name }}
 {{ $caCert := (include "strimziCaCert" .) }}
+
+{{- $secret := (lookup "v1" "Secret" .Release.Namespace (printf "%s-timescaledb-secret" .Release.Name)) }}
+{{- if $secret }}
+{{- $postgresPw = index $secret.data "POSTGRES_PASSWORD" }}
+{{- end -}}
 
 {{- if .Values.timescaledb.enabled }}
 kind: Secret
 apiVersion: v1
 data:
-  POSTGRES_PASSWORD: {{ $postgresPw | b64enc | quote }}
+  POSTGRES_PASSWORD: {{ $postgresPw | quote }}
 metadata:
   labels:
   name: {{ .Release.Name }}-timescaledb-secret 
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-delete-policy": before-hook-creation
 ---
 kind: Service
 apiVersion: v1
