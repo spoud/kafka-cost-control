@@ -98,8 +98,7 @@ public class ContextDataRepository {
 
     /**
      * Enrich the telegraf data wrapper with context information from this repository. Only context data whose regex
-     * matches this resource will be used. The context data is expected to be sorted by creation time.
-     * If it is not sorted, it is not guaranteed that the newest context data will be used in case of conflicts.
+     * matches this resource will be used.
      *
      * @param telegrafDataWrapper the telegraf data wrapper to enrich with context
      * @return context-enriched data
