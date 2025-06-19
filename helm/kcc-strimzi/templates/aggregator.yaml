@@ -90,6 +90,8 @@ spec:
               value: {{ $aggregatedTableFriendlyTopic }}
             - name: CC_TOPICS_CONTEXT_DATA
               value: {{ $contextTopic }}
+            - name: CC_AGGREGATION_WINDOW_SIZE
+              value: {{ .Values.aggregator.aggregationWindowSize }}
             - name: CC_TOPICS_RAW_DATA
               value: {{ $rawMetricsTopics }}
             {{ if eq .Values.strimzi.auth "scram-sha-512" }}

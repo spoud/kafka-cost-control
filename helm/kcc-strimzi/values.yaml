@@ -55,6 +55,8 @@ telegraf:
     requests:
       cpu: 100m
       memory: 100Mi
+  scrapeIntervalSeconds: 10
+  aggregationWindowSizeSeconds: 3600
 
 strimzi:
   clusterName: my-cluster
@@ -111,6 +113,7 @@ schemaRegistry:
 
 aggregator:
   enabled: true
+  aggregationWindowSize: PT1H
   # Enable DuckDB integration
   olapEnabled: false
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
@@ -154,6 +157,10 @@ connect:
   createConnector: true
   # Labels that will be added to the connect pod
   labels: {}
+  # environment variables that will be added to the container
+  env: []
+#  - name: MY_ENV
+#    value: "my-value"
   resources:
     limits:
       cpu: 1000m
