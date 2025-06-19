@@ -9,6 +9,7 @@ import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
+import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
@@ -38,7 +39,7 @@ public class MetricEnricher {
     private static final ObjectMapper OBJECT_MAPPER =
             new ObjectMapper().registerModule(new JavaTimeModule());
     private final MetricNameRepository metricRepository;
-    private final CachedContextDataManager cachedContextDataManager;
+    private final ContextDataRepository contextDataRepository;
     private final CostControlConfigProperties configProperties;
     private final SerdeFactory serdes;
     private final GaugeRepository gaugeRepository;
@@ -84,7 +85,7 @@ public class MetricEnricher {
                         Named.as("filter-null"))
                 .flatMapValues(this::splitTopicMetricToPrincipalMetrics, Named.as("map-topic-metric-to-principal-metric"))
                 .selectKey(
-                        (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName(),
+                        (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName() + "_" + value.getContext().hashCode(),
                         Named.as("unique-key-for-windowing"))
                 .groupByKey(Grouped.as("group-by-key"))
                 .windowedBy(tumblingWindow)
@@ -132,11 +133,10 @@ public class MetricEnricher {
                 .setValue(telegrafData.getValue())
                 .setTags(rawTelegrafData.tags())
                 .setContext(Collections.emptyMap());
-        List<CachedContextDataManager.CachedContextData> cachedContextData = cachedContextDataManager.getCachedContextData();
-        telegrafData.enrichWithContext(cachedContextData).ifPresent(context -> aggregatedData
-                .setName(context.name())
-                .setContext(context.context())
-                .setEntityType(context.type()));
+        contextDataRepository.enrichWithContext(telegrafData).ifPresent(aggregatedDataInfo -> aggregatedData
+                .setName(aggregatedDataInfo.name())
+                .setContext(aggregatedDataInfo.context())
+                .setEntityType(aggregatedDataInfo.type()));
 
         return aggregatedData.build();
     }
@@ -248,11 +248,10 @@ public class MetricEnricher {
         if (principalName == null) {
             return metric;
         }
-        var newContext = metric.getContext() != null
-                ? new HashMap<>(metric.getContext()) : new HashMap<String, String>();
+        var newContext = contextDataRepository.getContextDataForName(EntityType.PRINCIPAL,
+                principalName, metric.getTimestamp());
         newContext.put("topic", metric.getName());
-        newContext.remove(keyToMapBy);
-        return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName, metric.getInitialMetricName(),
-                metric.getValue(), metric.getCost(), metric.getTags(), newContext);
+        return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName,
+                metric.getInitialMetricName(), metric.getValue(), metric.getCost(), metric.getTags(), newContext);
     }
 }
