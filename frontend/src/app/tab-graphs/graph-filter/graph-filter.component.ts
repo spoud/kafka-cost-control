@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, effect, inject, input, output} from '@angular/core';
+import {Component, effect, inject, input, output} from '@angular/core';
 import {GraphFilter} from '../tab-graphs.component';
 import {FormBuilder, FormGroup, ReactiveFormsModule} from '@angular/forms';
 import {toSignal} from '@angular/core/rxjs-interop';
@@ -14,7 +14,7 @@ import {GraphFilterService} from './graph-filter.service';
     templateUrl: './graph-filter.component.html',
     styleUrl: './graph-filter.component.scss'
 })
-export class GraphFilterComponent implements AfterViewInit {
+export class GraphFilterComponent {
     graphFilterService = inject(GraphFilterService);
 
     existingFilter = input<GraphFilter>()
@@ -31,7 +31,7 @@ export class GraphFilterComponent implements AfterViewInit {
             groupByContext: ['']
         });
 
-        effect(() => {
+        const effectRef = effect(() => {
             const newValues = this.existingFilter();
             if (!newValues) {
                 return;
@@ -45,17 +45,13 @@ export class GraphFilterComponent implements AfterViewInit {
                     groupByContext: newValues.groupByContext,
                 });
             }
+            // only do this once
+            effectRef.destroy();
         })
 
-        const values = toSignal(this.form.valueChanges.pipe(debounceTime(300)));
-
+        const values = toSignal(this.form.valueChanges.pipe(debounceTime(300)), {initialValue: this.form.value});
         effect(() => {
             this.graphFilter.emit(values());
         });
-
-    }
-
-    ngAfterViewInit(): void {
-        this.graphFilter.emit(this.form.value);
     }
 }
