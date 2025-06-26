@@ -50,7 +50,6 @@ public class MetricReducer implements Reducer<AggregatedData> {
         var metricName = left.getInitialMetricName();
         double combined = getAggregationType(metricName).combine(left.getValue(), right.getValue());
         right.setValue(combined);
-        right.setTags(Collections.emptyMap()); // no meaningful way to combine tags, so we just clear them
         return right;
     }
 

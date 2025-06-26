@@ -87,6 +87,10 @@ public class MetricEnricher {
                 .selectKey(
                         (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName() + "_" + value.getContext().hashCode(),
                         Named.as("unique-key-for-windowing"))
+                .mapValues(v -> {
+                    v.setTags(Collections.emptyMap()); // no meaningful way to combine tags in the aggregation, so we just clear them
+                    return v;
+                })
                 .groupByKey(Grouped.as("group-by-key"))
                 .windowedBy(tumblingWindow)
                 .reduce(metricReducer, Named.as("sum-aggregated-value-by-window"))
