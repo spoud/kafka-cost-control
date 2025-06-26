@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.streams.kstream.Reducer;
 
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -49,6 +50,7 @@ public class MetricReducer implements Reducer<AggregatedData> {
         var metricName = left.getInitialMetricName();
         double combined = getAggregationType(metricName).combine(left.getValue(), right.getValue());
         right.setValue(combined);
+        right.setTags(Collections.emptyMap()); // no meaningful way to combine tags, so we just clear them
         return right;
     }
 

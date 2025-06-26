@@ -103,6 +103,7 @@ public class MetricEnricher {
                         var tags = Tags.of(Stream.concat(value.getContext().keySet().stream(), value.getTags().keySet().stream())
                                 .map(k -> Tag.of(k, value.getContext().getOrDefault(k, value.getTags().get(k))))
                                 .toList());
+                        tags = tags.and(value.getEntityType().name().toLowerCase(), value.getName());
                         gaugeRepository.updateGauge("kcc_" + value.getInitialMetricName(), tags, value.getValue());
                     } catch (Exception e) {
                         Log.warnv("Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags(), e);
