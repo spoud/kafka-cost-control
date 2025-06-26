@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.streams.kstream.Reducer;
 
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
