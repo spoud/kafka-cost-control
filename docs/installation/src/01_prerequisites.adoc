@@ -1,7 +1,0 @@
-=== Prerequisites
-
-This installation manual assumes that
-
-. You have a kafka cluster
-. You have a schema registry
-. You have a kubernetes clusters
