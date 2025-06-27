@@ -161,7 +161,6 @@ class MetricEnricherTest {
         assertThat(aggregated.getName()).isEqualTo("spoud_topic_1");
         assertThat(aggregated.getInitialMetricName()).isEqualTo("confluent_kafka_server_sent_bytes");
         assertThat(aggregated.getEntityType()).isEqualTo(EntityType.TOPIC);
-        assertThat(aggregated.getTags()).containsEntry("env", "dev");
     }
 
     @Test
@@ -183,8 +182,8 @@ class MetricEnricherTest {
 
         // make sure that each topic spawns its own gauge even if they share the same context
         assertThat(gaugeRepository.getGaugeValues()).containsKeys(
-                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "env", "dev", "topic", "spoud_topic_1")),
-                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "env", "dev", "topic", "spoud_topic_2"))
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "topic", "spoud_topic_1")),
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "topic", "spoud_topic_2"))
         );
     }
 
@@ -212,8 +211,6 @@ class MetricEnricherTest {
         assertThat(aggregatedTableFriendly.getInitialMetricName())
                 .isEqualTo("confluent_kafka_server_sent_bytes");
         assertThat(aggregatedTableFriendly.getEntityType()).isEqualTo(EntityType.TOPIC);
-        assertThat(aggregatedTableFriendly.getTags())
-                .isEqualTo("{\"env\":\"dev\",\"topic\":\"spoud_topic_1\"}");
     }
 
     @Test
@@ -285,7 +282,7 @@ class MetricEnricherTest {
         assertThat(aggregated.getName()).isEqualTo("spoud_topic_1");
         assertThat(aggregated.getInitialMetricName()).isEqualTo("confluent_kafka_server_sent_bytes");
         assertThat(aggregated.getEntityType()).isEqualTo(EntityType.TOPIC);
-        assertThat(aggregated.getTags()).containsEntry("env", "dev");
+        assertThat(aggregated.getTags()).isEmpty();
     }
 
     @Test
@@ -326,7 +323,6 @@ class MetricEnricherTest {
         assertThat(aggregated.getName()).isEqualTo("spoud_topic_v1");
         assertThat(aggregated.getInitialMetricName()).isEqualTo("confluent_kafka_server_sent_bytes");
         assertThat(aggregated.getEntityType()).isEqualTo(EntityType.TOPIC);
-        assertThat(aggregated.getTags()).containsEntry("env", "dev");
     }
 
     @Test
@@ -569,11 +565,11 @@ class MetricEnricherTest {
         assertThat(map).containsAllEntriesOf(Map.of(
                 // first entry
                 new AggregatedDataKey(baseTime, baseTime.plus(Duration.ofHours(1)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes"),
-                new AggregatedDataWindowed(baseTime, baseTime.plus(Duration.ofHours(1)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes", 10.0, null, tags, Map.of()),
+                new AggregatedDataWindowed(baseTime, baseTime.plus(Duration.ofHours(1)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes", 10.0, null, Map.of(), Map.of()),
 
                 // second entry
                 new AggregatedDataKey(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes"),
-                new AggregatedDataWindowed(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes", 11.0, null, tags, Map.of())
+                new AggregatedDataWindowed(baseTime.plus(Duration.ofHours(1)), baseTime.plus(Duration.ofHours(2)), EntityType.TOPIC, "prefix_topic_postfix", "confluent_kafka_server_sent_bytes", 11.0, null, Map.of(), Map.of())
         ));
     }
 
