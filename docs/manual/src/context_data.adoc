@@ -10,7 +10,9 @@ The context data are stored in kafka in a compacted topic. The key is free for t
 
 ===== From the UI
 
-Simply go to the context tab of the UI. You should see all the context with their type, regex, validity time and key/values.
+Go to the tab _Context Data_ in the UI. You should see all the context with their validity time, type, regex and context key/values.
+
+If you are signed in, you can use the context tester via the button _test context data_ to check what context key/values currently apply to your topic or principal.
 
 ===== Using Graphql
 
@@ -38,7 +40,7 @@ If you want to create a new context, you can omit the id if you want. If no id i
 If you use an id that is not yet in the system, this means you're creating a new context item.
 
 ===== From the UI
-_Not available yet._
+In the Context Data tab via the button _Add context data_. You need to be signed in for the button to be visible.
 
 ===== Using Graphql
 [source,graphql]
