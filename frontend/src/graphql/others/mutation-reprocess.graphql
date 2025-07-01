@@ -1,3 +1,0 @@
-mutation reprocess($startTime: DateTime) {
-  reprocess(areYouSure:"yes", startTime:$startTime)
-}
