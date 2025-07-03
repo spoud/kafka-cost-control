@@ -121,7 +121,7 @@ data:
         "cost"              DOUBLE PRECISION NULL,
         "tags"              JSONB            NOT NULL,
         "context"           JSONB            NOT NULL,
-        PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name")
+        PRIMARY KEY ("startTime", "endTime", "entityType", "initialMetricName", "name", "context")
     );
 
     SELECT create_hypertable('{{ $outputTable }}', by_range('startTime', INTERVAL '7 days'));
@@ -197,6 +197,13 @@ spec:
   version: 3.8.0
   replicas: 1
   bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
+  externalConfiguration:
+    env:
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Release.Name }}-timescaledb-secret
+            key: POSTGRES_PASSWORD
   template:
     connectContainer:
       env:
@@ -222,6 +229,8 @@ spec:
     trustedCertificates: []
     {{- end }}
   config:
+    config.providers: env
+    config.providers.env.class: org.apache.kafka.common.config.provider.EnvVarConfigProvider
     group.id: {{ .Release.Name }}-connect
     offset.storage.topic: {{ .Release.Name }}-connect-cluster-offsets
     config.storage.topic: {{ .Release.Name }}-connect-cluster-configs
@@ -258,12 +267,12 @@ spec:
     "topics": "{{ $aggregatedTableFriendlyTopic }}",
     "connection.url": "jdbc:postgresql://{{ .Release.Name }}-timescaledb:5432/postgres?sslmode=disable",
     "connection.user": "postgres",
-    "connection.password": "{{ $postgresPw }}",
+    "connection.password": "${env:POSTGRES_PASSWORD}",
     "insert.mode": "upsert",
     "auto.create": "false",
     "table.name.format": "{{ $outputTable }}",
     "pk.mode": "record_value",
-    "pk.fields": "startTime,endTime,entityType,initialMetricName,name",
+    "pk.fields": "startTime,endTime,entityType,initialMetricName,name,context",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "io.confluent.connect.avro.AvroConverter",
     "value.converter.schema.registry.url": "{{ .Values.schemaRegistry.url }}",
