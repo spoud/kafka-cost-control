@@ -1,6 +1,6 @@
 {{ $postgresPw := (randAlphaNum 10) | b64enc }}
 {{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
-{{ $outputTable := printf "%s_aggregated_table_friendly" .Release.Name }}
+{{ $outputTable := (default (printf "%s_aggregated_table_friendly" .Release.Name) .Values.timescaledb.tableName) }}
 {{ $caCert := (include "strimziCaCert" .) }}
 
 {{- $secret := (lookup "v1" "Secret" .Release.Namespace (printf "%s-timescaledb-secret" .Release.Name)) }}
