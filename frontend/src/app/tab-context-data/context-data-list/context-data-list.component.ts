@@ -8,7 +8,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
 import {MatButton, MatFabButton, MatIconButton} from '@angular/material/button';
 import {MatIcon} from '@angular/material/icon';
-import {ContextDataCreateComponent} from '../context-data-create/context-data-create.component';
+import {ContextDataSaveComponent} from '../context-data-save/context-data-save.component';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {LoggedInDirective} from '../../auth/logged-in.directive';
 import {BROWSER_LOCALE} from '../../app.config';
@@ -80,7 +80,7 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     }
 
     openCreateDialog() {
-        const dialogRef: MatDialogRef<ContextDataCreateComponent> = this.dialog.open(ContextDataCreateComponent);
+        const dialogRef: MatDialogRef<ContextDataSaveComponent> = this.dialog.open(ContextDataSaveComponent);
         dialogRef.afterClosed().subscribe(result => {
             if (result === 'successfully-saved') {
                 this.loadContextData();
@@ -88,8 +88,15 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
         });
     }
 
-    openTestDialog() {
-        this.dialog.open(ContextDataTestComponent);
+    edit(element: ContextDataEntity) {
+        const dialogRef: MatDialogRef<ContextDataSaveComponent> = this.dialog.open(ContextDataSaveComponent, {
+            data: {element}
+        });
+        dialogRef.afterClosed().subscribe(result => {
+            if (result === 'successfully-saved') {
+                this.loadContextData();
+            }
+        })
     }
 
     delete(element: ContextDataEntity) {
@@ -110,5 +117,9 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
                     })
             }
         })
+    }
+
+    openTestDialog() {
+        this.dialog.open(ContextDataTestComponent);
     }
 }
