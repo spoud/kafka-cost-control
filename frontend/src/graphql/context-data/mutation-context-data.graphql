@@ -6,3 +6,9 @@ mutation saveContextData($request: ContextDataSaveRequestInput!) {
         regex
     }
 }
+
+mutation deleteContextData($request: ContextDataDeleteRequestInput) {
+    deleteContextData(request: $request) {
+        id # response is null!
+    }
+}

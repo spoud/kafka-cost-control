@@ -1,12 +1,12 @@
 import {AfterViewInit, Component, Inject, OnInit, ViewChild} from '@angular/core';
-import {GetContextDatasGQL} from '../../../generated/graphql/sdk';
+import {DeleteContextDataGQL, GetContextDatasGQL} from '../../../generated/graphql/sdk';
 import {ContextDataEntity} from '../../../generated/graphql/types';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
 import {MatTableDataSource, MatTableModule} from '@angular/material/table';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
-import {MatButton, MatFabButton} from '@angular/material/button';
+import {MatButton, MatFabButton, MatIconButton} from '@angular/material/button';
 import {MatIcon} from '@angular/material/icon';
 import {ContextDataCreateComponent} from '../context-data-create/context-data-create.component';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
@@ -14,6 +14,7 @@ import {LoggedInDirective} from '../../auth/logged-in.directive';
 import {BROWSER_LOCALE} from '../../app.config';
 import {IntlDatePipe} from '../../common/intl-date.pipe';
 import {ContextDataTestComponent} from '../context-data-test/context-data-test.component';
+import {ConfirmDialogComponent} from '../confirm-dialog/confirm-dialog.component';
 
 @Component({
     selector: 'app-context-data-list',
@@ -27,7 +28,8 @@ import {ContextDataTestComponent} from '../context-data-test/context-data-test.c
         MatIcon,
         LoggedInDirective,
         IntlDatePipe,
-        MatButton
+        MatButton,
+        MatIconButton
     ]
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
@@ -37,10 +39,11 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     // public contextDataList: ContextDataEntity[] = [];
     dataSource = new MatTableDataSource<ContextDataEntity>([]);
 
-    public displayedColumns: string[] = ['creationTime', 'validFrom', 'validUntil', 'entityType', 'regex', 'context'];
+    public displayedColumns: string[] = ['creationTime', 'validFrom', 'validUntil', 'entityType', 'regex', 'context', 'buttons'];
 
     constructor(
         private contextDataService: GetContextDatasGQL,
+        private deleteContextDataService: DeleteContextDataGQL,
         private _liveAnnouncer: LiveAnnouncer,
         private _snackBar: MatSnackBar,
         private dialog: MatDialog,
@@ -87,5 +90,25 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
     openTestDialog() {
         this.dialog.open(ContextDataTestComponent);
+    }
+
+    delete(element: ContextDataEntity) {
+        const confirmDialogRef = this.dialog.open(ConfirmDialogComponent, {
+            data: {element}
+        });
+        confirmDialogRef.afterClosed().subscribe(confirmation => {
+            if (confirmation) {
+                this.deleteContextDataService.mutate({request: {id: element.id!}})
+                    .subscribe({
+                        next: _ => {
+                            this.loadContextData();
+                            this._snackBar.open(`Successfully deleted context data with regex "${element.regex}".`);
+                        },
+                        error: err => {
+                            this._snackBar.open(`Error while deleting context data. Reason: ${err}`);
+                        }
+                    })
+            }
+        })
     }
 }
