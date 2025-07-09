@@ -17,7 +17,6 @@ spec:
   config:
     cleanup.policy: compact
   partitions: 1
-  replicas: 3
 ---
 {{ end }}
 
