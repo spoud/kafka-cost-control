@@ -2,6 +2,8 @@ import {Component, computed, inject, signal} from '@angular/core';
 import {GraphFilterComponent} from './graph-filter/graph-filter.component';
 import {GraphPanelComponent} from './graph-panel/graph-panel.component';
 import {GraphFilterService} from './graph-filter/graph-filter.service';
+import {MatIcon} from '@angular/material/icon';
+import {MatDivider} from '@angular/material/divider';
 
 export interface GraphFilter {
     from: Date;
@@ -15,6 +17,8 @@ export interface GraphFilter {
     imports: [
         GraphFilterComponent,
         GraphPanelComponent,
+        MatIcon,
+        MatDivider
     ],
     templateUrl: './tab-graphs.component.html',
     styleUrl: './tab-graphs.component.scss'

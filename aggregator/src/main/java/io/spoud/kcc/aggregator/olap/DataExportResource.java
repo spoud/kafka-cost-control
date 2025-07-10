@@ -17,8 +17,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Path("/olap/export")
 public class DataExportResource {
@@ -53,11 +51,20 @@ public class DataExportResource {
         });
         return Response.ok().entity((StreamingOutput) output -> {
                     output.write((groupByContextKey + ",").getBytes());
-                    output.write(String.join(",", metricToValue.keySet()).getBytes());
+                    List<String> header = metricToValue.keySet().stream()
+                            .map(s -> s + " [bytes]," + s + " [%]")
+                            .toList();
+                    output.write(String.join(",", header).getBytes());
                     output.write("\n".getBytes());
+                    List<Double> totals = extractTotals(metricToValue);
                     groupByContextToValues.forEach((k, v) -> {
-                        Stream<String> objectStream = v.stream().map(Object::toString);
-                        String line = k + "," + objectStream.collect(Collectors.joining(","));
+                        List<String> list = new ArrayList<>();
+                        for (int i = 0; i < v.size(); i++) {
+                            Double value = v.get(i);
+                            list.add(value.toString());
+                            list.add(String.valueOf(value / totals.get(i)));
+                        }
+                        String line = k + "," + String.join(",", list);
                         try {
                             output.write(line.getBytes());
                             output.write("\n".getBytes());
@@ -67,6 +74,20 @@ public class DataExportResource {
                     });
                 }).header("Content-Disposition", "attachment; filename=export_" + nowAsIso() + ".csv")
                 .build();
+    }
+
+    private List<Double> extractTotals(Map<String, Collection<MetricHistoryTO>> metricToValue) {
+        List<Double> totals = new ArrayList<>();
+        for (Collection<MetricHistoryTO> value : metricToValue.values()) {
+            Double t = 0.0;
+            for (MetricHistoryTO metricHistoryTO : value) {
+                for (Double metricHistoryTOValue : metricHistoryTO.getValues()) {
+                    t += metricHistoryTOValue;
+                }
+            }
+            totals.add(t);
+        }
+        return totals;
     }
 
     private String nowAsIso() {
