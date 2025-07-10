@@ -497,7 +497,12 @@ public class AggregatedMetricsRepository {
                     var context = json.toString();
 
                     for (String metric : metrics) {
-                        var value = rnd.nextInt(150_000_000);
+                        int value;
+                        if (Math.random() > 0.8) {
+                            value = rnd.nextInt(150_000_000);
+                        } else {
+                            value = rnd.nextInt(30_000_000);
+                        }
                         var scale = (i + 1) / 3.0;
                         value = (int) (value * scale);
                         stmt.setObject(1, startTime.atOffset(ZoneOffset.UTC));
