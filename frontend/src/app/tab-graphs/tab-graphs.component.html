@@ -1,2 +1,5 @@
 <app-graph-filter (graphFilter)="filter.set($event)"/>
+@if (filter()?.groupByContext) {
+    <a [href]="csvDownloadUrl()">download csv</a>
+}
 <app-graph-panel [metricsData]="historyData.value() || []"/>

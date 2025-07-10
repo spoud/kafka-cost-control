@@ -8,6 +8,7 @@ import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
+import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.data.AggregatedDataWindowed;
@@ -309,6 +310,19 @@ public class AggregatedMetricsRepository {
         }).orElse(null);
     }
 
+    public Map<String, Collection<MetricHistoryTO>> exportDataAggregated(Instant startDate, Instant endDate, String groupByContextKey) {
+        var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
+        var finalEndDate = endDate == null ? Instant.now() : endDate;
+
+        Map<String, Collection<MetricHistoryTO>> metricToAggregatedValue = metricNameRepository.getMetricNames().stream()
+                .map(MetricNameEntity::metricName)
+                .collect(Collectors.toMap(
+                        metric -> metric,
+                        metric -> getHistoryGrouped(finalStartDate, finalEndDate, Set.of(metric), groupByContextKey, false)
+                ));
+        return metricToAggregatedValue;
+    }
+
 
     public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
         return getConnection().map((conn) -> {
@@ -355,6 +369,10 @@ public class AggregatedMetricsRepository {
     }
 
     public Collection<MetricHistoryTO> getHistoryGrouped(Instant startDate, Instant endDate, Set<String> names, String groupByContextKey) {
+        return getHistoryGrouped(startDate, endDate, names, groupByContextKey, true);
+    }
+
+    public Collection<MetricHistoryTO> getHistoryGrouped(Instant startDate, Instant endDate, Set<String> names, String groupByContextKey, boolean groupByHour) {
         return getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
@@ -364,15 +382,15 @@ public class AggregatedMetricsRepository {
                     .collect(Collectors.joining(", ", "(", ")"));
             // we use a subquery so we can guarantee binding of the same value for `json_value(context, ?)`
             // which is used in select and in group by clause
-            String sql = """
-                    select subquery.context, subquery.start_time, sum(subquery.value) as sum
-                    from (
-                        select json_value(context, ?) as context, start_time, value
-                        from aggregated_data
-                        where start_time >= ? and end_time <= ?
-                    """ + nameFilter + ") as subquery" +
-                    " group by context, start_time" +
-                    " order by start_time";
+            String sql =
+                    "select subquery.context" + (groupByHour ? ", subquery.start_time" : "") + ", sum(subquery.value) as sum " +
+                            """
+                                    from (
+                                           select json_value(context, ?) as context, start_time, value
+                                           from aggregated_data
+                                           where start_time >= ? and end_time <= ?
+                                    """ + nameFilter + ") as subquery" +
+                            " group by context " + (groupByHour ? ", start_time order by start_time" : "");
             try (var statement = conn.prepareStatement(sql)) {
                 statement.setString(1, groupByContextKey);
                 statement.setObject(2, finalStartDate.atOffset(ZoneOffset.UTC));
@@ -387,11 +405,13 @@ public class AggregatedMetricsRepository {
                     while (resultSet.next()) {
                         String nullableContext = resultSet.getString("context");
                         String context = nullableContext == null ? "_unknown" : nullableContext.replace("\"", "");
-                        Instant startTime = resultSet.getTimestamp("start_time").toInstant();
+                        Instant startTime = groupByHour ?
+                                resultSet.getTimestamp("start_time").toInstant() :
+                                null;
                         double value = resultSet.getDouble("sum");
                         metrics.compute(context, (k, v) -> {
                                     if (v == null) {
-                                        return new MetricHistoryTO(context, Map.of(), new ArrayList<>(List.of(startTime)), new ArrayList<>(List.of(value)));
+                                        return new MetricHistoryTO(context, Map.of(), startTime != null ? new ArrayList<>(List.of(startTime)) : List.of(), new ArrayList<>(List.of(value)));
                                     } else {
                                         v.getTimes().add(startTime);
                                         v.getValues().add(value);
@@ -474,13 +494,12 @@ public class AggregatedMetricsRepository {
                     json.put("writers", writer);
                     json.put("topic", topic);
                     json.put("application", application);
-
                     var context = json.toString();
-                    var value = rnd.nextInt(150_000_000);
-                    var scale = (i + 1) / 3.0;
-                    value = (int) (value * scale);
 
                     for (String metric : metrics) {
+                        var value = rnd.nextInt(150_000_000);
+                        var scale = (i + 1) / 3.0;
+                        value = (int) (value * scale);
                         stmt.setObject(1, startTime.atOffset(ZoneOffset.UTC));
                         stmt.setObject(2, endTime.atOffset(ZoneOffset.UTC));
                         stmt.setString(3, metric);

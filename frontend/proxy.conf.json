@@ -4,5 +4,8 @@
     "target2": "https://kafka-cost-control-demo.sdm.spoud.io",
     "secure": false,
     "changeOrigin": true
+  },
+  "/olap": {
+    "target": "http://localhost:8080"
   }
 }
