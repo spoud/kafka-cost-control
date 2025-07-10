@@ -62,7 +62,7 @@ public class DataExportResource {
                         for (int i = 0; i < v.size(); i++) {
                             Double value = v.get(i);
                             list.add(value.toString());
-                            list.add(String.valueOf(value / totals.get(i) * 100));
+                            list.add(String.format("%.2f", value / totals.get(i) * 100));
                         }
                         String line = k + "," + String.join(",", list);
                         try {
