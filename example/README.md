@@ -1,10 +1,10 @@
-# Kafka Cost Control CTF Setup
+# Kafka Cost Control Demo Setup
 
 This repo sets up an example Kubernetes environment for Kafka Cost Control (https://github.com/spoud/kafka-cost-control).
 
 ## Requirements
 
-Have a Kubernetes cluster with Strimzi installed (we assume that Strimzi operator is running in the `kafka` namespace).
+Have a Kubernetes cluster with Strimzi installed (we assume that the Strimzi operator is running in the `kafka` namespace).
 
 ## Setup
 
