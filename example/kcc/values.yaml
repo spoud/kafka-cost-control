@@ -1,0 +1,155 @@
+# Default values for Kafka Cost Control.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Used as a tag in all scraped metrics. Helps you to identify the environment where the metrics are coming from.
+env: dev
+# Set this to true to enable debug logging in telegraf and the context operator
+debug: true
+
+topics:
+  context: {} # when unset, the below values are generated from the release name
+    #topicName: "context-data"
+  rawMetrics:
+    #topicName: "raw-metrics" # if unset, the topic name is generated from the release name
+    partitions: 3
+    # default: 90 days retention
+    retentionMs: "7776000000"
+  pricingRules:
+    #topicName: "pricing-rules" # if unset, the topic name is generated from the release name
+    partitions: 1
+  aggregated:
+    #topicName: "aggregated" # if unset, the topic name is generated from the release name
+    partitions: 1
+    config:
+      retentionMs: "7776000000"
+  aggregatedTableFriendly:
+    #topicName: "aggregated-table-friendly" # if unset, the topic name is generated from the release name
+    partitions: 1
+    config:
+      retentionMs: "7776000000"
+  # list of raw metrics topics that should be consumed by the aggregator.
+  # If empty, the aggregator will consume the topic defined in the rawMetrics section
+  toAggregate: []
+
+telegraf:
+  image: telegraf:1.31.3-alpine
+  enabled: true
+  labels: {}
+  # will be applied to the container
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 12023
+    runAsGroup: 12023
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  resources:
+    limits:
+      cpu: 1
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  scrapeIntervalSeconds: 10
+  aggregationWindowSizeSeconds: 120
+
+strimzi:
+  clusterName: my-cluster
+  bootstrapServer: my-cluster-kafka-bootstrap:9093
+  # If you have a custom CA certificate stored in a secret, you can specify it here.
+  # If this value is not provided, no truststore will be configured and all containers will use their built-in truststores (these will usually trust known CAs like Let's Encrypt).
+  # The custom secret must have the same structure as the strimzi-generated one. (i.e. it should contain ca.crt, ca.p12, ca.password keys)
+  clusterCaCertSecret: my-cluster-cluster-ca-cert
+
+  # TODO: actually add support for tls and none
+  # "scram-sha-512" or "tls" or "none"
+  auth: scram-sha-512
+  scramOverTls: true
+  contextOperator:
+    labels: {}
+    enabled: true
+    image: spoud/kafka-cost-control-strimzi-operator:latest
+    # will be applied to the container
+    securityContext:
+      runAsUser: 185
+      runAsGroup: 185
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+      seccompProfile:
+        type: RuntimeDefault
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 5
+    readinessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 5
+    startupProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 10
+    resources:
+      limits:
+        cpu: 1
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# Don't have a schema registry and would like to try out this chart? Run the following two commands:
+# kubectl create deploy schema-registry --image=apicurio/apicurio-registry:3.0.5 -n <your strimzi namespace> --port 8080
+# kubectl expose deploy schema-registry
+schemaRegistry:
+  url: http://schema-registry:8080/apis/ccompat/v7
+
+aggregator:
+  enabled: true
+  aggregationWindowSize: PT2M
+  # Enable DuckDB integration
+  olapEnabled: false
+  # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
+  olapDatabaseMemoryLimitPercent: 30
+  appId: kcc-aggregator
+  image: spoud/kafka-cost-control:0.4.1
+  # Labels that will be added to the pod
+  labels: {}
+  # will be applied to the container
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 185
+    runAsGroup: 185
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    # Override the default storage class if you don't want to use the default one
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 1Gi
+  volumeClaimTemplate:
+    #storageClassName: standard
+    accessModes: [ "ReadWriteOnce" ]
+    resources:
+      requests:
+        storage: 1Gi
+
+connect:
+  enabled: false
+
+timescaledb:
+  enabled: false
