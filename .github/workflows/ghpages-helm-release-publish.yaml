@@ -3,6 +3,8 @@ name: GitHub Pages + Helm Release and Publish
 on:
   push:
     branches: [ master ]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 jobs:
   build:
     permissions:
