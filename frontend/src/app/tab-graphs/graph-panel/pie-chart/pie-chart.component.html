@@ -1,1 +1,8 @@
+<div id="toolbar">
+    <div></div>
+    <button mat-raised-button color="secondary" (click)="exportToCsv()">
+        <mat-icon>description</mat-icon>
+        Export as CSV
+    </button>
+</div>
 <div echarts [options]="piechartOptions()" [theme]="'default'" (chartInit)="onChartInit($event)"></div>

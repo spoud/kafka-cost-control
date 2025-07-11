@@ -3,13 +3,19 @@ import {MetricHistory} from '../../../../generated/graphql/types';
 import * as echarts from 'echarts/core';
 import {EChartsCoreOption, EChartsType} from 'echarts/core';
 import {NgxEchartsDirective, provideEchartsCore} from 'ngx-echarts';
+import {saveAs} from 'file-saver-es';
+import {MatButton} from '@angular/material/button';
+import {MatIcon} from '@angular/material/icon';
 
 @Component({
     selector: 'app-pie-chart',
     imports: [
-        NgxEchartsDirective
+        NgxEchartsDirective,
+        MatButton,
+        MatIcon
     ],
     templateUrl: './pie-chart.component.html',
+    styleUrls: ['./pie-chart.component.scss'],
     providers: [
         provideEchartsCore({echarts}),
     ]
@@ -20,7 +26,7 @@ export class PieChartComponent {
 
     metricsData = input.required<MetricHistory[]>();
 
-    piechartOptions = computed<EChartsCoreOption>(() => {
+    pieChartDataSet = computed(() => {
         const pieChartDataSet: Array<Array<string | number>> = [];
         this.metricsData().forEach(metricHistory => {
             let total = 0;
@@ -31,13 +37,16 @@ export class PieChartComponent {
             });
             pieChartDataSet.push([metricHistory.name, total]);
         });
+        return pieChartDataSet;
+    });
 
+    piechartOptions = computed<EChartsCoreOption>(() => {
         return {
             tooltip: {
                 trigger: 'item',
             },
             dataset: {
-                source: pieChartDataSet,
+                source: this.pieChartDataSet(),
             },
             series: [
                 {
@@ -49,6 +58,18 @@ export class PieChartComponent {
             ]
         };
     });
+
+    exportToCsv() {
+        const csvLines: Array<string> = [];
+        this.pieChartDataSet().forEach(pieSlice => {
+            csvLines.push(pieSlice.join(","));
+        });
+        csvLines.sort();
+        const withHeader = ["name, usage", ...csvLines];
+        const blob = new Blob([withHeader.join('\n')], {type: 'text/csv'});
+        const name = `report_${new Date().toISOString()}`;
+        saveAs(blob, name + ".csv");
+    }
 
     onChartInit($event: EChartsType) {
         this.chartInit.emit($event);
