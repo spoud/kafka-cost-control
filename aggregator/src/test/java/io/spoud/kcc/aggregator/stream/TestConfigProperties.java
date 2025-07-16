@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.stream;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import lombok.Builder;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -21,10 +22,10 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private Map<String, MissingKeyHandling> splitMetricAmongPrincipalsMissingKeyHandling;
     private String splitMetricAmongPrincipalsFallbackPrincipal;
     @Builder.Default
-    private String aggregationWindowSize = "PT1H";
+    private Duration aggregationWindowSize = Duration.parse("PT1H");
 
     @Override
-    public String aggregationWindowSize() {
+    public Duration aggregationWindowSize() {
         return aggregationWindowSize;
     }
 

@@ -5,6 +5,7 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -17,7 +18,7 @@ public interface CostControlConfigProperties {
 
     @WithName("aggregation-window-size")
     @WithDefault("PT1H")
-    String aggregationWindowSize();
+    Duration aggregationWindowSize();
 
     @WithName("topics.raw-data")
     @NotNull
