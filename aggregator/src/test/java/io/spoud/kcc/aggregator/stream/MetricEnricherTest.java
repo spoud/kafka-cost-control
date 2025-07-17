@@ -19,6 +19,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
+import org.apache.kafka.streams.test.TestRecord;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
@@ -90,7 +91,7 @@ class MetricEnricherTest {
                 .build();
         metricReducer = Mockito.spy(new MetricReducer(configProperties));
         metricRepository = new MetricNameRepository(metricReducer);
-        gaugeRepository = new GaugeRepository(new SimpleMeterRegistry());
+        gaugeRepository = new GaugeRepository(new SimpleMeterRegistry(), configProperties);
         var kafkaStreams = Mockito.mock(KafkaStreams.class);
         ContextDataRepository contextDataRepository = new ContextDataRepository(Mockito.mock(Emitter.class), kafkaStreams);
 
@@ -177,12 +178,19 @@ class MetricEnricherTest {
         Thread.sleep(1000);
 
         // generate metrics for two different topics that will be mapped to the same context
-        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 1.5));
-        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_2", 2.5));
+        rawTelegrafDataTopic.pipeInput(new TestRecord<>(null, generateTopicRawTelegraf(Instant.now().minus(Duration.ofMinutes(125)), "spoud_topic_1", 1.5), Instant.now().minus(Duration.ofMinutes(125))));
+        rawTelegrafDataTopic.pipeInput(new TestRecord<>(null, generateTopicRawTelegraf(Instant.now(), "spoud_topic_2", 2.5), Instant.now()));
 
         // make sure that each topic spawns its own gauge even if they share the same context
         assertThat(gaugeRepository.getGaugeValues()).containsKeys(
                 new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "topic", "spoud_topic_1")),
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "topic", "spoud_topic_2"))
+        );
+
+        gaugeRepository.removeExpiredGauges();
+
+        // one gauge timed out, one is still active
+        assertThat(gaugeRepository.getGaugeValues()).containsOnlyKeys(
                 new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cost-unit", "my-cost-unit", "topic", "spoud_topic_2"))
         );
     }

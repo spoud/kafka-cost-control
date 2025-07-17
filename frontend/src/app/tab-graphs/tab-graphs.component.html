@@ -1,2 +1,9 @@
 <app-graph-filter (graphFilter)="filter.set($event)"/>
+@if (filter()?.groupByContext) {
+    <a [href]="csvDownloadUrl()">
+        <mat-icon>description</mat-icon>
+        Generate CSV report for all metrics for selected context and date range
+    </a>
+}
+<mat-divider/>
 <app-graph-panel [metricsData]="historyData.value() || []"/>
