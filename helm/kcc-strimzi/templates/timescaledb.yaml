@@ -1,21 +1,31 @@
-{{ $postgresPw := (randAlphaNum 10) | b64enc }}
 {{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
 {{ $outputTable := printf "%s_aggregated_table_friendly" .Release.Name }}
 {{ $caCert := (include "strimziCaCert" .) }}
 
-{{- $secret := (lookup "v1" "Secret" .Release.Namespace (printf "%s-timescaledb-secret" .Release.Name)) }}
-{{- if $secret }}
-{{- $postgresPw = index $secret.data "POSTGRES_PASSWORD" }}
-{{- end -}}
+{{- /*
+  Default secret name and key for the event where we have to generate a secret
+*/}}
+{{ $postgresSecretName := printf "%s-timescaledb-secret" .Release.Name }}
+{{ $postgresSecretKey := "POSTGRES_PASSWORD" }}
 
 {{- if .Values.timescaledb.enabled }}
+
+{{- if (and .Values.timescaledb.passwordSecretRef (and .Values.timescaledb.passwordSecretRef.name .Values.timescaledb.passwordSecretRef.key)) }}
+{{ $postgresSecretName = .Values.timescaledb.passwordSecretRef.name }}
+{{ $postgresSecretKey = .Values.timescaledb.passwordSecretRef.key }}
+{{- else }}
+{{ $postgresPw := (randAlphaNum 10) | b64enc }}
 kind: Secret
 apiVersion: v1
 data:
-  POSTGRES_PASSWORD: {{ $postgresPw | quote }}
+  {{ $postgresSecretKey }}: {{ $postgresPw | quote }}
 metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation
   labels:
-  name: {{ .Release.Name }}-timescaledb-secret 
+  name: {{ $postgresSecretName }}
+{{- end }} {{/* (and .Values.timescaledb.passwordSecretRef (and .Values.timescaledb.passwordSecretRef.name .Values.timescaledb.passwordSecretRef.key)) */}}
 ---
 kind: Service
 apiVersion: v1
@@ -72,8 +82,8 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-timescaledb-secret
-                  key: POSTGRES_PASSWORD
+                  name: {{ $postgresSecretName }}
+                  key: {{ $postgresSecretKey }}
           ports:
             - containerPort: 5432
               name: timescaledb
@@ -197,6 +207,13 @@ spec:
   version: 3.8.0
   replicas: 1
   bootstrapServers: {{ .Values.strimzi.bootstrapServer }}
+  externalConfiguration:
+    env:
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ $postgresSecretName }}
+            key: {{ $postgresSecretKey }}
   template:
     connectContainer:
       env:
@@ -222,6 +239,8 @@ spec:
     trustedCertificates: []
     {{- end }}
   config:
+    config.providers: env
+    config.providers.env.class: org.apache.kafka.common.config.provider.EnvVarConfigProvider
     group.id: {{ .Release.Name }}-connect
     offset.storage.topic: {{ .Release.Name }}-connect-cluster-offsets
     config.storage.topic: {{ .Release.Name }}-connect-cluster-configs
@@ -258,7 +277,7 @@ spec:
     "topics": "{{ $aggregatedTableFriendlyTopic }}",
     "connection.url": "jdbc:postgresql://{{ .Release.Name }}-timescaledb:5432/postgres?sslmode=disable",
     "connection.user": "postgres",
-    "connection.password": "{{ $postgresPw }}",
+    "connection.password": "${env:POSTGRES_PASSWORD}",
     "insert.mode": "upsert",
     "auto.create": "false",
     "table.name.format": "{{ $outputTable }}",
