@@ -23,7 +23,7 @@
     "@angular/platform-browser": "^20.0.0",
     "@angular/platform-browser-dynamic": "^20.0.0",
     "@angular/router": "^20.0.0",
-    "@apollo/client": "^3.13.8",
+    "@apollo/client": "^3.13.9",
     "@ngrx/signals": "^20.0.0",
     "apollo-angular": "^11.0.0",
     "echarts": "^5.6.0",
