@@ -54,7 +54,7 @@
     "@types/file-saver-es": "^2.0.3",
     "@types/jasmine": "~5.1.7",
     "@typescript-eslint/eslint-plugin": "^7.17.0",
-    "@typescript-eslint/parser": "7.18.0",
+    "@typescript-eslint/parser": "8.39.0",
     "eslint": "^8.57.1",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.4",
