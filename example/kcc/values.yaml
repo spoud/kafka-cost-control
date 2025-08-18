@@ -8,8 +8,8 @@ env: dev
 debug: true
 
 topics:
-  context: {} # when unset, the below values are generated from the release name
-    #topicName: "context-data"
+  context: { } # when unset, the below values are generated from the release name
+  #topicName: "context-data"
   rawMetrics:
     #topicName: "raw-metrics" # if unset, the topic name is generated from the release name
     partitions: 3
@@ -30,12 +30,12 @@ topics:
       retentionMs: "7776000000"
   # list of raw metrics topics that should be consumed by the aggregator.
   # If empty, the aggregator will consume the topic defined in the rawMetrics section
-  toAggregate: []
+  toAggregate: [ ]
 
 telegraf:
   image: telegraf:1.31.3-alpine
   enabled: true
-  labels: {}
+  labels: { }
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -44,7 +44,7 @@ telegraf:
     runAsGroup: 12023
     readOnlyRootFilesystem: true
     capabilities:
-      drop: ["ALL"]
+      drop: [ "ALL" ]
     seccompProfile:
       type: RuntimeDefault
   resources:
@@ -70,7 +70,7 @@ strimzi:
   auth: scram-sha-512
   scramOverTls: true
   contextOperator:
-    labels: {}
+    labels: { }
     enabled: true
     image: spoud/kafka-cost-control-strimzi-operator:latest
     # will be applied to the container
@@ -81,7 +81,7 @@ strimzi:
       runAsNonRoot: true
       readOnlyRootFilesystem: true
       capabilities:
-        drop: ["ALL"]
+        drop: [ "ALL" ]
       seccompProfile:
         type: RuntimeDefault
     livenessProbe:
@@ -120,7 +120,7 @@ aggregator:
   appId: kcc-aggregator
   image: spoud/kafka-cost-control:0.4.1
   # Labels that will be added to the pod
-  labels: {}
+  labels: { }
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -129,11 +129,11 @@ aggregator:
     runAsGroup: 185
     readOnlyRootFilesystem: true
     capabilities:
-      drop: ["ALL"]
+      drop: [ "ALL" ]
     seccompProfile:
       type: RuntimeDefault
   storage:
-    # Override the default storage class if you don't want to use the default one
+  # Override the default storage class if you don't want to use the default one
   resources:
     limits:
       cpu: 4000m
@@ -147,6 +147,32 @@ aggregator:
     resources:
       requests:
         storage: 1Gi
+
+ui:
+  enabled: true
+  host: "kcc.host" # needs a hosts entry if you want to access via host for local development
+  image: spoud/kafka-cost-control-ui:latest
+  replicas: 1
+  # Labels that will be added to the pod
+  labels: { }
+  # will be applied to the container
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ "ALL" ]
+    seccompProfile:
+      type: RuntimeDefault
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 10m
+      memory: 50Mi
 
 connect:
   enabled: false
