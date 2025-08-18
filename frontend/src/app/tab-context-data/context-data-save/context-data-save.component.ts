@@ -1,4 +1,4 @@
-import {Component, Inject, Optional} from '@angular/core';
+import { Component, inject } from '@angular/core';
 import {
     MAT_DIALOG_DATA,
     MatDialogActions,
@@ -59,6 +59,13 @@ import {BROWSER_LOCALE} from '../../app.config';
     styleUrl: './context-data-save.component.scss'
 })
 export class ContextDataSaveComponent {
+    private contextDataService = inject(SaveContextDataGQL);
+    private dialogRef = inject<MatDialogRef<ContextDataSaveComponent>>(MatDialogRef);
+    private formBuilder = inject(NonNullableFormBuilder);
+    private snackBar = inject(MatSnackBar);
+    private dateAdapter = inject<DateAdapter<unknown>>(DateAdapter);
+    private data = inject<{ element: ContextDataEntity } | null>(MAT_DIALOG_DATA, { optional: true });
+
 
     saveForm: FormGroup<{
         validFrom: FormControl<Date | null>;
@@ -68,14 +75,10 @@ export class ContextDataSaveComponent {
         context: FormArray<FormControl<Entry_String_StringInput>>;
     }>
 
-    constructor(private contextDataService: SaveContextDataGQL,
-                private dialogRef: MatDialogRef<ContextDataSaveComponent>,
-                private formBuilder: NonNullableFormBuilder,
-                private snackBar: MatSnackBar,
-                private dateAdapter: DateAdapter<unknown>,
-                @Inject(BROWSER_LOCALE) browserLocale: string,
-                @Inject(MAT_DIALOG_DATA) @Optional() private data: { element: ContextDataEntity } | null,
-    ) {
+    constructor() {
+        const browserLocale = inject(BROWSER_LOCALE);
+        const data = this.data;
+
         if (browserLocale) {
             this.dateAdapter.setLocale(browserLocale);
         }

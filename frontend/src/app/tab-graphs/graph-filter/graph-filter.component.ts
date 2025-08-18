@@ -23,7 +23,9 @@ export class GraphFilterComponent {
 
     form: FormGroup;
 
-    constructor(formBuilder: FormBuilder) {
+    constructor() {
+        const formBuilder = inject(FormBuilder);
+
         this.form = formBuilder.group({
             from: [new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000)],
             to: [new Date()],

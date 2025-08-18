@@ -1,4 +1,4 @@
-import {Component, computed, Signal} from '@angular/core';
+import {Component, computed, inject, Signal} from '@angular/core';
 import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 import {MatTabsModule} from '@angular/material/tabs';
 import {MatToolbar} from '@angular/material/toolbar';
@@ -46,6 +46,9 @@ echarts.use([LineChart, BarChart, GridComponent, CanvasRenderer, LegendComponent
     ]
 })
 export class AppComponent {
+    private _dialog = inject(MatDialog);
+    private _authService = inject(BasicAuthServiceService);
+
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
         const list = [
@@ -61,8 +64,8 @@ export class AppComponent {
         return list;
     })
 
-    constructor(private _dialog: MatDialog, private _authService: BasicAuthServiceService) {
-        this.isAuthenticated = _authService.authenticated();
+    constructor() {
+        this.isAuthenticated = this._authService.authenticated();
     }
 
     signOut(): void {

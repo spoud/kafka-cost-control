@@ -1,14 +1,13 @@
-import {Inject, Injectable, LOCALE_ID} from '@angular/core';
+import { Injectable, LOCALE_ID, inject } from '@angular/core';
 import {BROWSER_LOCALE} from '../app.config';
 
 @Injectable({
     providedIn: 'root'
 })
 export class IntlDateService {
+    private browserLocale = inject(BROWSER_LOCALE);
+    private angularLocale = inject(LOCALE_ID);
 
-    constructor(@Inject(BROWSER_LOCALE) private browserLocale: string,
-                @Inject(LOCALE_ID) private angularLocale: string) {
-    }
 
     transform(date: Date | string, timeZone?: string): string | null {
         if (!date) {

@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import { Component, inject } from '@angular/core';
 import {
     MatDialogActions,
     MatDialogClose,
@@ -21,10 +21,8 @@ import {MatButton} from "@angular/material/button";
     styleUrl: './reprocess-dialog.component.scss'
 })
 export class ReprocessDialogComponent {
-    constructor(
-        public dialogRef: MatDialogRef<ReprocessDialogComponent>
-    ) {
-    }
+    dialogRef = inject<MatDialogRef<ReprocessDialogComponent>>(MatDialogRef);
+
 
 
     onNoClick(): void {

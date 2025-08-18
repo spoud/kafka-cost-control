@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import { Component, inject } from '@angular/core';
 import {MatButton} from "@angular/material/button";
 import {MatDialogContent, MatDialogTitle} from "@angular/material/dialog";
 import {FormControl, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
@@ -25,9 +25,10 @@ import {DialogRef} from '@angular/cdk/dialog';
     styleUrl: './sign-in-dialog.component.scss'
 })
 export class SignInDialogComponent {
+    private _dialogRef = inject<DialogRef<SignInDialogComponent>>(DialogRef);
+    private _authService = inject(BasicAuthServiceService);
+    private _snakbar = inject(MatSnackBar);
 
-    constructor(private _dialogRef: DialogRef<SignInDialogComponent>, private _authService: BasicAuthServiceService, private _snakbar: MatSnackBar) {
-    }
 
     username = new FormControl('', [Validators.required]);
     password = new FormControl('', [Validators.required]);

@@ -1,4 +1,4 @@
-import {Injectable, Signal, signal} from '@angular/core';
+import { Injectable, Signal, signal, inject } from '@angular/core';
 import {map, Observable, Subject} from 'rxjs';
 import {LoginTestGQL} from '../../generated/graphql/sdk';
 import {AdditionalHeadersService} from '../services/additional-headers.service';
@@ -10,10 +10,13 @@ export const HEADER_AUTHORIZATION = 'Authorization';
     providedIn: 'root'
 })
 export class BasicAuthServiceService {
+    private _additionalHeaders = inject(AdditionalHeadersService);
+    private _loginTest = inject(LoginTestGQL);
+
 
     private _authenticated = signal(false);
 
-    constructor(private _additionalHeaders: AdditionalHeadersService, private _loginTest: LoginTestGQL) {
+    constructor() {
         const basicAuthHash = this.getBasicAuthHash();
         if (basicAuthHash != null) {
             // we assume that if a hash is present, the user is logged in, we do not
