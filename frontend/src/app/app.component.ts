@@ -1,31 +1,41 @@
-import {Component, computed, inject, Signal} from '@angular/core';
-import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
-import {MatTabsModule} from '@angular/material/tabs';
-import {MatToolbar} from '@angular/material/toolbar';
-import {MatIcon} from '@angular/material/icon';
-import {MatButton} from '@angular/material/button';
-import {BasicAuthServiceService} from './auth/basic-auth-service.service';
-import {MatTooltip} from '@angular/material/tooltip';
-import {MatDialog} from '@angular/material/dialog';
-import {SignInDialogComponent} from './common/sign-in-dialog/sign-in-dialog.component';
-import {provideEchartsCore} from 'ngx-echarts';
+import { Component, computed, inject, Signal } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatToolbar } from '@angular/material/toolbar';
+import { MatIcon } from '@angular/material/icon';
+import { MatButton } from '@angular/material/button';
+import { BasicAuthServiceService } from './auth/basic-auth-service.service';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
+import { SignInDialogComponent } from './common/sign-in-dialog/sign-in-dialog.component';
+import { provideEchartsCore } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
-import {BarChart, LineChart, PieChart} from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import {
     DatasetComponent,
     DataZoomComponent,
     GridComponent,
     LegendComponent,
-    TooltipComponent
+    TooltipComponent,
 } from 'echarts/components';
-import {CanvasRenderer} from 'echarts/renderers';
+import { CanvasRenderer } from 'echarts/renderers';
 
 interface Link {
     path: string;
     label: string;
 }
 
-echarts.use([LineChart, BarChart, GridComponent, CanvasRenderer, LegendComponent, PieChart, TooltipComponent, DatasetComponent, DataZoomComponent]);
+echarts.use([
+    LineChart,
+    BarChart,
+    GridComponent,
+    CanvasRenderer,
+    LegendComponent,
+    PieChart,
+    TooltipComponent,
+    DatasetComponent,
+    DataZoomComponent,
+]);
 
 @Component({
     selector: 'app-root',
@@ -39,11 +49,9 @@ echarts.use([LineChart, BarChart, GridComponent, CanvasRenderer, LegendComponent
         MatToolbar,
         MatIcon,
         MatButton,
-        MatTooltip
+        MatTooltip,
     ],
-    providers: [
-        provideEchartsCore({echarts}),
-    ]
+    providers: [provideEchartsCore({ echarts })],
 })
 export class AppComponent {
     private _dialog = inject(MatDialog);
@@ -52,17 +60,16 @@ export class AppComponent {
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
         const list = [
-            {path: '/graphs', label: 'Graphs'},
-            {path: '/reporting', label: 'Reporting'},
-            {path: '/context-data', label: 'Context Data'},
-            {path: '/pricing-rules', label: 'Pricing Rules'},
+            { path: '/graphs', label: 'Graphs' },
+            { path: '/reporting', label: 'Reporting' },
+            { path: '/context-data', label: 'Context Data' },
+            { path: '/pricing-rules', label: 'Pricing Rules' },
         ];
         if (this.isAuthenticated()) {
-            list.push({path: '/others', label: 'Others'});
-
+            list.push({ path: '/others', label: 'Others' });
         }
         return list;
-    })
+    });
 
     constructor() {
         this.isAuthenticated = this._authService.authenticated();
@@ -76,7 +83,7 @@ export class AppComponent {
         const dialogRef = this._dialog.open(SignInDialogComponent);
 
         dialogRef.afterClosed().subscribe({
-            next: (result) => console.log('Sign in dialog closed', result)
+            next: result => console.log('Sign in dialog closed', result),
         });
     }
 }

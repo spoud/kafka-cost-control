@@ -4,23 +4,37 @@
 
 <mat-form-field>
     <mat-label>Title</mat-label>
-    <input matInput [(ngModel)]="panelData().title">
+    <input matInput [(ngModel)]="panelData().title" />
 </mat-form-field>
 <mat-form-field>
     <mat-label>Description</mat-label>
-    <input matInput [(ngModel)]="panelData().description">
+    <input matInput [(ngModel)]="panelData().description" />
 </mat-form-field>
 
-<app-graph-filter (graphFilter)="updateFilter($event)" [existingFilter]="graphFilter()"/>
+<app-graph-filter (graphFilter)="updateFilter($event)" [existingFilter]="graphFilter()" />
 
-
-<button mat-icon-button type="button" class="move-left-button" (click)="panelStore.movePanelLeft(panelData().id)">
+<button
+    mat-icon-button
+    type="button"
+    class="move-left-button"
+    (click)="panelStore.movePanelLeft(panelData().id)"
+>
     <mat-icon>chevron_left</mat-icon>
 </button>
-<button mat-icon-button type="button" class="move-right-button" (click)="panelStore.movePanelRight(panelData().id)">
+<button
+    mat-icon-button
+    type="button"
+    class="move-right-button"
+    (click)="panelStore.movePanelRight(panelData().id)"
+>
     <mat-icon>chevron_right</mat-icon>
 </button>
 
-<button mat-icon-button type="button" class="remove-panel-button" (click)="panelStore.removePanel(panelData().id)">
+<button
+    mat-icon-button
+    type="button"
+    class="remove-panel-button"
+    (click)="panelStore.removePanel(panelData().id)"
+>
     <mat-icon>delete</mat-icon>
 </button>

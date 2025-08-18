@@ -1,19 +1,19 @@
-import {AfterViewInit, Component, inject, OnInit, ViewChild} from '@angular/core';
-import {DeleteContextDataGQL, GetContextDatasGQL} from '../../../generated/graphql/sdk';
-import {ContextDataEntity} from '../../../generated/graphql/types';
-import {LiveAnnouncer} from '@angular/cdk/a11y';
-import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
-import {MatTableDataSource, MatTableModule} from '@angular/material/table';
-import {MatSnackBar} from '@angular/material/snack-bar';
-import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
-import {MatButton, MatFabButton, MatIconButton} from '@angular/material/button';
-import {MatIcon} from '@angular/material/icon';
-import {ContextDataSaveComponent} from '../context-data-save/context-data-save.component';
-import {MatDialog, MatDialogRef} from '@angular/material/dialog';
-import {LoggedInDirective} from '../../auth/logged-in.directive';
-import {IntlDatePipe} from '../../common/intl-date.pipe';
-import {ContextDataTestComponent} from '../context-data-test/context-data-test.component';
-import {ConfirmDialogComponent} from '../confirm-dialog/confirm-dialog.component';
+import { AfterViewInit, Component, inject, OnInit, ViewChild } from '@angular/core';
+import { DeleteContextDataGQL, GetContextDatasGQL } from '../../../generated/graphql/sdk';
+import { ContextDataEntity } from '../../../generated/graphql/types';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
+import { MatButton, MatFabButton, MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { ContextDataSaveComponent } from '../context-data-save/context-data-save.component';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { LoggedInDirective } from '../../auth/logged-in.directive';
+import { IntlDatePipe } from '../../common/intl-date.pipe';
+import { ContextDataTestComponent } from '../context-data-test/context-data-test.component';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
 
 @Component({
     selector: 'app-context-data-list',
@@ -28,8 +28,8 @@ import {ConfirmDialogComponent} from '../confirm-dialog/confirm-dialog.component
         LoggedInDirective,
         IntlDatePipe,
         MatButton,
-        MatIconButton
-    ]
+        MatIconButton,
+    ],
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
     private contextDataService = inject(GetContextDatasGQL);
@@ -43,7 +43,15 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     // public contextDataList: ContextDataEntity[] = [];
     dataSource = new MatTableDataSource<ContextDataEntity>([]);
 
-    public displayedColumns: string[] = ['creationTime', 'validFrom', 'validUntil', 'entityType', 'regex', 'context', 'buttons'];
+    public displayedColumns: string[] = [
+        'creationTime',
+        'validFrom',
+        'validUntil',
+        'entityType',
+        'regex',
+        'context',
+        'buttons',
+    ];
 
     ngOnInit(): void {
         this.loadContextData();
@@ -51,8 +59,9 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
     private loadContextData() {
         this.contextDataService.fetch().subscribe({
-            next: value => this.dataSource.data = value.data.contextData,
-            error: err => this._snackBar.open("Could not load context data. " + err.message, "close")
+            next: value => (this.dataSource.data = value.data.contextData),
+            error: err =>
+                this._snackBar.open('Could not load context data. ' + err.message, 'close'),
         });
     }
 
@@ -74,7 +83,8 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     }
 
     openCreateDialog() {
-        const dialogRef: MatDialogRef<ContextDataSaveComponent> = this.dialog.open(ContextDataSaveComponent);
+        const dialogRef: MatDialogRef<ContextDataSaveComponent> =
+            this.dialog.open(ContextDataSaveComponent);
         dialogRef.afterClosed().subscribe(result => {
             if (result === 'successfully-saved') {
                 this.loadContextData();
@@ -83,34 +93,38 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     }
 
     edit(element: ContextDataEntity) {
-        const dialogRef: MatDialogRef<ContextDataSaveComponent> = this.dialog.open(ContextDataSaveComponent, {
-            data: {element}
-        });
+        const dialogRef: MatDialogRef<ContextDataSaveComponent> = this.dialog.open(
+            ContextDataSaveComponent,
+            {
+                data: { element },
+            }
+        );
         dialogRef.afterClosed().subscribe(result => {
             if (result === 'successfully-saved') {
                 this.loadContextData();
             }
-        })
+        });
     }
 
     delete(element: ContextDataEntity) {
         const confirmDialogRef = this.dialog.open(ConfirmDialogComponent, {
-            data: {element}
+            data: { element },
         });
         confirmDialogRef.afterClosed().subscribe(confirmation => {
             if (confirmation) {
-                this.deleteContextDataService.mutate({request: {id: element.id!}})
-                    .subscribe({
-                        next: _ => {
-                            this.loadContextData();
-                            this._snackBar.open(`Successfully deleted context data with regex "${element.regex}".`);
-                        },
-                        error: err => {
-                            this._snackBar.open(`Error while deleting context data. Reason: ${err}`);
-                        }
-                    })
+                this.deleteContextDataService.mutate({ request: { id: element.id! } }).subscribe({
+                    next: _ => {
+                        this.loadContextData();
+                        this._snackBar.open(
+                            `Successfully deleted context data with regex "${element.regex}".`
+                        );
+                    },
+                    error: err => {
+                        this._snackBar.open(`Error while deleting context data. Reason: ${err}`);
+                    },
+                });
             }
-        })
+        });
     }
 
     openTestDialog() {

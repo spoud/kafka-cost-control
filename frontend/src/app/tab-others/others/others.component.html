@@ -12,14 +12,15 @@
         </div>
         <mat-form-field>
             <mat-label>Choose a date</mat-label>
-            <input matInput [matDatepicker]="picker" [(ngModel)]="startTime">
+            <input matInput [matDatepicker]="picker" [(ngModel)]="startTime" />
             <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
             <mat-hint>No date means from the beginning</mat-hint>
             <mat-datepicker #picker></mat-datepicker>
         </mat-form-field>
     </mat-card-content>
     <mat-card-actions>
-        <button mat-button mat-raised-button color="primary" (click)="openReprocessDialog()">Reprocess</button>
+        <button mat-button mat-raised-button color="primary" (click)="openReprocessDialog()">
+            Reprocess
+        </button>
     </mat-card-actions>
 </mat-card>
-

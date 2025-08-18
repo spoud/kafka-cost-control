@@ -1,0 +1,9 @@
+**/.git
+**/.svn
+**/.hg
+**/node_modules
+
+**/*.yaml
+**/*.yml
+**/*.json
+**/*.graphql

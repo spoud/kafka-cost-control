@@ -1,16 +1,21 @@
 import { Component, inject } from '@angular/core';
-import {FormsModule, ReactiveFormsModule} from '@angular/forms';
-import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
-import {MatButton} from '@angular/material/button';
-import {MatFormField, MatLabel} from '@angular/material/form-field';
-import {MatInput} from '@angular/material/input';
-import {Entry_String_String} from '../../../generated/graphql/types';
-import {EntityType, TestContextGQL, TestContextQuery} from '../../../generated/graphql/sdk';
-import {MatSnackBar} from '@angular/material/snack-bar';
-import {MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle} from '@angular/material/dialog';
-import {MatDivider} from '@angular/material/divider';
-import {ApolloQueryResult} from '@apollo/client';
-import {MatTab, MatTabGroup} from '@angular/material/tabs';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
+import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { Entry_String_String } from '../../../generated/graphql/types';
+import { EntityType, TestContextGQL, TestContextQuery } from '../../../generated/graphql/sdk';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import {
+    MatDialogActions,
+    MatDialogClose,
+    MatDialogContent,
+    MatDialogTitle,
+} from '@angular/material/dialog';
+import { MatDivider } from '@angular/material/divider';
+import { ApolloQueryResult } from '@apollo/client';
+import { MatTab, MatTabGroup } from '@angular/material/tabs';
 
 @Component({
     selector: 'app-context-data-test',
@@ -28,15 +33,14 @@ import {MatTab, MatTabGroup} from '@angular/material/tabs';
         MatDialogTitle,
         MatDivider,
         MatTabGroup,
-        MatTab
+        MatTab,
     ],
     templateUrl: './context-data-test.component.html',
-    styleUrl: './context-data-test.component.scss'
+    styleUrl: './context-data-test.component.scss',
 })
 export class ContextDataTestComponent {
     private contextTester = inject(TestContextGQL);
     private _snackBar = inject(MatSnackBar);
-
 
     testString?: string;
     pending = false;
@@ -50,12 +54,16 @@ export class ContextDataTestComponent {
             return;
         }
         this.pending = true;
-        this.contextTester.fetch({testString: this.testString}).subscribe({
-            next: result => this.unwrap(result),
-            error: err => this._snackBar.open(`Could not test contexts. ${err.message}`, "close"),
-        }).add(() => {
-            this.pending = false;
-        });
+        this.contextTester
+            .fetch({ testString: this.testString })
+            .subscribe({
+                next: result => this.unwrap(result),
+                error: err =>
+                    this._snackBar.open(`Could not test contexts. ${err.message}`, 'close'),
+            })
+            .add(() => {
+                this.pending = false;
+            });
     }
 
     private unwrap(result: ApolloQueryResult<TestContextQuery>) {
