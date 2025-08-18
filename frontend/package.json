@@ -9,7 +9,9 @@
     "test": "ng test --watch=false --browsers=ChromeHeadless",
     "generate": "./node_modules/.bin/graphql-codegen --config graphql/codegen.yml",
     "update-schema": "wget -O graphql/schema.graphql http://localhost:8080/graphql/schema.graphql",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "format": "prettier --write .",
+    "prettier": "npm run format"
   },
   "private": true,
   "dependencies": {
@@ -56,12 +58,15 @@
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.4",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "prettier": "^3.6.2",
     "typescript": "~5.8.3"
   }
 }

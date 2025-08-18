@@ -1,1 +1,5 @@
-<app-bar-chart [metricsData]="historyData.value() || []" (chartInit)="chartInit($event)" [type]="'line'"/>
+<app-bar-chart
+    [metricsData]="historyData.value() || []"
+    (chartInit)="chartInit($event)"
+    [type]="'line'"
+/>

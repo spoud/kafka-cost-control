@@ -5,4 +5,9 @@
         Export as CSV
     </button>
 </div>
-<div echarts [options]="piechartOptions()" [theme]="'default'" (chartInit)="onChartInit($event)"></div>
+<div
+    echarts
+    [options]="piechartOptions()"
+    [theme]="'default'"
+    (chartInit)="onChartInit($event)"
+></div>

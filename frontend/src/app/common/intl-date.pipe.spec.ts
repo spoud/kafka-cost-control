@@ -1,5 +1,5 @@
-import {IntlDatePipe} from './intl-date.pipe';
-import {IntlDateService} from '../services/intl-date.service';
+import { IntlDatePipe } from './intl-date.pipe';
+import { IntlDateService } from '../services/intl-date.service';
 
 const service = new IntlDateService('de-CH', 'en-US');
 const pipe = new IntlDatePipe(service);
@@ -19,6 +19,8 @@ describe('IntlDatePipe', () => {
     });
 
     it('should accept Date types', () => {
-        expect(pipe.transform(new Date('2025-02-21T08:36:51.999Z'), 'CET')).toBe('21.02.2025, 09:36:51');
+        expect(pipe.transform(new Date('2025-02-21T08:36:51.999Z'), 'CET')).toBe(
+            '21.02.2025, 09:36:51'
+        );
     });
 });
