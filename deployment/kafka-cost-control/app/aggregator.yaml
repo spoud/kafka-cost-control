@@ -1,7 +1,0 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: kafka-cost-control-ingress
-spec:
-  rules:
-    - host: "kcc.collaud7.collaud.me"
