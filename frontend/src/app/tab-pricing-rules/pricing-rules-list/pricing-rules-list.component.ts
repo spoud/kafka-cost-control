@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, OnInit, ViewChild} from '@angular/core';
+import { AfterViewInit, Component, OnInit, ViewChild, inject } from '@angular/core';
 import {GetPricingRulesGQL} from '../../../generated/graphql/sdk';
 import {PricingRuleEntity} from '../../../generated/graphql/types';
 import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
@@ -18,6 +18,10 @@ import {BytesToGbPipe} from './cost-factor.pipe';
     ]
 })
 export class PricingRulesListComponent implements OnInit, AfterViewInit {
+    private _pricingRules = inject(GetPricingRulesGQL);
+    private _liveAnnouncer = inject(LiveAnnouncer);
+    private _snackbar = inject(MatSnackBar);
+
 
 
     @ViewChild(MatSort) sort: MatSort | null = null;
@@ -25,10 +29,6 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
     dataSource = new MatTableDataSource<PricingRuleEntity>([]);
 
     public displayedColumns: string[] = ['creationTime', 'metricName', 'baseCost', 'costFactor', 'costFactorGb'];
-
-    constructor(private _pricingRules: GetPricingRulesGQL, private _liveAnnouncer: LiveAnnouncer, private _snackbar: MatSnackBar) {
-
-    }
 
     ngOnInit(): void {
         this._pricingRules.fetch().subscribe({

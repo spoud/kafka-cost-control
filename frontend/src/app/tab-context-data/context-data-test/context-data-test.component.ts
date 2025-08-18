@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import { Component, inject } from '@angular/core';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
 import {MatButton} from '@angular/material/button';
@@ -34,6 +34,9 @@ import {MatTab, MatTabGroup} from '@angular/material/tabs';
     styleUrl: './context-data-test.component.scss'
 })
 export class ContextDataTestComponent {
+    private contextTester = inject(TestContextGQL);
+    private _snackBar = inject(MatSnackBar);
+
 
     testString?: string;
     pending = false;
@@ -41,10 +44,6 @@ export class ContextDataTestComponent {
     previousInput?: string;
     matchedTopicsContext?: Array<Entry_String_String>;
     matchedPrincipalContext?: Array<Entry_String_String>;
-
-    constructor(private contextTester: TestContextGQL,
-                private _snackBar: MatSnackBar) {
-    }
 
     testContext() {
         if (!this.testString) {

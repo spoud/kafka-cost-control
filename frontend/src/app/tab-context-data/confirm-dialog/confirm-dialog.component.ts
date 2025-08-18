@@ -1,4 +1,4 @@
-import {Component, Inject} from '@angular/core';
+import {Component, inject} from '@angular/core';
 import {
     MAT_DIALOG_DATA,
     MatDialogActions,
@@ -23,7 +23,5 @@ import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.
     templateUrl: './confirm-dialog.component.html',
 })
 export class ConfirmDialogComponent {
-
-    constructor(@Inject(MAT_DIALOG_DATA) public data: { element: ContextDataEntity }) {
-    }
+    data = inject<{ element: ContextDataEntity; }>(MAT_DIALOG_DATA);
 }

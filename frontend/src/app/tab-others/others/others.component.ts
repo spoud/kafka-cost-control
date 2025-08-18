@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import { Component, inject } from '@angular/core';
 import {ReprocessDialogComponent} from "../reprocess-dialog/reprocess-dialog.component";
 import {MatDialog} from "@angular/material/dialog";
 import {ReprocessGQL} from "../../../generated/graphql/sdk";
@@ -29,11 +29,12 @@ import {MatCardModule} from '@angular/material/card';
     ]
 })
 export class OthersComponent {
+    private _dialog = inject(MatDialog);
+    private _snackBar = inject(MatSnackBar);
+    private _mutationReprocess = inject(ReprocessGQL);
+
 
     startTime: Date | undefined;
-
-    constructor(private _dialog: MatDialog, private _snackBar: MatSnackBar, private _mutationReprocess: ReprocessGQL) {
-    }
 
     openReprocessDialog(): void {
         const dialogRef = this._dialog.open(ReprocessDialogComponent);
