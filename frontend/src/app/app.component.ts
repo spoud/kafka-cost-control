@@ -66,6 +66,7 @@ export class AppComponent {
             { path: '/pricing-rules', label: 'Pricing Rules' },
         ];
         if (this.isAuthenticated()) {
+            list.push({ path: '/calc', label: 'Calculate Price'})
             list.push({ path: '/others', label: 'Others' });
         }
         return list;

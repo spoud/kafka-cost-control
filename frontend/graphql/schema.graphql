@@ -81,6 +81,9 @@ type Query {
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
   pricingRules: [PricingRuleEntity!]!
+  calculateTopDown(
+      request: CalculateTopDownInput!
+  ): [String!]!
 }
 
 enum EntityType {
@@ -126,4 +129,11 @@ input PricingRuleSaveRequestInput {
   baseCost: Float!
   costFactor: Float!
   metricName: String!
+}
+
+input CalculateTopDownInput {
+    kafkaStorageCents: Int
+    kafkaNetworkReadCents: Int
+    kafkaNetworkWriteCents: Int
+    remainingItems: String
 }

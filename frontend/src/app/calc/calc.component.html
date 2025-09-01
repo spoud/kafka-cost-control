@@ -1,0 +1,24 @@
+<form [formGroup]="form" (ngSubmit)="ngSubmit()">
+    <mat-form-field class="form-full-width">
+        <mat-label>KAFKA_STORAGE</mat-label>
+        <input matInput type="number" />
+    </mat-form-field>
+    <mat-form-field class="form-full-width">
+        <mat-label>KAFKA_NETWORK_READ</mat-label>
+        <input matInput type="number" />
+    </mat-form-field>
+    <mat-form-field class="form-full-width">
+        <mat-label>KAFKA_NETWORK_WRITE</mat-label>
+        <input matInput type="number" />
+    </mat-form-field>
+    <mat-form-field class="form-full-width">
+        <mat-label
+            >All remaining items, either total or a comma or newline seperated list
+        </mat-label>
+        <textarea matInput placeholder="12345, 23456, 34567"></textarea>
+    </mat-form-field>
+    <div>
+        <button type="submit" matButton="filled">Calculate</button>
+        <button type="reset" matButton="outlined">Reset form</button>
+    </div>
+</form>

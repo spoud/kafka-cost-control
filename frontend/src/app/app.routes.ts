@@ -26,6 +26,10 @@ export const routes: Routes = [
             ),
     },
     {
+        path: 'calc',
+        loadComponent: () => import('./calc/calc.component').then(m => m.CalcComponent),
+    },
+    {
         path: 'others',
         loadComponent: () =>
             import('./tab-others/others/others.component').then(m => m.OthersComponent),

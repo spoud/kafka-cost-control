@@ -1,0 +1,3 @@
+query calculateTopDown ($request: CalculateTopDownInput!) {
+    calculateTopDown(request: $request)
+}

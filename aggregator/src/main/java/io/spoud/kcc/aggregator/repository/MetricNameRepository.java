@@ -33,4 +33,11 @@ public class MetricNameRepository {
         .sorted(Comparator.comparing(MetricNameEntity::metricName))
         .collect(Collectors.toList());
   }
+
+  public Map<String, MetricReducer.AggregationType> getMetricToAggregationType() {
+      return metricNames.keySet().stream().collect(Collectors.toMap(
+              metricName -> metricName,
+              metricReducer::getAggregationType
+      ));
+  }
 }

@@ -11,6 +11,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
+import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -27,6 +28,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Startup
 @ApplicationScoped
@@ -323,6 +325,30 @@ public class AggregatedMetricsRepository {
         return metricToAggregatedValue;
     }
 
+    public Map<String, Double> getAggregatedValue(Instant startDate, Instant endDate, Set<String> names) {
+        List<MetricEO> history = getHistory(startDate, endDate, names);
+        Map<String, MetricReducer.AggregationType> metricNameToAggregationType = metricNameRepository.getMetricToAggregationType();
+
+
+        Map<String, List<Double>> collect = history.stream().collect(Collectors.toMap(
+                MetricEO::initialMetricName,
+                x -> List.of(x.value()),
+                (a, b) -> Stream.concat(a.stream(), b.stream()).toList()
+        ));
+
+        return collect.entrySet().stream().collect(
+                Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue()
+                                .stream()
+                                .reduce(0d, (a, b) -> {
+                                    MetricReducer.AggregationType aggregationType = metricNameToAggregationType.get(e.getKey());
+                                    return aggregationType.combine(a, b);
+                                })
+                )
+        );
+    }
+
 
     public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
         return getConnection().map((conn) -> {
@@ -465,7 +491,7 @@ public class AggregatedMetricsRepository {
         rnd.setSeed(seed);
         Log.infof("Inserting data with seed %d", seed);
 
-        var metrics = List.of("kafka_log_log_size", "kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total");
+        var metrics = List.of("confluent_kafka_server_retained_bytes", "confluent_kafka_server_received_bytes", "confluent_kafka_server_sent_bytes");
         var readers = List.of("DataAnalyticsConsumer", "RealTimeDashboardService", "InventoryUpdateProcessor", "FraudDetectionEngine", "CustomerNotificationService");
         var writers = List.of("OrderPlacementService", "LogAggregationService", "UserActivityProducer", "PaymentGatewayEmitter", "SensorDataCollector");
         var topics = List.of("orders.transactions", "system.application.logs", "user.activity.events", "payments.processed", "sensor.data.raw");
