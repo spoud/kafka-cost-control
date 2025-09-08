@@ -10,3 +10,8 @@ mat-tab-nav-panel {
 .spacer {
     flex: 1 1 auto;
 }
+
+.nav-icon {
+    vertical-align: middle;
+    color: var(--mat-sys-on-surface-variant);
+}

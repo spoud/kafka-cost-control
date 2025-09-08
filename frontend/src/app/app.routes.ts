@@ -58,19 +58,19 @@ export const homeLinks: Link[] = [
         path: '/reporting',
         label: 'Reporting',
         icon: 'assignment',
-        helptext: 'Create and download reports',
+        helptext: 'Create and export reports',
     },
     {
         path: '/context-data',
         label: 'Context Data',
         icon: 'label',
-        helptext: 'View and change context data.',
+        helptext: 'View, add and change context data to enrich metrics',
     },
     {
         path: '/pricing-rules',
         label: 'Pricing Rules',
         icon: 'price_check',
-        helptext: 'Pricing Rules determine costs from the gathered metrics',
+        helptext: 'View Pricing Rules which determine the costs from collected metrics',
     },
 ];
 
