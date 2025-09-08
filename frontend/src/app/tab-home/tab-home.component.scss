@@ -1,12 +1,12 @@
 .tile {
     font-size: x-large;
-    height: 200px;
-    width: 300px;
+    height: 75%;
+    width: 75%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    background-color: var(--mat-sys-neutral);
+    background-color: var(--mat-sys-surface-container-high);
     color: var(--mat-sys-on-surface-variant);
     text-decoration: none;
     transition: all ease-out 0.2s;
