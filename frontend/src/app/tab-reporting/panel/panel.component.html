@@ -4,16 +4,18 @@
         <mat-icon>settings</mat-icon>
     </button>
     @if (panelData().description) {
-    <em>{{ panelData().description }}</em>
+        <em>{{ panelData().description }}</em>
     }
-    <small><em> {{ panelData() | metaData }}</em></small>
+    <small
+        ><em> {{ panelData() | metaData }}</em></small
+    >
     <mat-divider />
     <ng-container
         [ngComponentOutlet]="component()"
-        [ngComponentOutletInputs]="{id: panelData().id}"
+        [ngComponentOutletInputs]="{ id: panelData().id }"
     />
 
     @if (showOptions()) {
-    <app-panel-options [panelData]="panelData()" [(showOptions)]="showOptions" />
+        <app-panel-options [panelData]="panelData()" [(showOptions)]="showOptions" />
     }
 </div>

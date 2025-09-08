@@ -9,10 +9,10 @@
     background-color: var(--mat-sys-neutral);
     color: var(--mat-sys-on-surface-variant);
     text-decoration: none;
-    transition: all ease-out .2s;
+    transition: all ease-out 0.2s;
     border: 1px solid #dee2e6;
     border-radius: 1rem;
-    box-shadow: 0 .125rem .25rem #00000013;
+    box-shadow: 0 0.125rem 0.25rem #00000013;
     padding: 1.5rem;
 }
 
@@ -20,7 +20,7 @@
     background-color: var(--mat-sys-on-primary);
     color: var(--mat-sys-primary);
     border-color: var(--mat-sys-primary);
-    box-shadow: 0 .5rem 1rem #00000026;
+    box-shadow: 0 0.5rem 1rem #00000026;
 }
 
 .label {
@@ -38,4 +38,3 @@ mat-icon {
     transform: scale(2);
     color: var(--mat-sys-on-surface-variant);
 }
-

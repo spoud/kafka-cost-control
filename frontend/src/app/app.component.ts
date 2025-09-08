@@ -1,4 +1,4 @@
-import {Component, computed, DOCUMENT, inject, Signal} from '@angular/core';
+import { Component, computed, DOCUMENT, inject, Signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbar } from '@angular/material/toolbar';
@@ -22,8 +22,8 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
 import { MatListItem, MatNavList } from '@angular/material/list';
 import { Link, menuLinks, menuLinksLoggedIn } from './app.routes';
-import {MatSlideToggle} from '@angular/material/slide-toggle';
-import {NgOptimizedImage} from '@angular/common';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { NgOptimizedImage } from '@angular/common';
 
 echarts.use([
     LineChart,

@@ -14,11 +14,13 @@ OR
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto&display=swap">
 */
 
-@use "@angular/material" as mat;
+@use '@angular/material' as mat;
 
 /* Light Theme */
-:root, :host {
-    @include mat.theme-overrides((
+:root,
+:host {
+    @include mat.theme-overrides(
+        (
             primary: #006877,
             on-primary: #ffffff,
             primary-container: #a4eeff,
@@ -74,22 +76,28 @@ OR
             neutral-variant20: #2c3132,
             inverse-secondary: #9fccea,
             inverse-tertiary: #e6b4ff,
-    ));
+        )
+    );
 
-    @include mat.toolbar-overrides((
+    @include mat.toolbar-overrides(
+        (
             container-background-color: var(--mat-sys-primary),
             container-text-color: var(--mat-sys-on-primary),
-    ));
+        )
+    );
 
-    @include mat.sidenav-overrides((
+    @include mat.sidenav-overrides(
+        (
             container-divider-color: var(--mat-sys-primary),
-            container-width: 290px
-    ))
+            container-width: 290px,
+        )
+    );
 }
 
 /* Dark Theme */
 .dark {
-    @include mat.theme-overrides((
+    @include mat.theme-overrides(
+        (
             primary: #67d5ec,
             on-primary: #00363f,
             primary-container: #004e5a,
@@ -145,11 +153,13 @@ OR
             neutral-variant20: #2c3132,
             inverse-secondary: #36637d,
             inverse-tertiary: #784d8f,
-    ));
+        )
+    );
 }
 
 /* Typography */
-:root, :host {
+:root,
+:host {
     /* core typography tokens are not generating css variables, hence below */
     --mat-sys-brand-font-family: Roboto;
     --mat-sys-plain-font-family: Roboto;
@@ -157,11 +167,13 @@ OR
     --mat-sys-medium-font-weight: 500;
     --mat-sys-regular-font-weight: 400;
 
-    @include mat.theme-overrides((
+    @include mat.theme-overrides(
+        (
             brand-family: Roboto,
             plain-family: Roboto,
             bold-weight: 700,
             medium-weight: 500,
             regular-weight: 400,
-    ));
+        )
+    );
 }

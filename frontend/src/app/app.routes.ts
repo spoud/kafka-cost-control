@@ -48,11 +48,31 @@ export interface Link {
 }
 
 export const homeLinks: Link[] = [
-    { path: '/graphs', label: 'Graphs', icon: 'bar_chart', helptext: 'Get insight into your Kafka usage' },
-    { path: '/reporting', label: 'Reporting', icon: 'assignment', helptext: 'Create and download reports' },
-    { path: '/context-data', label: 'Context Data', icon: 'label', helptext: 'View and change context data.'},
-    { path: '/pricing-rules', label: 'Pricing Rules', icon: 'price_check', helptext: 'Pricing Rules determine costs from the gathered metrics' },
-]
+    {
+        path: '/graphs',
+        label: 'Graphs',
+        icon: 'bar_chart',
+        helptext: 'Get insight into your Kafka usage',
+    },
+    {
+        path: '/reporting',
+        label: 'Reporting',
+        icon: 'assignment',
+        helptext: 'Create and download reports',
+    },
+    {
+        path: '/context-data',
+        label: 'Context Data',
+        icon: 'label',
+        helptext: 'View and change context data.',
+    },
+    {
+        path: '/pricing-rules',
+        label: 'Pricing Rules',
+        icon: 'price_check',
+        helptext: 'Pricing Rules determine costs from the gathered metrics',
+    },
+];
 
 export const menuLinks: Link[] = [
     { path: '/home', label: 'Home', icon: 'home' },

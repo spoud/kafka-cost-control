@@ -3,7 +3,7 @@
         <mat-label>Metric Name</mat-label>
         <mat-select formControlName="metricName">
             @for (metricName of graphFilterService.metricNames(); track metricName.metricName) {
-            <mat-option [value]="metricName.metricName">{{ metricName.metricName }}</mat-option>
+                <mat-option [value]="metricName.metricName">{{ metricName.metricName }}</mat-option>
             }
         </mat-select>
     </mat-form-field>
@@ -11,7 +11,7 @@
         <mat-label>Group by context</mat-label>
         <mat-select formControlName="groupByContext">
             @for (key of graphFilterService.contextKeys(); track key) {
-            <mat-option [value]="key">{{ key }}</mat-option>
+                <mat-option [value]="key">{{ key }}</mat-option>
             }
         </mat-select>
     </mat-form-field>
