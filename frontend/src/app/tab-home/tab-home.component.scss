@@ -1,0 +1,41 @@
+.tile {
+    font-size: x-large;
+    height: 200px;
+    width: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background-color: var(--mat-sys-neutral);
+    color: var(--mat-sys-on-surface-variant);
+    text-decoration: none;
+    transition: all ease-out .2s;
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    box-shadow: 0 .125rem .25rem #00000013;
+    padding: 1.5rem;
+}
+
+.tile:hover {
+    background-color: var(--mat-sys-on-primary);
+    color: var(--mat-sys-primary);
+    border-color: var(--mat-sys-primary);
+    box-shadow: 0 .5rem 1rem #00000026;
+}
+
+.label {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+.infotext {
+    font-size: small;
+    text-align: center;
+    color: var(--mat-sys-on-surface); // this one stays even on hover
+}
+
+mat-icon {
+    transform: scale(2);
+    color: var(--mat-sys-on-surface-variant);
+}
+

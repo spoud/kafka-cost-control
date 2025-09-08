@@ -1,4 +1,4 @@
-import { Component, computed, inject, Signal } from '@angular/core';
+import {Component, computed, DOCUMENT, inject, Signal} from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbar } from '@angular/material/toolbar';
@@ -19,11 +19,11 @@ import {
     TooltipComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-
-interface Link {
-    path: string;
-    label: string;
-}
+import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
+import { MatListItem, MatNavList } from '@angular/material/list';
+import { Link, menuLinks, menuLinksLoggedIn } from './app.routes';
+import {MatSlideToggle} from '@angular/material/slide-toggle';
+import {NgOptimizedImage} from '@angular/common';
 
 echarts.use([
     LineChart,
@@ -44,29 +44,32 @@ echarts.use([
     imports: [
         RouterLink,
         RouterLinkActive,
-        RouterOutlet,
         MatTabsModule,
         MatToolbar,
         MatIcon,
         MatButton,
         MatTooltip,
+        MatSidenavContainer,
+        MatSidenavContent,
+        MatSidenav,
+        MatNavList,
+        MatListItem,
+        RouterOutlet,
+        MatSlideToggle,
+        NgOptimizedImage,
     ],
     providers: [provideEchartsCore({ echarts })],
 })
 export class AppComponent {
     private _dialog = inject(MatDialog);
     private _authService = inject(BasicAuthServiceService);
+    private document = inject(DOCUMENT);
 
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
-        const list = [
-            { path: '/graphs', label: 'Graphs' },
-            { path: '/reporting', label: 'Reporting' },
-            { path: '/context-data', label: 'Context Data' },
-            { path: '/pricing-rules', label: 'Pricing Rules' },
-        ];
+        const list: Link[] = [...menuLinks];
         if (this.isAuthenticated()) {
-            list.push({ path: '/others', label: 'Others' });
+            list.push(...menuLinksLoggedIn);
         }
         return list;
     });
@@ -85,5 +88,9 @@ export class AppComponent {
         dialogRef.afterClosed().subscribe({
             next: result => console.log('Sign in dialog closed', result),
         });
+    }
+
+    onThemeChange() {
+        this.document.body.classList.toggle('dark');
     }
 }

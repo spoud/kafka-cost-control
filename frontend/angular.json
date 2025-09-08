@@ -34,8 +34,8 @@
               "src/assets"
             ],
             "styles": [
-              "@angular/material/prebuilt-themes/indigo-pink.css",
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/styles/tokens.scss"
             ],
             "scripts": []
           },
@@ -98,8 +98,8 @@
               "src/assets"
             ],
             "styles": [
-              "@angular/material/prebuilt-themes/indigo-pink.css",
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/styles/tokens.scss"
             ],
             "scripts": []
           }
