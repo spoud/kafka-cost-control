@@ -36,15 +36,15 @@ spec:
         fsGroup: 185 # jboss
       volumes:
       {{- if $caCert }}
-      - name: kafka-cluster-ca
-        secret:
-          secretName: {{ $caCert }}
+        - name: kafka-cluster-ca
+          secret:
+            secretName: {{ $caCert }}
       {{- end }}
-      - name: aggregator-config
-        configMap:
-          name: {{ .Release.Name }}-kafka-cost-control-config
-      - name: tmp
-        emptyDir: {}
+        - name: aggregator-config
+          configMap:
+            name: {{ .Release.Name }}-kafka-cost-control-config
+        - name: tmp
+          emptyDir: { }
       containers:
         - name: kafka-cost-control
           image: {{ .Values.aggregator.image }}
@@ -190,4 +190,42 @@ data:
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-kafka-cost-control-config
+{{- end -}}
+{{ if .Values.ui.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control-service
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    k8s-app: {{ .Release.Name }}-kafka-cost-control
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control-ingress
+spec:
+  rules:
+    - host: {{ .Values.ui.host }}
+      http:
+        paths:
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-kafka-cost-control-service
+                port:
+                  number: 80
+          - path: /olap
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-kafka-cost-control-service
+                port:
+                  number: 80
 {{- end -}}
