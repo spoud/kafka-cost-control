@@ -1,10 +1,17 @@
 nav {
     background: white;
 }
+
 mat-tab-nav-panel {
     padding: 32px 64px;
     display: block;
 }
+
 .spacer {
     flex: 1 1 auto;
+}
+
+.nav-icon {
+    vertical-align: middle;
+    color: var(--mat-sys-on-surface-variant);
 }

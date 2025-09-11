@@ -1,39 +1,59 @@
 <mat-toolbar color="primary">
-    <span> Kafka cost control </span>
-
+    <a routerLink="/home">
+        <img ngSrc="/assets/kcc-logo.png" width="180" height="180" alt="Kafka Cost Control Logo" />
+    </a>
+    <span>KCC - Kafka Cost Control</span>
     <span class="spacer"></span>
+    <mat-icon>light_mode</mat-icon>
+    <mat-slide-toggle (change)="onThemeChange()"></mat-slide-toggle>
+    <mat-icon class="mr-1">dark_mode</mat-icon>
     @if (isAuthenticated()) {
-    <button
-        mat-button
-        class="user-icon"
-        aria-label="Logout"
-        matTooltip="Sign out"
-        (click)="signOut()"
-    >
-        Sign out
-        <mat-icon>logout</mat-icon>
-    </button>
+        <button
+            mat-button
+            class="user-icon"
+            aria-label="Logout"
+            matTooltip="Sign out"
+            (click)="signOut()"
+        >
+            Sign out
+            <mat-icon>logout</mat-icon>
+        </button>
     } @else {
-    <button mat-button class="user-icon" aria-label="Login" matTooltip="Sign in" (click)="signIn()">
-        Sign in
-        <mat-icon>login</mat-icon>
-    </button>
+        <button
+            mat-button
+            class="user-icon"
+            aria-label="Login"
+            matTooltip="Sign in"
+            (click)="signIn()"
+        >
+            Sign in
+            <mat-icon>login</mat-icon>
+        </button>
     }
 </mat-toolbar>
 
-<nav mat-tab-nav-bar [tabPanel]="tabPanel">
-    @for (link of navLinksSignal(); track link) {
-    <a
-        mat-tab-link
-        [routerLink]="link.path"
-        routerLinkActive
-        #rla="routerLinkActive"
-        [active]="rla.isActive"
-    >
-        {{ link.label }}
-    </a>
-    }
-</nav>
-<mat-tab-nav-panel #tabPanel>
-    <router-outlet></router-outlet>
-</mat-tab-nav-panel>
+<mat-sidenav-container>
+    <mat-sidenav [fixedInViewport]="true" [fixedTopGap]="64" mode="side" opened>
+        <mat-nav-list>
+            @for (link of navLinksSignal(); track link) {
+                <a
+                    mat-list-item
+                    [routerLink]="link.path"
+                    routerLinkActive
+                    #rla="routerLinkActive"
+                    [activated]="rla.isActive"
+                >
+                    @if (link.icon) {
+                        <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+                    }
+                    {{ link.label }}
+                </a>
+            }
+        </mat-nav-list>
+    </mat-sidenav>
+    <mat-sidenav-content>
+        <mat-tab-nav-panel #tabPanel>
+            <router-outlet></router-outlet>
+        </mat-tab-nav-panel>
+    </mat-sidenav-content>
+</mat-sidenav-container>
