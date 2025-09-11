@@ -1,7 +1,0 @@
-query metricNames{
-    metricNames{
-        metricName
-        aggregationType
-        lastSeen
-    }
-}
