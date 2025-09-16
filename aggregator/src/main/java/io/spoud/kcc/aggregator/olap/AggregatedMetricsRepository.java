@@ -8,6 +8,7 @@ import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.common.annotation.Blocking;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
@@ -97,6 +98,7 @@ public class AggregatedMetricsRepository {
         var memLimit = olapConfig.databaseMemoryLimitMib().orElseThrow();
         try (var statement = conn.createStatement()) {
             statement.execute("SET memory_limit = '" + memLimit + "MiB'");
+            statement.execute("SET threads = 1");
             Log.infof("Set memory limit for OLAP database to %d MiB", memLimit);
         } catch (SQLException e) {
             Log.error("Failed to set memory limit for OLAP database", e);
@@ -137,6 +139,28 @@ public class AggregatedMetricsRepository {
                     """);
             Log.infof("Created OLAP DB table: aggregated_data");
         }
+    }
+
+    @Scheduled(every = "${cc.olap.database.retention.check-interval}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @Blocking
+    synchronized void cleanUpOldData() {
+        getConnection().ifPresent((conn) -> {
+            var retentionPeriod = olapConfig.databaseRetentionDays();
+            if (retentionPeriod <= 0) {
+                return;
+            }
+            var cutoff = Instant.now().minus(Duration.ofDays(retentionPeriod));
+            try (var stmt = conn.prepareStatement("DELETE FROM aggregated_data WHERE end_time < ?")) {
+                stmt.setObject(1, cutoff.atOffset(ZoneOffset.UTC));
+                var deleted = stmt.executeUpdate();
+                if (deleted > 0) {
+                    Log.infof("Deleted %d rows older than %s from OLAP database", deleted, cutoff);
+                }
+            } catch (SQLException e) {
+                Log.error("Failed to clean up old data from OLAP database", e);
+            }
+        });
     }
 
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)

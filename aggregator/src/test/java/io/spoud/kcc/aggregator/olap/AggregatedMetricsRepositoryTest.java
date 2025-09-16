@@ -271,6 +271,32 @@ class AggregatedMetricsRepositoryTest {
         assertThat(metricCount).isEqualTo(2);
     }
 
+    @Test
+    @DisplayName("Old metrics get cleaned up after retention period")
+    void retentionPolicy() {
+        repo.init();
+        var start = Instant.now().minus(Duration.ofDays(testOlapConfig.databaseRetentionDays() + 1));
+        var end = start.plus(Duration.ofHours(1));
+        var now = Instant.now();
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setValue(100.0).setInitialMetricName("my-awesome-metric").build());
+        repo.insertRow(randomDatapoint().setStartTime(now).setEndTime(now.plus(Duration.ofHours(1))).setValue(200.0).setInitialMetricName("my-awesome-metric").build());
+
+        // make sure both datapoints are in the DB
+        repo.flushToDb();
+        assertThat(repo.getHistory(start.minusSeconds(1), end.plusSeconds(1), Set.of("my-awesome-metric")))
+                .hasSize(1);
+        assertThat(repo.getHistory(now.minusSeconds(1), now.plusSeconds(3600 + 1), Set.of("my-awesome-metric")))
+                .hasSize(1);
+
+        // now run retention cleanup
+        repo.cleanUpOldData();
+        // ...and make sure that the old datapoint is gone, but the recent one is still there
+        assertThat(repo.getHistory(start.minusSeconds(1), end.plusSeconds(1), Set.of("my-awesome-metric")))
+                .isEmpty();
+        assertThat(repo.getHistory(now.minusSeconds(1), now.plusSeconds(3600 + 1), Set.of("my-awesome-metric")))
+                .hasSize(1);
+    }
+
     @RequiredArgsConstructor
     @Builder
     private static class FakeOlapConfig implements OlapConfigProperties {
@@ -288,6 +314,10 @@ class AggregatedMetricsRepositoryTest {
         private final Optional<Integer> totalMemoryLimitMb = Optional.ofNullable(1024);
         @Builder.Default
         private final int databaseMemoryLimitPercent = 50;
+        @Builder.Default
+        private final int databaseRetentionDays = 7;
+        @Builder.Default
+        private final int databaseRetentionCheckIntervalHours = 1;
 
         @Override
         public boolean enabled() {
@@ -327,6 +357,16 @@ class AggregatedMetricsRepositoryTest {
         @Override
         public Optional<Integer> insertSyntheticDays() {
             return Optional.empty();
+        }
+
+        @Override
+        public int databaseRetentionDays() {
+            return databaseRetentionDays;
+        }
+
+        @Override
+        public Duration databaseRetentionCheckInterval() {
+            return Duration.ofHours(databaseRetentionCheckIntervalHours);
         }
     }
 

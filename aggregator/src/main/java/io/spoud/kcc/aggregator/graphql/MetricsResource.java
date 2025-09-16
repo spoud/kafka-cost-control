@@ -1,5 +1,7 @@
 package io.spoud.kcc.aggregator.graphql;
 
+import io.smallrye.common.annotation.Blocking;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
@@ -25,6 +27,7 @@ public class MetricsResource {
     private final MetricNameRepository metricNameRepository;
 
     @Query("history")
+    @RunOnVirtualThread
     public @NonNull List<@NonNull MetricHistoryTO> history(
             @NonNull Set<String> metricNames,
             @NonNull Set<String> groupByContextKeys,
@@ -55,12 +58,14 @@ public class MetricsResource {
 
     @PermitAll
     @Query("metricNames")
+    @RunOnVirtualThread
     public @NonNull List<@NonNull MetricNameEntity> metricNames() {
         return metricNameRepository.getMetricNames();
     }
 
     @PermitAll
     @Query("metricContextKeys")
+    @RunOnVirtualThread
     public @NonNull List<@NonNull String> contextKeys() {
         return aggregatedMetricsRepository.getAllContextKeys().stream().sorted().toList();
     }

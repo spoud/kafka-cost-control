@@ -4,6 +4,7 @@ import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -91,4 +92,16 @@ public interface OlapConfigProperties {
      */
     @WithName("database.insert-synthetic-days")
     Optional<Integer> insertSyntheticDays();
+
+    /**
+     * The number of days to retain data in the database. Data older than this will be automatically deleted.
+     * @return the retention period in days
+     */
+    @WithName("database.retention.days")
+    @WithDefault("90")
+    int databaseRetentionDays();
+
+    @WithName("database.retention.check-interval")
+    @WithDefault("PT24H")
+    Duration databaseRetentionCheckInterval();
 }
