@@ -23,7 +23,7 @@
         </sonar.coverage.jacoco.xmlReportPaths>
 
         <maven.compiler.release>21</maven.compiler.release>
-        <compiler-plugin.version>3.14.0</compiler-plugin.version>
+        <compiler-plugin.version>3.14.1</compiler-plugin.version>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
         <kafka.version>3.9.0</kafka.version>
         <confluent.platform.version>8.0.0</confluent.platform.version>
