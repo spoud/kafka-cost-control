@@ -55,6 +55,8 @@ avro:
       imports: entity-type-enum.avsc
 
 quarkus:
+  qute:
+    suffixes: sql
   kafka-streams:
     application-id: ${kafka.application.id}
     topics: ${cc.topics.raw-data},${cc.topics.context-data},${cc.topics.pricing-rules},${cc.topics.aggregated}

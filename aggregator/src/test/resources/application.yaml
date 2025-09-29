@@ -10,6 +10,8 @@ quarkus:
       dir: /tmp/kafka-stream-${quarkus.uuid}
 
 cc:
+  olap:
+    enabled: true
   metrics:
     aggregations:
       confluent_kafka_server_retained_bytes: max

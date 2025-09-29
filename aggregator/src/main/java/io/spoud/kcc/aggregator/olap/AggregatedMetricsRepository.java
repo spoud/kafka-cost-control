@@ -38,12 +38,16 @@ public class AggregatedMetricsRepository {
     private final BlockingQueue<AggregatedDataWindowed> rowBuffer;
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final SqlTemplates sqlTemplates;
     private Connection connection;
 
-    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, MetricNameRepository metricNameRepository) {
+    public AggregatedMetricsRepository(OlapConfigProperties olapConfig,
+                                       MetricNameRepository metricNameRepository,
+                                       SqlTemplates sqlTemplates) {
         this.olapConfig = olapConfig;
         this.rowBuffer = new ArrayBlockingQueue<>(olapConfig.databaseMaxBufferedRows());
         this.metricNameRepository = metricNameRepository;
+        this.sqlTemplates = sqlTemplates;
     }
 
     private static void ensureIdentifierIsSafe(String identifier) {
@@ -120,21 +124,8 @@ public class AggregatedMetricsRepository {
     }
 
     private void createTableIfNotExists(Connection connection) throws SQLException {
-        try (var statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS aggregated_data (
-                        start_time TIMESTAMPTZ NOT NULL,
-                        end_time TIMESTAMPTZ NOT NULL,
-                        initial_metric_name VARCHAR NOT NULL,
-                        entity_type VARCHAR NOT NULL,
-                        name VARCHAR NOT NULL,
-                        tags JSON NOT NULL,
-                        context JSON NOT NULL,
-                        value DOUBLE NOT NULL,
-                        target VARCHAR NOT NULL,
-                        id VARCHAR PRIMARY KEY
-                    )
-                    """);
+        try (var statement = sqlTemplates.initDb(connection)) {
+            statement.execute();
             Log.infof("Created OLAP DB table: aggregated_data");
         }
     }
@@ -150,7 +141,7 @@ public class AggregatedMetricsRepository {
             var skipped = 0;
             var count = 0;
             var startTime = Instant.now();
-            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            try (var stmt = sqlTemplates.insertValues(conn)) {
                 for (var metric = finalRowBuffer.poll(); metric != null; metric = finalRowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
@@ -225,7 +216,7 @@ public class AggregatedMetricsRepository {
     public Set<String> getAllMetrics() {
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data")) {
+                    try (var statement = sqlTemplates.getMetricNames(conn)) {
                         var result = statement.executeQuery();
                         var metrics = new HashSet<String>();
                         while (result.next()) {
@@ -243,7 +234,7 @@ public class AggregatedMetricsRepository {
     private Set<String> getAllJsonKeys(String column) {
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM aggregated_data")) {
+                    try (var statement = sqlTemplates.getAllJsonKeys(conn, column)) {
                         return getStatementResultAsStrings(statement, true);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -257,7 +248,7 @@ public class AggregatedMetricsRepository {
         ensureIdentifierIsSafe(key);
         return getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM aggregated_data".formatted(column, key))) {
+                    try (var statement = sqlTemplates.getAllJsonKeyValues(conn, column, key)) {
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -297,10 +288,7 @@ public class AggregatedMetricsRepository {
 
         var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + "." + finalFormat);
         return getConnection().map((conn) -> {
-            try (var statement = conn.prepareStatement("COPY (SELECT * FROM aggregated_data WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
-                    + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
-                statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
-                statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
+            try (var statement = sqlTemplates.exportData(conn, tmpFileName, finalFormat, finalStartDate, finalEndDate)) {
                 statement.execute();
                 return tmpFileName;
             } catch (SQLException e) {
@@ -330,19 +318,7 @@ public class AggregatedMetricsRepository {
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
-            var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
-                    .collect(Collectors.joining(", ", "(", ")"));
-            try (var statement = conn.prepareStatement("""
-                    SELECT * FROM aggregated_data
-                    WHERE start_time >= ? AND end_time <= ?
-                    """ + nameFilter)) {
-                statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
-                statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
-                var i = 3;
-                for (var name : names) {
-                    statement.setString(i, name);
-                    i++;
-                }
+            try (var statement = sqlTemplates.getHistory(conn, names, finalStartDate, finalEndDate)) {
                 List<MetricEO> metrics = new ArrayList<>();
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
@@ -378,28 +354,7 @@ public class AggregatedMetricsRepository {
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s, grouped for context '%s'", finalStartDate, finalEndDate, groupByContextKey);
 
-            var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
-                    .collect(Collectors.joining(", ", "(", ")"));
-            // we use a subquery so we can guarantee binding of the same value for `json_value(context, ?)`
-            // which is used in select and in group by clause
-            String sql =
-                    "select subquery.context" + (groupByHour ? ", subquery.start_time" : "") + ", sum(subquery.value) as sum " +
-                            """
-                                    from (
-                                           select json_value(context, ?) as context, start_time, value
-                                           from aggregated_data
-                                           where start_time >= ? and end_time <= ?
-                                    """ + nameFilter + ") as subquery" +
-                            " group by context " + (groupByHour ? ", start_time order by start_time" : "");
-            try (var statement = conn.prepareStatement(sql)) {
-                statement.setString(1, groupByContextKey);
-                statement.setObject(2, finalStartDate.atOffset(ZoneOffset.UTC));
-                statement.setObject(3, finalEndDate.atOffset(ZoneOffset.UTC));
-                var i = 4;
-                for (var name : names) {
-                    statement.setString(i, name);
-                    i++;
-                }
+            try (var statement = sqlTemplates.getHistoryGrouped(conn, groupByHour, names, finalStartDate, finalEndDate, groupByContextKey)) {
                 Map<String, MetricHistoryTO> metrics = new HashMap<>();
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
@@ -472,7 +427,7 @@ public class AggregatedMetricsRepository {
         var applications = List.of("RealtimeMetricsAggregator", "CustomerOrderStreamer", "FinancialTransactionProcessor", "LogEventAnalyzer", "InventoryUpdateEmitter");
         var names = List.of("school.principals.management", "education.principals.directory", "admin.principals.records", "staff.principals.updates", "district.principals.roster");
 
-        try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+        try (var stmt = sqlTemplates.insertValues(conn)) {
             for (Instant startTime = Instant.now().truncatedTo(ChronoUnit.HOURS), middle = startTime.minus(Duration.ofDays(days / 2));
                  startTime.isAfter(Instant.now().minus(Duration.ofDays(days)));
                  startTime = startTime.minus(Duration.ofHours(1))) {
@@ -527,7 +482,7 @@ public class AggregatedMetricsRepository {
     }
 
     private void loadDataExport(String path, Connection conn) {
-        try (var statement = conn.prepareStatement("COPY aggregated_data FROM '" + path + "'  (AUTO_DETECT true)")) {
+        try (var statement = sqlTemplates.importData(conn, Path.of(path))) {
             statement.execute();
             Log.infof("Loaded seed data from %s", path);
         } catch (SQLException e) {
@@ -536,16 +491,6 @@ public class AggregatedMetricsRepository {
     }
 
     private void addExistingMetrics() {
-        getConnection().ifPresent(conn -> {
-            try (PreparedStatement statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data");
-                 ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    String metricName = resultSet.getString("initial_metric_name");
-                    metricNameRepository.addMetricName(metricName, Instant.now());
-                }
-            } catch (SQLException e) {
-                Log.error("Failed to add metrics", e);
-            }
-        });
+        getAllMetrics().forEach(metricName -> metricNameRepository.addMetricName(metricName, Instant.now()));
     }
 }
