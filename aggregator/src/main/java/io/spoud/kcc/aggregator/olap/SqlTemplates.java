@@ -16,8 +16,6 @@ import java.util.Set;
 
 @ApplicationScoped
 public class SqlTemplates {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     @Inject
     Template initDb;
 
