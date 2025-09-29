@@ -46,3 +46,20 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  kafkasetup:
+    depends_on:
+      - broker
+    image: confluentinc/cp-kafka:7.5.0
+    restart: on-failure
+    # create topics: pricing-rules, context-data, aggregated, aggregated-table-friendly, metrics-raw-telegraf-env
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        kafka-topics --bootstrap-server broker:29092 --create --topic pricing-rules --partitions 1 --replication-factor 1 --config cleanup.policy=compact
+        kafka-topics --bootstrap-server broker:29092 --create --topic context-data --partitions 1 --replication-factor 1 --config cleanup.policy=compact
+        kafka-topics --bootstrap-server broker:29092 --create --topic aggregated --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server broker:29092 --create --topic aggregated-table-friendly --partitions 1 --replication-factor 1 --config retention.ms=-1
+        kafka-topics --bootstrap-server broker:29092 --create --topic metrics-raw-telegraf-env --partitions 1 --replication-factor 1 --config retention.ms=-1
+        echo "Kafka topics created successfully."

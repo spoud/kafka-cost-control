@@ -51,6 +51,10 @@ public class SerdeFactory {
         return getAvroSerde(false, ContextData.class);
     }
 
+    public Serde<SingleContextData> getSingleContextDataSerde() {
+        return getAvroSerde(false, SingleContextData.class);
+    }
+
     public Serde<RawTelegrafData> getRawTelegrafSerde() {
         return new JSONSerde<>(RawTelegrafData.class);
     }

@@ -12,6 +12,8 @@ import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.data.AggregatedDataWindowed;
+import io.spoud.kcc.data.EntityType;
+import io.spoud.kcc.data.SingleContextData;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -50,6 +52,10 @@ public class AggregatedMetricsRepository {
         if (!identifier.matches("^[a-zA-Z0-9_]+$")) {
             throw new IllegalArgumentException("Invalid identifier. Expected only letters, numbers, and underscores");
         }
+    }
+
+    public boolean isOlapEnabled() {
+        return olapConfig.enabled();
     }
 
     @PostConstruct
@@ -196,6 +202,28 @@ public class AggregatedMetricsRepository {
                 Log.infof("Ingested %d metrics. Skipped %d metrics. Duration: %s", count, skipped, Duration.between(startTime, Instant.now()));
             }
         });
+    }
+
+    public void insertRow(SingleContextData row) {
+        for (var metric : row.getAggregatedMetrics().entrySet()) {
+            var metricName = metric.getKey();
+            var metricValue = metric.getValue();
+            var metricCost = Optional.ofNullable(row.getAggregatedCosts())
+                    .map(costs -> costs.getOrDefault(metricName, 0d))
+                    .orElse(0d);
+            var aggregatedRow = AggregatedDataWindowed.newBuilder()
+                    .setStartTime(row.getStartTime())
+                    .setEndTime(row.getEndTime())
+                    .setInitialMetricName(metricName)
+                    .setEntityType(EntityType.UNKNOWN)
+                    .setName(row.getName())
+                    .setTags(Collections.emptyMap())
+                    .setContext(Map.of(row.getContextType(), row.getName()))
+                    .setValue(metricValue)
+                    .setCost(metricCost)
+                    .build();
+            insertRow(aggregatedRow);
+        }
     }
 
     public void insertRow(AggregatedDataWindowed row) {

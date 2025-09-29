@@ -24,10 +24,7 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.*;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 @ApplicationScoped
@@ -73,7 +70,7 @@ public class MetricEnricher {
         // TODO: principal count per project/cost center
         // TODO: consumer count per project/cost center
 
-        telegrafDataStream
+        var windowedMetricsTable = telegrafDataStream
                 .peek(
                         (key, value) -> metricRepository.addMetricName(value.name(), value.timestamp()),
                         Named.as("populate-metric-names-list"))
@@ -93,7 +90,10 @@ public class MetricEnricher {
                 })
                 .groupByKey(Grouped.as("group-by-key"))
                 .windowedBy(tumblingWindow)
-                .reduce(metricReducer, Named.as("sum-aggregated-value-by-window"))
+                .reduce(metricReducer, Named.as("sum-aggregated-value-by-window"),
+                        Materialized.with(Serdes.String(), serdes.getAggregatedSerde()));
+
+        windowedMetricsTable
                 .toStream(Named.as("convert-window-to-stream"))
                 .map(MetricEnricher::mapToWindowedAggregate, Named.as("map-to-windowed-aggregated-data"))
                 .leftJoin(pricingRulesTable, this::addPriceToWindowedMetric, Joined.as("join-pricing-rule"))
@@ -113,11 +113,34 @@ public class MetricEnricher {
                         Log.warnv("Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags(), e);
                     }
                 })
-                .peek((k, v) -> aggregatedMetricsRepository.insertRow(v),
-                        Named.as("insert-into-olap-db"))
                 .to(
                         configProperties.topicAggregated(),
                         Produced.with(serdes.getAggregatedKeySerde(), serdes.getAggregatedWindowedSerde()).withName("output-topic"));
+
+        if (aggregatedMetricsRepository.isOlapEnabled()) {
+            windowedMetricsTable
+                    .suppress(Suppressed.untilWindowCloses(Suppressed.BufferConfig.maxBytes(1024 * 1024 * 50) // TODO: make configurable
+                            .shutDownWhenFull()).withName("olap-suppress-until-window-closes")
+                    )
+                    .toStream(Named.as("olap-convert-window-to-stream"))
+                    .flatMap((key, value) -> {
+                        var kvList = new ArrayList<KeyValue<String, SingleContextData>>(value.getContext().size());
+                        for (Map.Entry<String, String> ctx : value.getContext().entrySet()) {
+                            var ctxKey = ctx.getKey();
+                            var ctxValue = ctx.getValue();
+                            var newMsgKey = "%s=%s,start=%d,end=%d".formatted(
+                                    ctxKey, ctxValue, key.window().startTime().toEpochMilli(), key.window().endTime().toEpochMilli());
+                            var newMsg = toSingleContextMetric(value, key.window(), ctxKey, ctxValue);
+                            kvList.add(KeyValue.pair(newMsgKey, newMsg));
+                        }
+                        return kvList;
+                    })
+                    .groupByKey(Grouped.as("olap-group-by-context-and-time"))
+                    .windowedBy(tumblingWindow)
+                    .reduce(MetricEnricher::combineMetrics, Named.as("olap-sum-aggregated-metrics-by-context"))
+                    .toStream((windowedKey, value) -> windowedKey.key(), Named.as("olap-to-context-aggregated-stream"))
+                    .foreach((key, value) -> aggregatedMetricsRepository.insertRow(value));
+        }
 
         builder.stream(configProperties.topicAggregated(), Consumed.with(serdes.getAggregatedKeySerde(), serdes.getAggregatedWindowedSerde()))
                 .mapValues(this::convertMapsToJson, Named.as("convert-to-table-friendly-value"))
@@ -126,6 +149,36 @@ public class MetricEnricher {
                         Produced.with(serdes.getAggregatedKeySerde(), serdes.getAggregatedTableFriendlySerde())
                                 .withName("output-topic-table-friendly"));
 
+        var tp = builder.build();
+        Log.infof("Topology description: %s", tp.describe().toString());
+        return tp;
+    }
+
+    private static SingleContextData toSingleContextMetric(AggregatedData value, Window window, String ctxKey, String ctxValue) {
+        var newMsg = new SingleContextData();
+        newMsg.setStartTime(window.startTime());
+        newMsg.setEndTime(window.endTime());
+        newMsg.setContextType(ctxKey);
+        newMsg.setName(ctxValue);
+        newMsg.setAggregatedMetrics(Map.of(value.getInitialMetricName(), value.getValue()));
+        if (value.getCost() != null) {
+            newMsg.setAggregatedCosts(Map.of(value.getInitialMetricName(), value.getCost()));
+        } else {
+            newMsg.setAggregatedCosts(Collections.emptyMap());
+        }
+        return newMsg;
+    }
+
+    private static SingleContextData combineMetrics(SingleContextData v1, SingleContextData v2) {
+        var builder = SingleContextData.newBuilder(v1);
+        var aggregatedMetrics = new HashMap<>(v1.getAggregatedMetrics());
+        v2.getAggregatedMetrics().forEach((k, v) -> aggregatedMetrics.merge(k, v, Double::sum));
+        builder.setAggregatedMetrics(aggregatedMetrics);
+        if (v1.getAggregatedCosts() != null || v2.getAggregatedCosts() != null) {
+            var aggregatedCosts = new HashMap<>(v1.getAggregatedCosts());
+            v2.getAggregatedCosts().forEach((k, v) -> aggregatedCosts.merge(k, v, Double::sum));
+            builder.setAggregatedCosts(aggregatedCosts);
+        }
         return builder.build();
     }
 

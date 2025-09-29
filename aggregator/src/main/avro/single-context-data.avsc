@@ -1,0 +1,45 @@
+{
+    "namespace": "io.spoud.kcc.data",
+    "type": "record",
+    "name": "SingleContextData",
+    "fields": [
+        {
+            "name": "startTime",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            }
+        },
+        {
+            "name": "endTime",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            }
+        },
+        {
+            "name": "contextType",
+            "type": "string"
+        },
+        {
+            "name": "name",
+            "type": "string"
+        },
+        {
+            "name": "aggregatedMetrics",
+            "type": {
+                "type": "map",
+                "values": "double",
+                "default": {}
+            }
+        },
+        {
+            "name": "aggregatedCosts",
+            "type": {
+                "type": "map",
+                "values": "double",
+                "default": {}
+            }
+        }
+    ]
+}

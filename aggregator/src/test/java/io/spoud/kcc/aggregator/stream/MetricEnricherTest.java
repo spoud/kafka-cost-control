@@ -99,7 +99,9 @@ class MetricEnricherTest {
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, contextDataRepository, configProperties, serdeFactory, gaugeRepository, metricReducer, Mockito.mock(AggregatedMetricsRepository.class));
+        var aggregatedMetricsRepository = Mockito.mock(AggregatedMetricsRepository.class);
+        Mockito.when(aggregatedMetricsRepository.isOlapEnabled()).thenReturn(true);
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, contextDataRepository, configProperties, serdeFactory, gaugeRepository, metricReducer, aggregatedMetricsRepository);
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
