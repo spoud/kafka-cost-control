@@ -92,5 +92,7 @@ quarkus:
         level: WARN
       "io.spoud.kcc":
         level: INFO
+      "org.jooq.Constants":
+        level: WARN
   container-image:
     build: true
