@@ -27,11 +27,13 @@ import java.util.Set;
 class AggregatedMetricsRepositoryTest {
 
     AggregatedMetricsRepository repo;
+    OlapInfra olapInfra;
 
     @BeforeEach
     void setUp() {
         MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()));
-        repo = new AggregatedMetricsRepository(testOlapConfig, metricNameRepository);
+        olapInfra = new OlapInfra(testOlapConfig, metricNameRepository);
+        repo = new AggregatedMetricsRepository(testOlapConfig, olapInfra, metricNameRepository);
     }
 
     @DisplayName("DB memory limit respects given constraint")
@@ -57,12 +59,15 @@ class AggregatedMetricsRepositoryTest {
     void loadSeedData() {
         var exportPath = AggregatedMetricsRepositoryTest.class.getClassLoader().getResource("data/olap-export.csv")
                 .getPath();
-        var repo = new AggregatedMetricsRepository(FakeOlapConfig
+        FakeOlapConfig fakeOlapConfig = FakeOlapConfig
                 .builder()
                 .databaseSeedDataPath(exportPath)
-                .build(),
+                .build();
+        OlapInfra localOlapInfa = new OlapInfra(fakeOlapConfig, new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build())));
+        var repo = new AggregatedMetricsRepository(fakeOlapConfig,
+                localOlapInfa,
                 null);
-        repo.init();
+        localOlapInfa.init();
 
         // make sure we already have some data without inserting anything
         assertThat(repo.getAllMetrics()).isNotEmpty();
@@ -77,7 +82,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Inserted row is not immediately flushed to DB")
     @Test
     void insertRow() {
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
 
         assertThat(repo.getAllMetrics()).isEmpty();
@@ -91,7 +96,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Rows for different time windows do not overwrite each other")
     @Test
     void insertRowDifferentTimeWindows() {
-        repo.init();
+        olapInfra.init();
 
         var start = Instant.now();
         var end = start.plus(Duration.ofHours(1));
@@ -110,7 +115,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get only rows that match the specified metric name")
     @Test
     void filterHistoryRowsByMetricName() {
-        repo.init();
+        olapInfra.init();
 
         var start = Instant.now();
         var end = start.plus(Duration.ofHours(1));
@@ -138,7 +143,7 @@ class AggregatedMetricsRepositoryTest {
         var randomDp1 = randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).build();
         var randomDp2 = randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(2).build();
 
-        repo.init();
+        olapInfra.init();
 
         repo.insertRow(randomDp1);
         repo.insertRow(randomDp2);
@@ -153,7 +158,7 @@ class AggregatedMetricsRepositoryTest {
     @Test
     @DisplayName("Flush to DB occurs automatically if buffer is full")
     void insertRowBufferFull() {
-        repo.init();
+        olapInfra.init();
 
         for (int i = 0; i < testOlapConfig.databaseMaxBufferedRows() - 1; i++) {
             repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
@@ -186,7 +191,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all tag keys")
     void getAllTagKeys() {
         // insert to db and flush, make sure we get all the tags we specified
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandnorth", "stage", "test")).build());
         repo.flushToDb();
         assertThat(repo.getAllTagKeys()).contains("env", "stage");
@@ -196,7 +201,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all context keys")
     void getAllContextKeys() {
         // insert to db and flush, make sure we get all the context keys we specified
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic")).build());
         repo.flushToDb();
         assertThat(repo.getAllContextKeys()).contains("app", "org", "topic");
@@ -206,7 +211,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all metric names")
     void getAllMetrics() {
         // insert to db and flush, make sure we get all the metrics we specified
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").build());
         repo.flushToDb();
@@ -217,7 +222,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all tag values for a given key")
     void getAllTagValues() {
         // insert to db and flush, make sure we get all the tag values we specified
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandnorth", "stage", "test")).build());
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandwest", "stage", "prod")).build());
         repo.flushToDb();
@@ -229,7 +234,7 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all context values for a given key")
     void getAllContextValues() {
         // insert to db and flush, make sure we get all the context values we specified
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic")).build());
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic-2")).build());
         repo.flushToDb();
@@ -241,7 +246,7 @@ class AggregatedMetricsRepositoryTest {
     @Test
     @DisplayName("Export metrics to jsonl file")
     void getAllMetricsJsonExport() throws IOException {
-        repo.init();
+        olapInfra.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.flushToDb();

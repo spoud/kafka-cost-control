@@ -129,6 +129,11 @@
             <version>2.20.0</version>
         </dependency>
         <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>3.20.7</version>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.42</version>
@@ -198,6 +203,69 @@
                             <goal>generate-code</goal>
                             <goal>generate-code-tests</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jooq</groupId>
+                <artifactId>jooq-codegen-maven</artifactId>
+                <version>3.20.7</version>
+                <executions>
+                    <execution>
+                        <id>my-id</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <jdbc>
+                        <driver>org.duckdb.DuckDBDriver</driver>
+                        <url>jdbc:duckdb:</url>
+                        <initScript>${project.basedir}/src/main/resources/olap-schema.sql</initScript>
+                    </jdbc>
+                    <generator>
+                        <database>
+                            <name>org.jooq.meta.duckdb.DuckDBDatabase</name>
+                            <properties>
+                                <property>
+                                    <key>scripts</key>
+                                    <value>src/main/resources/olap-schema.sql</value>
+                                </property>
+                                <property>
+                                    <key>sort</key>
+                                    <value>semantic</value>
+                                </property>
+                            </properties>
+                            <inputCatalog>memory</inputCatalog>
+                            <inputSchema>main</inputSchema>
+                            <!-- don't prefix (e.g. select * from "memory"."main"."aggregated_data") -->
+                            <outputCatalogToDefault>true</outputCatalogToDefault>
+                            <outputSchemaToDefault>true</outputSchemaToDefault>
+                        </database>
+                        <target>
+                            <packageName>io.spoud.kcc.olap.domain</packageName>
+                        </target>
+                    </generator>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>add-jooq-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/jooq</source>
+                            </sources>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
