@@ -3,7 +3,6 @@ package io.spoud.kcc.aggregator.olap;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
@@ -23,14 +22,12 @@ import org.jooq.Result;
 import org.jooq.impl.DSL;
 
 import java.nio.file.Path;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -368,114 +365,4 @@ public class AggregatedMetricsRepository {
         return Collections.emptyMap();
     }
 
-    private void importData() {
-        try {
-            olapConfig.databaseSeedDataPath().ifPresent(this::importSeedData);
-            olapConfig.insertSyntheticDays().ifPresent(this::insertSyntheticDays);
-            addExistingMetrics();
-        } catch (Exception e) {
-            Log.warn("Failed to load seed data", e);
-        }
-    }
-
-    public void importSeedData(String path) {
-        olapInfra.getConnection().ifPresent((conn) -> {
-            loadDataExport(path, conn);
-        });
-    }
-
-    private void insertSyntheticDays(int days) {
-        olapInfra.getConnection().ifPresent(conn -> insertGeneratedData(conn, days));
-    }
-
-    private void insertGeneratedData(Connection conn, int days) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        var rnd = new Random();
-        long seed = rnd.nextLong();
-        rnd.setSeed(seed);
-        Log.infof("Inserting data with seed %d", seed);
-
-        var metrics = List.of("kafka_log_log_size", "kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total");
-        var readers = List.of("DataAnalyticsConsumer", "RealTimeDashboardService", "InventoryUpdateProcessor", "FraudDetectionEngine", "CustomerNotificationService");
-        var writers = List.of("OrderPlacementService", "LogAggregationService", "UserActivityProducer", "PaymentGatewayEmitter", "SensorDataCollector");
-        var topics = List.of("orders.transactions", "system.application.logs", "user.activity.events", "payments.processed", "sensor.data.raw");
-        var applications = List.of("RealtimeMetricsAggregator", "CustomerOrderStreamer", "FinancialTransactionProcessor", "LogEventAnalyzer", "InventoryUpdateEmitter");
-        var names = List.of("school.principals.management", "education.principals.directory", "admin.principals.records", "staff.principals.updates", "district.principals.roster");
-
-        try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-            for (Instant startTime = Instant.now().truncatedTo(ChronoUnit.HOURS), middle = startTime.minus(Duration.ofDays(days / 2));
-                 startTime.isAfter(Instant.now().minus(Duration.ofDays(days)));
-                 startTime = startTime.minus(Duration.ofHours(1))) {
-                var endTime = startTime.plus(Duration.ofHours(1));
-
-                int j;
-                if (startTime.isAfter(middle)) {
-                    j = 5; // one reader / writer / topic / application / name only appears after half-time
-                } else {
-                    j = 4;
-                }
-                for (int i = 0; i < j; i++) {
-                    var reader = readers.get(i);
-                    var writer = writers.get(i);
-                    var topic = topics.get(i);
-                    var application = applications.get(i);
-                    ObjectNode json = objectMapper.createObjectNode();
-                    json.put("readers", reader);
-                    json.put("writers", writer);
-                    json.put("topic", topic);
-                    json.put("application", application);
-                    var context = json.toString();
-
-                    for (String metric : metrics) {
-                        int value;
-                        if (Math.random() > 0.8) {
-                            value = rnd.nextInt(150_000_000);
-                        } else {
-                            value = rnd.nextInt(30_000_000);
-                        }
-                        var scale = (i + 1) / 3.0;
-                        value = (int) (value * scale);
-                        stmt.setObject(1, startTime.atOffset(ZoneOffset.UTC));
-                        stmt.setObject(2, endTime.atOffset(ZoneOffset.UTC));
-                        stmt.setString(3, metric);
-                        stmt.setString(4, "TOPIC");
-                        stmt.setString(5, names.get(i));
-                        stmt.setObject(6, "{}");
-                        stmt.setString(7, context);
-                        stmt.setDouble(8, value);
-                        stmt.setString(9, "target_" + i);
-                        stmt.setString(10, UUID.randomUUID().toString());
-                        stmt.addBatch();
-                    }
-                }
-            }
-            stmt.executeBatch();
-            Log.infov("Successfully inserted dummy data");
-        } catch (SQLException e) {
-            Log.error("Failed to insert dummy data", e);
-        }
-    }
-
-    private void loadDataExport(String path, Connection conn) {
-        try (var statement = conn.prepareStatement("COPY aggregated_data FROM '" + path + "'  (AUTO_DETECT true)")) {
-            statement.execute();
-            Log.infof("Loaded seed data from %s", path);
-        } catch (SQLException e) {
-            Log.error("Failed to load data", e);
-        }
-    }
-
-    private void addExistingMetrics() {
-        olapInfra.getConnection().ifPresent(conn -> {
-            try (PreparedStatement statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data");
-                 ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    String metricName = resultSet.getString("initial_metric_name");
-                    metricNameRepository.addMetricName(metricName, Instant.now());
-                }
-            } catch (SQLException e) {
-                Log.error("Failed to add metrics", e);
-            }
-        });
-    }
 }
