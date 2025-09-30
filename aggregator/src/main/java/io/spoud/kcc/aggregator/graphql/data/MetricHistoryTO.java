@@ -23,6 +23,7 @@ public class MetricHistoryTO {
     @NonNull
     private String name;
 
+    @Deprecated // TODO this seems to always be empty? Remove?
     @NonNull
     private Map<String, String> context;
 

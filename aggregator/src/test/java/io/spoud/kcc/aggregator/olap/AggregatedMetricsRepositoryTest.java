@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.quarkus.test.junit.QuarkusTest;
+import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.data.EntityType;
 import jakarta.inject.Inject;
@@ -19,10 +20,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
-import java.util.Set;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 @QuarkusTest
 class AggregatedMetricsRepositoryTest {
@@ -110,6 +109,88 @@ class AggregatedMetricsRepositoryTest {
 
         var history = repo.getHistory(start.minusSeconds(1), end2.plusSeconds(1), Set.of("my-awesome-metric"));
         assertThat(history).hasSize(2);
+    }
+
+    @DisplayName("Get history grouped by a particular context key")
+    @Test
+    void groupHistoryByContextKeyAndHour() {
+        var start = Instant.now();
+        var end = start.plus(Duration.ofHours(1));
+        var start2 = end;
+        var end2 = start2.plus(Duration.ofHours(1));
+
+        var kccCtx1 = Map.of("app", "kcc", "region", "eu-west");
+        var kafkaCtx1 = Map.of("app", "kafka", "region", "eu-west");
+
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx1).build());
+
+        // some new contexts (same app, different region)
+        var kccCtx2 = Map.of("app", "kcc", "region", "us-east");
+        var kafkaCtx2 = Map.of("app", "kafka", "region", "us-east");
+
+        // insert again, but this time with a different context for the same app (this is to test that values for the same app in the same time window get summed up)
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx2).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx2).build());
+
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start.minusSeconds(1), end2.plusSeconds(1), Set.of("my-awesome-metric"), "app");
+        assertThat(history).hasSize(2);
+        assertThat(history.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("kcc", "kafka");
+        // each history entry should have two distinct timestamps
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kafka"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start.truncatedTo(ChronoUnit.SECONDS), start2.truncatedTo(ChronoUnit.SECONDS));
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kcc"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start.truncatedTo(ChronoUnit.SECONDS), start2.truncatedTo(ChronoUnit.SECONDS));
+        // each history entry should have two values
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kafka"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(1., 2.);
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kcc"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(1., 2.);
+
+        // now group by region (we expect a value of 2 for eu-west for both timestamps)
+        var historyByRegion = repo.getHistoryGrouped(start.minusSeconds(1), end2.plusSeconds(1), Set.of("my-awesome-metric"), "region");
+        assertThat(historyByRegion).hasSize(2);
+        assertThat(historyByRegion.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("eu-west", "us-east");
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("eu-west"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start.truncatedTo(ChronoUnit.SECONDS), start2.truncatedTo(ChronoUnit.SECONDS));
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("us-east"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start2.truncatedTo(ChronoUnit.SECONDS)); // us-east only has data for the second timestamp
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("eu-west"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(2., 2.); // eu-west has a value of 2 for both timestamps
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("us-east"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(2.); // us-east only has data for the second timestamp
     }
 
     @DisplayName("Get only rows that match the specified metric name")

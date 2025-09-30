@@ -93,13 +93,13 @@ public class SqlTemplates {
                                                Instant from, Instant to, String groupByContextKey) throws SQLException {
         var template = getHistoryGrouped.data("groupByHour", groupByHour, "metricNames", metricNames);
         var stmt = conn.prepareStatement(template.render());
-        stmt.setObject(1, from.atOffset(ZoneOffset.UTC));
-        stmt.setObject(2, to.atOffset(ZoneOffset.UTC));
-        var i = 3;
+        stmt.setObject(1, groupByContextKey);
+        stmt.setObject(2, from.atOffset(ZoneOffset.UTC));
+        stmt.setObject(3, to.atOffset(ZoneOffset.UTC));
+        var i = 4;
         for (var name : metricNames) {
             stmt.setString(i++, name);
         }
-        stmt.setString(i, groupByContextKey);
         return stmt;
     }
 
