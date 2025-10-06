@@ -3,7 +3,6 @@ package io.spoud.kcc.aggregator.olap;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
@@ -12,21 +11,30 @@ import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.data.AggregatedDataWindowed;
-import jakarta.annotation.PostConstruct;
+import io.spoud.kcc.olap.domain.tables.AggregatedData;
+import io.spoud.kcc.olap.domain.tables.records.AggregatedDataRecord;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.jooq.Condition;
+import org.jooq.DSLContext;
+import org.jooq.Record1;
+import org.jooq.Result;
+import org.jooq.impl.DSL;
 
 import java.nio.file.Path;
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import static io.spoud.kcc.olap.domain.Tables.AGGREGATED_DATA;
 
 @Startup
 @ApplicationScoped
@@ -35,14 +43,15 @@ public class AggregatedMetricsRepository {
     };
 
     private final OlapConfigProperties olapConfig;
+    private final OlapInfra olapInfra;
     private final BlockingQueue<AggregatedDataWindowed> rowBuffer;
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private Connection connection;
 
-    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, MetricNameRepository metricNameRepository) {
+    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, OlapInfra olapInfra, MetricNameRepository metricNameRepository) {
         this.olapConfig = olapConfig;
         this.rowBuffer = new ArrayBlockingQueue<>(olapConfig.databaseMaxBufferedRows());
+        this.olapInfra = olapInfra;
         this.metricNameRepository = metricNameRepository;
     }
 
@@ -52,30 +61,12 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    @PostConstruct
-    public void init() {
-        if (olapConfig.enabled()) {
-            Log.infof("OLAP module is enabled. Data will be written to %s", olapConfig.databaseUrl());
-            getConnection().ifPresent((conn) -> {
-                try {
-                    createTableIfNotExists(conn);
-                } catch (SQLException e) {
-                    Log.error("Failed to create OLAP table", e);
-                }
-                setDbMemoryLimit(conn);
-                importData();
-            });
-        } else {
-            Log.info("OLAP module is disabled.");
-        }
-    }
-
     @Shutdown
     public void cleanUp() {
         if (olapConfig.enabled()) {
             Log.info("Shutting down OLAP module. Performing final flush and closing connection...");
             flushToDb();
-            getConnection().ifPresent((conn) -> {
+            olapInfra.getConnection().ifPresent((conn) -> {
                 try {
                     conn.close();
                     Log.info("Closed OLAP database connection");
@@ -86,62 +77,9 @@ public class AggregatedMetricsRepository {
         }
     }
 
-    private void setDbMemoryLimit(Connection conn) {
-        if (olapConfig.databaseMemoryLimitMib().isEmpty()) {
-            Log.warn("""
-                    No memory limit set for OLAP database. Using DuckDB default of 80% of system memory.
-                    Please consider setting a limit to avoid out-of-memory errors, by setting the `cc.olap.total.memory.limit.mb` and `cc.olap.database.memory.limit.percent` properties.
-                    """);
-            return;
-        }
-        var memLimit = olapConfig.databaseMemoryLimitMib().orElseThrow();
-        try (var statement = conn.createStatement()) {
-            statement.execute("SET memory_limit = '" + memLimit + "MiB'");
-            Log.infof("Set memory limit for OLAP database to %d MiB", memLimit);
-        } catch (SQLException e) {
-            Log.error("Failed to set memory limit for OLAP database", e);
-        }
-    }
-
-    private Optional<Connection> getConnection() {
-        if (!olapConfig.enabled()) {
-            return Optional.empty();
-        }
-        try {
-            if (connection == null || connection.isClosed()) {
-                Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
-                connection = DriverManager.getConnection(olapConfig.databaseUrl());
-            }
-            return Optional.of(connection);
-        } catch (Exception e) {
-            Log.warn("Failed to get read-write connection to OLAP database", e);
-            return Optional.empty();
-        }
-    }
-
-    private void createTableIfNotExists(Connection connection) throws SQLException {
-        try (var statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS aggregated_data (
-                        start_time TIMESTAMPTZ NOT NULL,
-                        end_time TIMESTAMPTZ NOT NULL,
-                        initial_metric_name VARCHAR NOT NULL,
-                        entity_type VARCHAR NOT NULL,
-                        name VARCHAR NOT NULL,
-                        tags JSON NOT NULL,
-                        context JSON NOT NULL,
-                        value DOUBLE NOT NULL,
-                        target VARCHAR NOT NULL,
-                        id VARCHAR PRIMARY KEY
-                    )
-                    """);
-            Log.infof("Created OLAP DB table: aggregated_data");
-        }
-    }
-
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     synchronized void flushToDb() {
-        getConnection().ifPresent((conn) -> {
+        olapInfra.getConnection().ifPresent((conn) -> {
             // Drain the buffer. This flush will deal only with the current buffer elements, not with any new rows added while this flush is running
             // This prevents the potential edge-case where the buffer is emptied and filled at the same rate, causing the flush to never finish.
             // Note that since adding to the buffer happens from the stream processing thread, this carries a slight risk of slowing down the stream processing.
@@ -223,25 +161,22 @@ public class AggregatedMetricsRepository {
     }
 
     public Set<String> getAllMetrics() {
-        return getConnection()
+        return olapInfra.getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data")) {
-                        var result = statement.executeQuery();
-                        var metrics = new HashSet<String>();
-                        while (result.next()) {
-                            metrics.add(result.getString(1));
-                        }
-                        return metrics;
-                    } catch (SQLException e) {
-                        Log.error("Failed to get all metrics", e);
-                    }
-                    return new HashSet<String>();
+                    DSLContext dslContext = DSL.using(conn);
+                    AggregatedData a = AGGREGATED_DATA.as("a");
+                    return dslContext
+                            .selectDistinct(a.INITIAL_METRIC_NAME)
+                            .from(a)
+                            .stream()
+                            .map(Record1::value1)
+                            .collect(Collectors.toSet());
                 })
                 .orElse(new HashSet<>());
     }
 
     private Set<String> getAllJsonKeys(String column) {
-        return getConnection()
+        return olapInfra.getConnection()
                 .map(conn -> {
                     try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM aggregated_data")) {
                         return getStatementResultAsStrings(statement, true);
@@ -255,7 +190,7 @@ public class AggregatedMetricsRepository {
 
     private Set<String> getAllJsonKeyValues(String column, String key) {
         ensureIdentifierIsSafe(key);
-        return getConnection()
+        return olapInfra.getConnection()
                 .map(conn -> {
                     try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM aggregated_data".formatted(column, key))) {
                         return getStatementResultAsStrings(statement, false);
@@ -296,7 +231,7 @@ public class AggregatedMetricsRepository {
         Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
         var tmpFileName = Path.of(System.getProperty("java.io.tmpdir"), "olap_export_" + UUID.randomUUID() + "." + finalFormat);
-        return getConnection().map((conn) -> {
+        return olapInfra.getConnection().map((conn) -> {
             try (var statement = conn.prepareStatement("COPY (SELECT * FROM aggregated_data WHERE start_time >= ? AND end_time <= ?) TO '" + tmpFileName + "'"
                     + (finalFormat.equals("csv") ? "(HEADER, DELIMITER ',')" : ""))) {
                 statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
@@ -325,46 +260,38 @@ public class AggregatedMetricsRepository {
 
 
     public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
-        return getConnection().map((conn) -> {
+        return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s", finalStartDate, finalEndDate);
 
-            var nameFilter = names.isEmpty() ? "" : " AND initial_metric_name IN " + names.stream().map(s -> "?")
-                    .collect(Collectors.joining(", ", "(", ")"));
-            try (var statement = conn.prepareStatement("""
-                    SELECT * FROM aggregated_data
-                    WHERE start_time >= ? AND end_time <= ?
-                    """ + nameFilter)) {
-                statement.setObject(1, finalStartDate.atOffset(ZoneOffset.UTC));
-                statement.setObject(2, finalEndDate.atOffset(ZoneOffset.UTC));
-                var i = 3;
-                for (var name : names) {
-                    statement.setString(i, name);
-                    i++;
-                }
-                List<MetricEO> metrics = new ArrayList<>();
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    while (resultSet.next()) {
-                        metrics.add(new MetricEO(
-                                resultSet.getString("id"),
-                                resultSet.getTimestamp("start_time").toInstant(),
-                                resultSet.getTimestamp("end_time").toInstant(),
-                                resultSet.getString("initial_metric_name"),
-                                resultSet.getString("entity_type"),
-                                resultSet.getString("name"),
-                                parseMap(resultSet.getString("tags")),
-                                parseMap(resultSet.getString("context")),
-                                resultSet.getDouble("value"),
-                                resultSet.getString("target")
-                        ));
-                    }
-                }
-                return metrics;
-            } catch (SQLException e) {
-                Log.error("Failed to export data", e);
-                return null;
+            DSLContext dslContext = DSL.using(conn);
+            AggregatedData a = AGGREGATED_DATA.as("a");
+
+            Condition condition = a.START_TIME.ge(finalStartDate.atOffset(ZoneOffset.UTC))
+                    .and(a.END_TIME.le(finalEndDate.atOffset(ZoneOffset.UTC)));
+            if (!names.isEmpty()) {
+                condition = condition.and(a.INITIAL_METRIC_NAME.in(names));
             }
+
+            Result<AggregatedDataRecord> fetchResult = dslContext
+                    .selectFrom(a)
+                    .where(condition)
+                    .fetch();
+
+            return fetchResult.stream()
+                    .map(record -> new MetricEO(
+                            record.getId(),
+                            record.getStartTime().toInstant(),
+                            record.getEndTime().toInstant(),
+                            record.getInitialMetricName(),
+                            record.getEntityType(),
+                            record.getName(),
+                            parseMap(record.getTags().data()),
+                            parseMap(record.getContext().data()),
+                            record.getValue(),
+                            record.getTarget()
+                    )).toList();
         }).orElse(Collections.emptyList());
     }
 
@@ -373,7 +300,7 @@ public class AggregatedMetricsRepository {
     }
 
     public Collection<MetricHistoryTO> getHistoryGrouped(Instant startDate, Instant endDate, Set<String> names, String groupByContextKey, boolean groupByHour) {
-        return getConnection().map((conn) -> {
+        return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
             Log.infof("Generating report for the period from %s to %s, grouped for context '%s'", finalStartDate, finalEndDate, groupByContextKey);
@@ -438,114 +365,4 @@ public class AggregatedMetricsRepository {
         return Collections.emptyMap();
     }
 
-    private void importData() {
-        try {
-            olapConfig.databaseSeedDataPath().ifPresent(this::importSeedData);
-            olapConfig.insertSyntheticDays().ifPresent(this::insertSyntheticDays);
-            addExistingMetrics();
-        } catch (Exception e) {
-            Log.warn("Failed to load seed data", e);
-        }
-    }
-
-    public void importSeedData(String path) {
-        getConnection().ifPresent((conn) -> {
-            loadDataExport(path, conn);
-        });
-    }
-
-    private void insertSyntheticDays(int days) {
-        getConnection().ifPresent(conn -> insertGeneratedData(conn, days));
-    }
-
-    private void insertGeneratedData(Connection conn, int days) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        var rnd = new Random();
-        long seed = rnd.nextLong();
-        rnd.setSeed(seed);
-        Log.infof("Inserting data with seed %d", seed);
-
-        var metrics = List.of("kafka_log_log_size", "kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total");
-        var readers = List.of("DataAnalyticsConsumer", "RealTimeDashboardService", "InventoryUpdateProcessor", "FraudDetectionEngine", "CustomerNotificationService");
-        var writers = List.of("OrderPlacementService", "LogAggregationService", "UserActivityProducer", "PaymentGatewayEmitter", "SensorDataCollector");
-        var topics = List.of("orders.transactions", "system.application.logs", "user.activity.events", "payments.processed", "sensor.data.raw");
-        var applications = List.of("RealtimeMetricsAggregator", "CustomerOrderStreamer", "FinancialTransactionProcessor", "LogEventAnalyzer", "InventoryUpdateEmitter");
-        var names = List.of("school.principals.management", "education.principals.directory", "admin.principals.records", "staff.principals.updates", "district.principals.roster");
-
-        try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-            for (Instant startTime = Instant.now().truncatedTo(ChronoUnit.HOURS), middle = startTime.minus(Duration.ofDays(days / 2));
-                 startTime.isAfter(Instant.now().minus(Duration.ofDays(days)));
-                 startTime = startTime.minus(Duration.ofHours(1))) {
-                var endTime = startTime.plus(Duration.ofHours(1));
-
-                int j;
-                if (startTime.isAfter(middle)) {
-                    j = 5; // one reader / writer / topic / application / name only appears after half-time
-                } else {
-                    j = 4;
-                }
-                for (int i = 0; i < j; i++) {
-                    var reader = readers.get(i);
-                    var writer = writers.get(i);
-                    var topic = topics.get(i);
-                    var application = applications.get(i);
-                    ObjectNode json = objectMapper.createObjectNode();
-                    json.put("readers", reader);
-                    json.put("writers", writer);
-                    json.put("topic", topic);
-                    json.put("application", application);
-                    var context = json.toString();
-
-                    for (String metric : metrics) {
-                        int value;
-                        if (Math.random() > 0.8) {
-                            value = rnd.nextInt(150_000_000);
-                        } else {
-                            value = rnd.nextInt(30_000_000);
-                        }
-                        var scale = (i + 1) / 3.0;
-                        value = (int) (value * scale);
-                        stmt.setObject(1, startTime.atOffset(ZoneOffset.UTC));
-                        stmt.setObject(2, endTime.atOffset(ZoneOffset.UTC));
-                        stmt.setString(3, metric);
-                        stmt.setString(4, "TOPIC");
-                        stmt.setString(5, names.get(i));
-                        stmt.setObject(6, "{}");
-                        stmt.setString(7, context);
-                        stmt.setDouble(8, value);
-                        stmt.setString(9, "target_" + i);
-                        stmt.setString(10, UUID.randomUUID().toString());
-                        stmt.addBatch();
-                    }
-                }
-            }
-            stmt.executeBatch();
-            Log.infov("Successfully inserted dummy data");
-        } catch (SQLException e) {
-            Log.error("Failed to insert dummy data", e);
-        }
-    }
-
-    private void loadDataExport(String path, Connection conn) {
-        try (var statement = conn.prepareStatement("COPY aggregated_data FROM '" + path + "'  (AUTO_DETECT true)")) {
-            statement.execute();
-            Log.infof("Loaded seed data from %s", path);
-        } catch (SQLException e) {
-            Log.error("Failed to load data", e);
-        }
-    }
-
-    private void addExistingMetrics() {
-        getConnection().ifPresent(conn -> {
-            try (PreparedStatement statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data");
-                 ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    String metricName = resultSet.getString("initial_metric_name");
-                    metricNameRepository.addMetricName(metricName, Instant.now());
-                }
-            } catch (SQLException e) {
-                Log.error("Failed to add metrics", e);
-            }
-        });
-    }
 }

@@ -1,12 +1,11 @@
-import {inject, Pipe, PipeTransform} from '@angular/core';
-import {Panel} from '../panel.type';
-import {IntlDateService} from '../../services/intl-date.service';
+import { inject, Pipe, PipeTransform } from '@angular/core';
+import { Panel } from '../panel.type';
+import { IntlDateService } from '../../services/intl-date.service';
 
 @Pipe({
-    name: 'metaData'
+    name: 'metaData',
 })
 export class MetaDataPipe implements PipeTransform {
-
     intlDateService = inject(IntlDateService);
 
     transform(panel: Panel): string | null {
@@ -20,8 +19,7 @@ export class MetaDataPipe implements PipeTransform {
             panel.to ? ` - ${this.intlDateService.transform(panel.to)}` : ` - now`,
             panel.groupByContext.length > 0 ? ` and grouped by ${panel.groupByContext}` : null,
             `)`,
-        ]
+        ];
         return strings.join('');
     }
-
 }

@@ -1,10 +1,9 @@
-import {Injectable} from '@angular/core';
+import { Injectable } from '@angular/core';
 
 @Injectable({
-    providedIn: 'root'
+    providedIn: 'root',
 })
 export class AdditionalHeadersService {
-
     private _headers: { [key: string]: string } = {};
 
     public setHeader(key: string, value: string): void {

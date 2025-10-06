@@ -1,31 +1,41 @@
-import {Component, computed, Signal} from '@angular/core';
-import {RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
-import {MatTabsModule} from '@angular/material/tabs';
-import {MatToolbar} from '@angular/material/toolbar';
-import {MatIcon} from '@angular/material/icon';
-import {MatButton} from '@angular/material/button';
-import {BasicAuthServiceService} from './auth/basic-auth-service.service';
-import {MatTooltip} from '@angular/material/tooltip';
-import {MatDialog} from '@angular/material/dialog';
-import {SignInDialogComponent} from './common/sign-in-dialog/sign-in-dialog.component';
-import {provideEchartsCore} from 'ngx-echarts';
+import { Component, computed, DOCUMENT, inject, Signal } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatToolbar } from '@angular/material/toolbar';
+import { MatIcon } from '@angular/material/icon';
+import { MatButton } from '@angular/material/button';
+import { BasicAuthServiceService } from './auth/basic-auth-service.service';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
+import { SignInDialogComponent } from './common/sign-in-dialog/sign-in-dialog.component';
+import { provideEchartsCore } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
-import {BarChart, LineChart, PieChart} from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import {
     DatasetComponent,
     DataZoomComponent,
     GridComponent,
     LegendComponent,
-    TooltipComponent
+    TooltipComponent,
 } from 'echarts/components';
-import {CanvasRenderer} from 'echarts/renderers';
+import { CanvasRenderer } from 'echarts/renderers';
+import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
+import { MatListItem, MatNavList } from '@angular/material/list';
+import { Link, menuLinks, menuLinksLoggedIn } from './app.routes';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { NgOptimizedImage } from '@angular/common';
 
-interface Link {
-    path: string;
-    label: string;
-}
-
-echarts.use([LineChart, BarChart, GridComponent, CanvasRenderer, LegendComponent, PieChart, TooltipComponent, DatasetComponent, DataZoomComponent]);
+echarts.use([
+    LineChart,
+    BarChart,
+    GridComponent,
+    CanvasRenderer,
+    LegendComponent,
+    PieChart,
+    TooltipComponent,
+    DatasetComponent,
+    DataZoomComponent,
+]);
 
 @Component({
     selector: 'app-root',
@@ -34,35 +44,38 @@ echarts.use([LineChart, BarChart, GridComponent, CanvasRenderer, LegendComponent
     imports: [
         RouterLink,
         RouterLinkActive,
-        RouterOutlet,
         MatTabsModule,
         MatToolbar,
         MatIcon,
         MatButton,
-        MatTooltip
+        MatTooltip,
+        MatSidenavContainer,
+        MatSidenavContent,
+        MatSidenav,
+        MatNavList,
+        MatListItem,
+        RouterOutlet,
+        MatSlideToggle,
+        NgOptimizedImage,
     ],
-    providers: [
-        provideEchartsCore({echarts}),
-    ]
+    providers: [provideEchartsCore({ echarts })],
 })
 export class AppComponent {
+    private _dialog = inject(MatDialog);
+    private _authService = inject(BasicAuthServiceService);
+    private document = inject(DOCUMENT);
+
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
-        const list = [
-            {path: '/graphs', label: 'Graphs'},
-            {path: '/reporting', label: 'Reporting'},
-            {path: '/context-data', label: 'Context Data'},
-            {path: '/pricing-rules', label: 'Pricing Rules'},
-        ];
+        const list: Link[] = [...menuLinks];
         if (this.isAuthenticated()) {
-            list.push({path: '/others', label: 'Others'});
-
+            list.push(...menuLinksLoggedIn);
         }
         return list;
-    })
+    });
 
-    constructor(private _dialog: MatDialog, private _authService: BasicAuthServiceService) {
-        this.isAuthenticated = _authService.authenticated();
+    constructor() {
+        this.isAuthenticated = this._authService.authenticated();
     }
 
     signOut(): void {
@@ -73,7 +86,11 @@ export class AppComponent {
         const dialogRef = this._dialog.open(SignInDialogComponent);
 
         dialogRef.afterClosed().subscribe({
-            next: (result) => console.log('Sign in dialog closed', result)
+            next: result => console.log('Sign in dialog closed', result),
         });
+    }
+
+    onThemeChange() {
+        this.document.body.classList.toggle('dark');
     }
 }

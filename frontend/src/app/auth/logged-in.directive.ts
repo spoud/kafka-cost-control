@@ -1,16 +1,15 @@
-import {Directive, effect, TemplateRef, ViewContainerRef} from '@angular/core';
-import {BasicAuthServiceService} from './basic-auth-service.service';
+import { Directive, effect, TemplateRef, ViewContainerRef, inject } from '@angular/core';
+import { BasicAuthServiceService } from './basic-auth-service.service';
 
 @Directive({
-    selector: '[appLoggedIn]'
+    selector: '[appLoggedIn]',
 })
 export class LoggedInDirective<T = unknown> {
+    private templateRef = inject<TemplateRef<T>>(TemplateRef);
+    private viewContainerRef = inject(ViewContainerRef);
+    private authService = inject(BasicAuthServiceService);
 
-    constructor(
-        private templateRef: TemplateRef<T>,
-        private viewContainerRef: ViewContainerRef,
-        private authService: BasicAuthServiceService,
-    ) {
+    constructor() {
         const authenticated = this.authService.authenticated();
         effect(() => {
             this.updateView(authenticated());
