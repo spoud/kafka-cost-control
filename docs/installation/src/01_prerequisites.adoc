@@ -2,6 +2,6 @@
 
 This installation manual assumes that
 
-. You have a kafka cluster
+. You have a Kafka cluster
 . You have a schema registry
-. You have a kubernetes clusters
+. You have a Kubernetes cluster
