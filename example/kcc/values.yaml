@@ -55,7 +55,7 @@ telegraf:
       cpu: 100m
       memory: 100Mi
   scrapeIntervalSeconds: 10
-  aggregationWindowSizeSeconds: 3600
+  aggregationWindowSizeSeconds: 120
 
 strimzi:
   clusterName: my-cluster
@@ -112,13 +112,13 @@ schemaRegistry:
 
 aggregator:
   enabled: true
-  aggregationWindowSize: PT1H
+  aggregationWindowSize: PT2M
   # Enable DuckDB integration
   olapEnabled: false
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
   olapDatabaseMemoryLimitPercent: 30
   appId: kcc-aggregator
-  image: spoud/kafka-cost-control:latest
+  image: spoud/kafka-cost-control:0.4.1
   # Labels that will be added to the pod
   labels: { }
   # will be applied to the container
@@ -149,8 +149,8 @@ aggregator:
         storage: 1Gi
 
 ui:
-  enabled: false
-  host: "kcc.host"
+  enabled: true
+  host: "kcc.host" # needs a hosts entry if you want to access via host for local development
   image: spoud/kafka-cost-control-ui:latest
   replicas: 1
   # Labels that will be added to the pod
@@ -175,54 +175,7 @@ ui:
       memory: 50Mi
 
 connect:
-  image: spoud/kafka-cost-control-connect:strimzi-latest
-  enabled: true
-  # Whether to configure a connector to move data from the aggregated topic to timescaledb
-  # Note that this will have no effect if timescaledb is not also enabled
-  createConnector: true
-  # Labels that will be added to the connect pod
-  labels: { }
-  # environment variables that will be added to the container
-  env: [ ]
-  #  - name: MY_ENV
-  #    value: "my-value"
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
-      cpu: 1m
-      memory: 200Mi
-  securityContext: { }
+  enabled: false
 
 timescaledb:
-  enabled: true
-  image: timescale/timescaledb:2.17.2-pg16
-  labels: { }
-  volumeClaimTemplate:
-    #storageClassName: standard
-    accessModes: [ "ReadWriteOnce" ]
-    resources:
-      requests:
-        storage: 10Gi
-  resources:
-    limits:
-      cpu: 2000m
-      memory: 2Gi
-    requests:
-      cpu: 100m
-      memory: 0.5Gi
-  # this security context will be applied on the pod level
-  podSecurityContext:
-    fsGroup: 70
-  # this security context will be applied on the container level
-  securityContext:
-    runAsUser: 70
-    runAsGroup: 70
-    allowPrivilegeEscalation: false
-    runAsNonRoot: true
-    readOnlyRootFilesystem: true
-    capabilities:
-      drop: [ "ALL" ]
-    seccompProfile:
-      type: RuntimeDefault
+  enabled: false

@@ -1,0 +1,129 @@
+# This file illustrates how to use the synth client with a Strimzi cluster.
+# It defines a kafka user for the synth client, a topic to write to, and a deployment of the client itself.
+# The metrics are exposed on port 8081 (this port is also exposed via a service).
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: hotels
+  labels:
+    strimzi.io/cluster: my-cluster
+  name: hotels
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    acls:
+    - host: '*'
+      operations:
+      - Describe
+      - Write
+      - Read
+      - Alter
+      resource:
+        name: hotels-bookings
+        patternType: literal
+        type: topic
+    - host: '*'
+      operations:
+      - Read
+      resource:
+        name: hotels-
+        patternType: prefix
+        type: group
+    type: simple
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  annotations:
+    spoud.io/kcc-context.application: hotels
+  labels:
+    strimzi.io/cluster: my-cluster
+  name: hotels-bookings
+spec:
+  config:
+    retention.ms: 86400000
+  partitions: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hotels-producer
+  name: hotels-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hotels-producer
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: hotels-producer
+    spec:
+      containers:
+      - image: ghcr.io/spoud/kcc-ctf-challenges:main
+        name: producer
+        args: ["--topic", "hotels-bookings", "producer"]
+        resources: {}
+        ports:
+        - containerPort: 8000
+          name: prometheus
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: my-cluster-kafka-bootstrap:9094
+        - name: KAFKA_SASL_MECHANISM
+          value: SCRAM-SHA-512
+        - name: KAFKA_SASL_PLAIN_USERNAME
+          value: hotels
+        - name: KAFKA_SASL_PLAIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hotels
+              key: password
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hotels-consumer
+  name: hotels-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hotels-consumer
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: hotels-consumer
+    spec:
+      containers:
+      - image: ghcr.io/spoud/kcc-ctf-challenges:main
+        name: consumer
+        args: ["--topic", "hotels-bookings", "consumer"]
+        resources: {}
+        ports:
+        - containerPort: 8000
+          name: prometheus
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: my-cluster-kafka-bootstrap:9094
+        - name: KAFKA_GROUP_ID
+          value: hotels-consumer-group
+        - name: KAFKA_SASL_MECHANISM
+          value: SCRAM-SHA-512
+        - name: KAFKA_SASL_PLAIN_USERNAME
+          value: hotels
+        - name: KAFKA_SASL_PLAIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hotels
+              key: password
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
