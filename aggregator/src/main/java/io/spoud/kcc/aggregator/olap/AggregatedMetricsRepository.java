@@ -194,7 +194,7 @@ public class AggregatedMetricsRepository {
     private Set<String> getAllJsonKeys(String column) {
         return olapInfra.getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT unnest(json_keys( " + column + " )) FROM aggregated_data")) {
+                    try (var statement = conn.prepareStatement("SELECT DISTINCT unnest(json_keys( " + column + " )) FROM aggregated_data")) {
                         return getStatementResultAsStrings(statement, true);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
