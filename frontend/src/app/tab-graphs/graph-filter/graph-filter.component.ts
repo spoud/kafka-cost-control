@@ -55,7 +55,10 @@ export class GraphFilterComponent {
             initialValue: this.form.value,
         });
         effect(() => {
-            this.graphFilter.emit(values());
+            const filter = values();
+            if (filter.metricName && filter.groupByContext) {
+                this.graphFilter.emit(filter);
+            }
         });
     }
 }
