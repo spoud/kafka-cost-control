@@ -208,7 +208,8 @@ class AggregatedMetricsRepositoryTest {
         repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(2).setContext(kafkaCtx1).build());
 
         repo.flushToDb();
-        var history = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "app", false);
+        var bucketWidth = Duration.between(start, end2).toHours();
+        var history = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "app", bucketWidth);
 
         // we now expect one row per app, with the values summed up
         assertThat(history).hasSize(2);
@@ -237,7 +238,7 @@ class AggregatedMetricsRepositoryTest {
         ).containsExactly(2.); // both values summed up
 
         // now group by region (we expect just one row for eu-west with a value of 1+1+1+2)
-        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "region", false);
+        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "region", bucketWidth);
         assertThat(historyByRegion).hasSize(1);
         assertThat(historyByRegion.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("eu-west");
         assertThat(historyByRegion.stream()
@@ -270,9 +271,10 @@ class AggregatedMetricsRepositoryTest {
         repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(2).setContext(kafkaCtx1).build());
 
         repo.flushToDb();
+        var bucketWidth = Duration.between(start, end2).toHours();
 
         // now group by stage (we expect just one row for "unknown" with a value of 1+1+1+2)
-        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "stage", false);
+        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "stage", bucketWidth);
         assertThat(historyByRegion).hasSize(1);
         assertThat(historyByRegion.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("unknown");
         assertThat(historyByRegion.stream()

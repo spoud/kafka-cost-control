@@ -14,6 +14,7 @@ import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.olap.domain.tables.AggregatedData;
 import io.spoud.kcc.olap.domain.tables.records.AggregatedDataRecord;
 import io.vertx.core.impl.ConcurrentHashSet;
+import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.jooq.Condition;
@@ -267,11 +268,12 @@ public class AggregatedMetricsRepository {
         var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
         var finalEndDate = endDate == null ? Instant.now() : endDate;
 
+        var bucketWidth = Duration.between(finalStartDate, finalEndDate).toHours();
         Map<String, Collection<MetricHistoryTO>> metricToAggregatedValue = metricNameRepository.getMetricNames().stream()
                 .map(MetricNameEntity::metricName)
                 .collect(Collectors.toMap(
                         metric -> metric,
-                        metric -> getHistoryGrouped(finalStartDate, finalEndDate, Set.of(metric), groupByContextKey, false)
+                        metric -> getHistoryGrouped(finalStartDate, finalEndDate, Set.of(metric), groupByContextKey, bucketWidth)
                 ));
         return metricToAggregatedValue;
     }
@@ -314,10 +316,21 @@ public class AggregatedMetricsRepository {
     }
 
     public Collection<MetricHistoryTO> getHistoryGrouped(Instant startDate, Instant endDate, Set<String> names, String groupByContextKey) {
-        return getHistoryGrouped(startDate, endDate, names, groupByContextKey, true);
+        return getHistoryGrouped(startDate, endDate, names, groupByContextKey, null);
     }
 
-    public Collection<MetricHistoryTO> getHistoryGrouped(Instant startDate, Instant endDate, Set<String> metricName, String groupByContextKey, boolean groupByHour) {
+    /**
+     * Get aggregated metric history, grouped by a context key, with optional grouping by time buckets within the time range.
+     * Note that not grouping by time buckets is equivalent to setting the bucket width to the entire time range.
+     *
+     * @param startDate Start time of the query range. If null, defaults to 30 days ago.
+     * @param endDate End time of the query range. If null, defaults to now.
+     * @param metricName Set of metric names to filter by. If empty, includes all metrics.
+     * @param groupByContextKey The context key to group by. Must be a valid JSON key in the context field.
+     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, then the bucket width will be between 1 and 24 hours, depending on the size of the time range. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
+     * @return A collection of MetricHistoryTO objects, each representing a unique value of the specified context key, containing lists of timestamps and corresponding aggregated metric values.
+     */
+    public Collection<MetricHistoryTO> getHistoryGrouped(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricName, String groupByContextKey, @Nullable Long timeBucketWidthHours) {
         return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
@@ -336,8 +349,9 @@ public class AggregatedMetricsRepository {
             var totalValue = DSL.sum(a.VALUE);
             var timespanWidth = Duration.between(finalStartDate, finalEndDate).toDays();
             // if we do not group by hour, create one big bucket for the entire timespan
-            var bucketWidth = groupByHour ? DSL.field("INTERVAL %d HOUR".formatted(Math.min(24, Math.max(1, timespanWidth))))
-                    : DSL.field("INTERVAL %d SECONDS".formatted(Duration.between(finalStartDate, finalEndDate).toSeconds()));
+            var bucketWidth = timeBucketWidthHours == null
+                    ? DSL.field("INTERVAL %d HOUR".formatted(Math.min(24, Math.max(1, timespanWidth))))
+                    : DSL.field("INTERVAL %d SECONDS".formatted(Math.min(3600 * timeBucketWidthHours, Duration.between(finalStartDate, finalEndDate).toSeconds())));
             var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
             var dslQuery = dslContext
                     .select(contextField, tb, totalValue)
