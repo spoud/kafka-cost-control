@@ -334,6 +334,7 @@ public class AggregatedMetricsRepository {
         return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
+            var reportStart = Instant.now();
             Log.infof("Generating report for the period from %s to %s, grouped for context '%s'", finalStartDate, finalEndDate, groupByContextKey);
 
             DSLContext dslContext = DSL.using(conn);
@@ -375,6 +376,8 @@ public class AggregatedMetricsRepository {
                 metricHistory.getTimes().add(startTime);
                 metricHistory.getValues().add(record.get(totalValue).doubleValue());
             });
+            Log.infof("Generated report for the period from %s to %s, grouped for context '%s' in %s.",
+                    finalStartDate, finalEndDate, groupByContextKey, Duration.between(reportStart, Instant.now()));
             return metrics.values();
         }).orElse(Collections.emptyList());
     }
