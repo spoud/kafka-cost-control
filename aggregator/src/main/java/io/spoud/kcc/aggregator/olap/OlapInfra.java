@@ -6,10 +6,14 @@ import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.apache.commons.io.IOUtils;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
@@ -87,12 +91,15 @@ public class OlapInfra {
     }
 
     private void createTableIfNotExists(Connection connection) throws SQLException {
-        URL resource = Thread.currentThread().getContextClassLoader().getResource("olap-schema.sql");
         try (var statement = connection.createStatement()) {
-            String sql = Files.readString(Path.of(resource.toURI()));
+            var initSqlStream = OlapInfra.class.getClassLoader().getResourceAsStream("olap-schema.sql");
+            if (initSqlStream == null) {
+                throw new FileNotFoundException("olap-schema.sql not found in classpath");
+            }
+            String sql = IOUtils.toString(initSqlStream, StandardCharsets.UTF_8);
             statement.execute(sql);
             Log.infof("Created OLAP DB table: aggregated_data");
-        } catch (IOException | URISyntaxException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
