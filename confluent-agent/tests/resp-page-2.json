@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "timestamp": "2025-09-02T00:00:00Z",
+      "value": 232323,
+      "metric.principal_id": "sa-a7e310"
+    },
+    {
+      "timestamp": "2025-09-02T00:00:00Z",
+      "value": 265121,
+      "metric.principal_id": "sa-sdu2uf"
+    }
+  ]
+}
