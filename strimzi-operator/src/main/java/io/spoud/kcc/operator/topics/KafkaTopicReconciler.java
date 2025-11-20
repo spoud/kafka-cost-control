@@ -69,11 +69,12 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
      * Recalculate and publish contexts for all Kafka topics.
      */
     public void reconcileAllTopics() {
-        client.resources(KafkaTopic.class)
+        var topicList = client.resources(KafkaTopic.class)
                 .inNamespace(config.namespace())
                 .list()
-                .getItems()
-                .forEach(this::reconcileSingleTopic);
+                .getItems();
+        Log.infov("Reconciling contexts for all {0} KafkaTopics", topicList.size());
+        topicList.forEach(this::reconcileSingleTopic);
     }
 
     @Override
