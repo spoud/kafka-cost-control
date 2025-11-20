@@ -198,7 +198,11 @@ connect:
 timescaledb:
   enabled: true
   image: timescale/timescaledb:2.17.2-pg16
-  labels: { }
+  labels: {}
+  # If you want to use a custom secret for the PostgreSQL username and password, uncomment the following lines and set the secret name and keys
+  passwordSecretRef:
+#    name: password-secret-name
+#    key: key-of-password-value
   volumeClaimTemplate:
     #storageClassName: standard
     accessModes: [ "ReadWriteOnce" ]
