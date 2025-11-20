@@ -144,7 +144,12 @@ class OperatorTest {
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
                 List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
         addKafkaUser(user);
-        delayedAsyncRun(() -> userReconciler.reconcile(user, Mockito.mock(Context.class)));
+        delayedAsyncRun(() -> {
+            // implementation detail: `reconcile` simply sets a flag that reconcilation is needed, so we need to call `recalculateContexts` to actually perform it
+            // Under normal conditions, the second call would be triggered by the quarkus scheduler after some time.
+            userReconciler.reconcile(user, Mockito.mock(Context.class));
+            userReconciler.recalculateContexts();
+        });
 
         // make sure that only the topic that the user has access to has its context updated
         var records = kafkaCompanion.consumeWithDeserializers(
