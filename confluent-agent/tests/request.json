@@ -1,0 +1,21 @@
+{
+  "aggregations": [
+    {
+      "metric": "io.confluent.kafka.server/request_bytes"
+    }
+  ],
+  "granularity": "PT1H",
+  "filter": {
+    "field": "resource.kafka.id",
+    "op": "EQ",
+    "value": "cluster-1"
+  },
+  "group_by": [
+    "metric.principal_id"
+  ],
+  "intervals": [
+    "PT1H/2025-09-02T01:00:00Z"
+  ],
+  "limit": 1000,
+  "format": "FLAT"
+}

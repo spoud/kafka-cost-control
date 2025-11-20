@@ -1,9 +1,11 @@
-<app-graph-filter (graphFilter)="filter.set($event)"/>
-@if (filter()?.groupByContext) {
+<app-graph-filter (graphFilter)="filter.set($event)" />
+@if (filter()?.groupByContext && filter()?.metricName) {
     <a [href]="csvDownloadUrl()">
         <mat-icon>description</mat-icon>
         Generate CSV report for all metrics for selected context and date range
     </a>
+    <mat-divider />
+    <app-graph-panel [metricsData]="historyData.value() || []" />
+} @else {
+    <p class="hint">Please select a context and a metric to view the dashboard.</p>
 }
-<mat-divider/>
-<app-graph-panel [metricsData]="historyData.value() || []"/>

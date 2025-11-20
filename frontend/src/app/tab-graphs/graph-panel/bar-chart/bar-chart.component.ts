@@ -1,32 +1,24 @@
-import {Component, computed, input, output, signal} from '@angular/core';
-import {MatCheckbox} from '@angular/material/checkbox';
-import {NgxEchartsDirective, provideEchartsCore} from 'ngx-echarts';
-import {Maybe, MetricHistory, Scalars} from '../../../../generated/graphql/types';
+import { Component, computed, input, output, signal } from '@angular/core';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
+import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/types';
 import * as echarts from 'echarts/core';
-import {EChartsCoreOption, EChartsType} from 'echarts/core';
-import {saveAs} from 'file-saver-es';
-import {MatButton} from '@angular/material/button';
-import {MatIcon} from '@angular/material/icon';
-import {Panel} from '../../../tab-reporting/panel.type';
+import { EChartsCoreOption, EChartsType } from 'echarts/core';
+import { saveAs } from 'file-saver-es';
+import { MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { Panel } from '../../../tab-reporting/panel.type';
 
 export type BarOrLine = 'bar' | 'line';
 
 @Component({
     selector: 'app-bar-chart',
-    imports: [
-        MatCheckbox,
-        NgxEchartsDirective,
-        MatButton,
-        MatIcon
-    ],
+    imports: [MatCheckbox, NgxEchartsDirective, MatButton, MatIcon],
     templateUrl: './bar-chart.component.html',
     styleUrls: ['./bar-chart.component.scss'],
-    providers: [
-        provideEchartsCore({echarts}),
-    ]
+    providers: [provideEchartsCore({ echarts })],
 })
 export class BarChartComponent {
-
     chartInit = output<EChartsType>();
 
     normalized = signal(false);
@@ -84,8 +76,8 @@ export class BarChartComponent {
                 },
                 {
                     start: 0,
-                    end: 100
-                }
+                    end: 100,
+                },
             ],
             xAxis: {
                 type: 'time',
@@ -96,7 +88,7 @@ export class BarChartComponent {
                     show: true,
                 },
                 max: this.normalized() ? 100 : undefined,
-                name: this.normalized() ? "%" : "bytes",
+                name: this.normalized() ? '%' : 'bytes',
             },
             dataset: {
                 source: datasetSource,
@@ -110,9 +102,9 @@ export class BarChartComponent {
                         showSymbol: false,
                         stack: '_',
                         encode: {
-                            y: metricHistory.name // https://github.com/apache/echarts/issues/14312
-                        }
-                    }
+                            y: metricHistory.name, // https://github.com/apache/echarts/issues/14312
+                        },
+                    };
                 }
                 // type === line
                 return {
@@ -120,17 +112,16 @@ export class BarChartComponent {
                     type: 'line',
                     areaStyle: {},
                     emphasis: {
-                        focus: 'series'
+                        focus: 'series',
                     },
                     showSymbol: false,
                     stack: '_',
                     encode: {
-                        y: metricHistory.name // https://github.com/apache/echarts/issues/14312
-                    }
-                }
-
+                        y: metricHistory.name, // https://github.com/apache/echarts/issues/14312
+                    },
+                };
             }),
-            legend: {}
+            legend: {},
         };
     });
 
@@ -142,12 +133,12 @@ export class BarChartComponent {
                 const value = history.values[i];
                 csvLines.push(`${time},${history.name},${value}`);
             }
-        })
+        });
         csvLines.sort();
-        const withHeader = ["time,name,value", ...csvLines];
-        const blob = new Blob([withHeader.join('\n')], {type: 'text/csv'});
+        const withHeader = ['time,name,value', ...csvLines];
+        const blob = new Blob([withHeader.join('\n')], { type: 'text/csv' });
         const name = (this.panelData()?.title ?? '') + new Date().toISOString();
-        saveAs(blob, name + ".csv");
+        saveAs(blob, name + '.csv');
     }
 
     private normalize(timeSeries: Array<string | number | null>, total: number) {
@@ -155,7 +146,7 @@ export class BarChartComponent {
         for (let i = 1; i < timeSeries.length; i++) {
             const value = timeSeries[i];
             if (typeof value === 'number') {
-                timeSeries[i] = value / total * 100;
+                timeSeries[i] = (value / total) * 100;
             }
         }
     }
@@ -163,7 +154,9 @@ export class BarChartComponent {
     private extractAllTimestamps() {
         const allTimes: Set<string> = new Set();
         this.metricsData().forEach(metricHistory => {
-            metricHistory.times.forEach((time: Maybe<Scalars['DateTime']['output']>) => allTimes.add(time));
+            metricHistory.times.forEach((time: Maybe<Scalars['DateTime']['output']>) =>
+                allTimes.add(time)
+            );
         });
         const allTimesSorted: Array<string> = [...allTimes].sort(); // we can sort iso 8601 lexicographically
         return allTimesSorted;
