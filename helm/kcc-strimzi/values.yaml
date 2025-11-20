@@ -1,4 +1,3 @@
-
 # Default values for Kafka Cost Control.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -9,8 +8,8 @@ env: dev
 debug: true
 
 topics:
-  context: {} # when unset, the below values are generated from the release name
-    #topicName: "context-data"
+  context: { } # when unset, the below values are generated from the release name
+  #topicName: "context-data"
   rawMetrics:
     #topicName: "raw-metrics" # if unset, the topic name is generated from the release name
     partitions: 3
@@ -31,12 +30,12 @@ topics:
       retentionMs: "7776000000"
   # list of raw metrics topics that should be consumed by the aggregator.
   # If empty, the aggregator will consume the topic defined in the rawMetrics section
-  toAggregate: []
+  toAggregate: [ ]
 
 telegraf:
   image: telegraf:1.31.3-alpine
   enabled: true
-  labels: {}
+  labels: { }
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -45,7 +44,7 @@ telegraf:
     runAsGroup: 12023
     readOnlyRootFilesystem: true
     capabilities:
-      drop: ["ALL"]
+      drop: [ "ALL" ]
     seccompProfile:
       type: RuntimeDefault
   resources:
@@ -64,14 +63,14 @@ strimzi:
   # If you have a custom CA certificate stored in a secret, you can specify it here.
   # If this value is not provided, no truststore will be configured and all containers will use their built-in truststores (these will usually trust known CAs like Let's Encrypt).
   # The custom secret must have the same structure as the strimzi-generated one. (i.e. it should contain ca.crt, ca.p12, ca.password keys)
-  #clusterCaCertSecret: cost-control-cluster-ca-cert
+  clusterCaCertSecret: my-cluster-cluster-ca-cert
 
   # TODO: actually add support for tls and none
   # "scram-sha-512" or "tls" or "none"
   auth: scram-sha-512
   scramOverTls: true
   contextOperator:
-    labels: {}
+    labels: { }
     enabled: true
     image: spoud/kafka-cost-control-strimzi-operator:latest
     # will be applied to the container
@@ -82,7 +81,7 @@ strimzi:
       runAsNonRoot: true
       readOnlyRootFilesystem: true
       capabilities:
-        drop: ["ALL"]
+        drop: [ "ALL" ]
       seccompProfile:
         type: RuntimeDefault
     livenessProbe:
@@ -121,7 +120,7 @@ aggregator:
   appId: kcc-aggregator
   image: spoud/kafka-cost-control:latest
   # Labels that will be added to the pod
-  labels: {}
+  labels: { }
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -130,11 +129,11 @@ aggregator:
     runAsGroup: 185
     readOnlyRootFilesystem: true
     capabilities:
-      drop: ["ALL"]
+      drop: [ "ALL" ]
     seccompProfile:
       type: RuntimeDefault
   storage:
-    # Override the default storage class if you don't want to use the default one
+  # Override the default storage class if you don't want to use the default one
   resources:
     limits:
       cpu: 4000m
@@ -149,6 +148,32 @@ aggregator:
       requests:
         storage: 1Gi
 
+ui:
+  enabled: false
+  host: "kcc.host"
+  image: spoud/kafka-cost-control-ui:latest
+  replicas: 1
+  # Labels that will be added to the pod
+  labels: { }
+  # will be applied to the container
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ "ALL" ]
+    seccompProfile:
+      type: RuntimeDefault
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 10m
+      memory: 50Mi
+
 connect:
   image: spoud/kafka-cost-control-connect:strimzi-latest
   enabled: true
@@ -156,11 +181,11 @@ connect:
   # Note that this will have no effect if timescaledb is not also enabled
   createConnector: true
   # Labels that will be added to the connect pod
-  labels: {}
+  labels: { }
   # environment variables that will be added to the container
-  env: []
-#  - name: MY_ENV
-#    value: "my-value"
+  env: [ ]
+  #  - name: MY_ENV
+  #    value: "my-value"
   resources:
     limits:
       cpu: 1000m
@@ -168,7 +193,7 @@ connect:
     requests:
       cpu: 1m
       memory: 200Mi
-  securityContext: {}
+  securityContext: { }
 
 timescaledb:
   enabled: true
@@ -202,6 +227,6 @@ timescaledb:
     runAsNonRoot: true
     readOnlyRootFilesystem: true
     capabilities:
-      drop: ["ALL"]
+      drop: [ "ALL" ]
     seccompProfile:
       type: RuntimeDefault

@@ -1,14 +1,14 @@
-import {Component, Inject} from '@angular/core';
+import { Component, inject } from '@angular/core';
 import {
     MAT_DIALOG_DATA,
     MatDialogActions,
     MatDialogClose,
     MatDialogContent,
-    MatDialogTitle
+    MatDialogTitle,
 } from '@angular/material/dialog';
-import {MatButton} from '@angular/material/button';
-import {ContextDataEntity} from '../../../generated/graphql/types';
-import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
+import { MatButton } from '@angular/material/button';
+import { ContextDataEntity } from '../../../generated/graphql/types';
+import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
 
 @Component({
     selector: 'app-confirm-dialog',
@@ -18,12 +18,10 @@ import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.
         MatDialogActions,
         MatButton,
         MatDialogClose,
-        KeyValueListComponent
+        KeyValueListComponent,
     ],
     templateUrl: './confirm-dialog.component.html',
 })
 export class ConfirmDialogComponent {
-
-    constructor(@Inject(MAT_DIALOG_DATA) public data: { element: ContextDataEntity }) {
-    }
+    data = inject<{ element: ContextDataEntity }>(MAT_DIALOG_DATA);
 }

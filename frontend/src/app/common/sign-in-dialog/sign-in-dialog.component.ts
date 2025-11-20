@@ -1,12 +1,12 @@
-import {Component} from '@angular/core';
-import {MatButton} from "@angular/material/button";
-import {MatDialogContent, MatDialogTitle} from "@angular/material/dialog";
-import {FormControl, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {MatFormField, MatLabel} from '@angular/material/form-field';
-import {MatInput} from '@angular/material/input';
-import {BasicAuthServiceService} from '../../auth/basic-auth-service.service';
-import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
-import {DialogRef} from '@angular/cdk/dialog';
+import { Component, inject } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { MatDialogContent, MatDialogTitle } from '@angular/material/dialog';
+import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { BasicAuthServiceService } from '../../auth/basic-auth-service.service';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { DialogRef } from '@angular/cdk/dialog';
 
 @Component({
     selector: 'app-sign-in-dialog',
@@ -22,31 +22,31 @@ import {DialogRef} from '@angular/cdk/dialog';
         MatLabel,
     ],
     templateUrl: './sign-in-dialog.component.html',
-    styleUrl: './sign-in-dialog.component.scss'
+    styleUrl: './sign-in-dialog.component.scss',
 })
 export class SignInDialogComponent {
-
-    constructor(private _dialogRef: DialogRef<SignInDialogComponent>, private _authService: BasicAuthServiceService, private _snakbar: MatSnackBar) {
-    }
+    private _dialogRef = inject<DialogRef<SignInDialogComponent>>(DialogRef);
+    private _authService = inject(BasicAuthServiceService);
+    private _snakbar = inject(MatSnackBar);
 
     username = new FormControl('', [Validators.required]);
     password = new FormControl('', [Validators.required]);
 
     signIn() {
         this._authService.signIn(this.username.value || '', this.password.value || '').subscribe({
-            next: (_result) => {
+            next: _result => {
                 this._snakbar.open('Sign in success', 'close', {
                     politeness: 'polite',
                     duration: 2000,
                 });
                 this._dialogRef.close();
             },
-            error: (err) => {
+            error: err => {
                 this._snakbar.open('Sign in failed: ' + err.message, 'close', {
                     politeness: 'assertive',
                     duration: 5000,
                 });
-            }
+            },
         });
     }
 }

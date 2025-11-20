@@ -1,9 +1,8 @@
 package io.spoud.kcc.aggregator.olap;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.aggregator.stream.TestConfigProperties;
@@ -19,19 +18,22 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
-import java.util.Set;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class AggregatedMetricsRepositoryTest {
 
     AggregatedMetricsRepository repo;
+    OlapInfra olapInfra;
 
     @BeforeEach
     void setUp() {
         MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()));
-        repo = new AggregatedMetricsRepository(testOlapConfig, metricNameRepository);
+        olapInfra = new OlapInfra(testOlapConfig, metricNameRepository);
+        olapInfra.init();
+        repo = new AggregatedMetricsRepository(testOlapConfig, olapInfra, metricNameRepository);
     }
 
     @DisplayName("DB memory limit respects given constraint")
@@ -57,12 +59,15 @@ class AggregatedMetricsRepositoryTest {
     void loadSeedData() {
         var exportPath = AggregatedMetricsRepositoryTest.class.getClassLoader().getResource("data/olap-export.csv")
                 .getPath();
-        var repo = new AggregatedMetricsRepository(FakeOlapConfig
+        FakeOlapConfig fakeOlapConfig = FakeOlapConfig
                 .builder()
                 .databaseSeedDataPath(exportPath)
-                .build(),
+                .build();
+        OlapInfra localOlapInfa = new OlapInfra(fakeOlapConfig, new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build())));
+        var repo = new AggregatedMetricsRepository(fakeOlapConfig,
+                localOlapInfa,
                 null);
-        repo.init();
+        localOlapInfa.init();
 
         // make sure we already have some data without inserting anything
         assertThat(repo.getAllMetrics()).isNotEmpty();
@@ -77,7 +82,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Inserted row is not immediately flushed to DB")
     @Test
     void insertRow() {
-        repo.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
 
         assertThat(repo.getAllMetrics()).isEmpty();
@@ -91,8 +95,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Rows for different time windows do not overwrite each other")
     @Test
     void insertRowDifferentTimeWindows() {
-        repo.init();
-
         var start = Instant.now();
         var end = start.plus(Duration.ofHours(1));
         var start2 = end.plusSeconds(1);
@@ -107,11 +109,190 @@ class AggregatedMetricsRepositoryTest {
         assertThat(history).hasSize(2);
     }
 
+    @DisplayName("Get history grouped by a particular context key")
+    @Test
+    void groupHistoryByContextKeyAndHour() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+        var start2 = end;
+        var end2 = start2.plus(Duration.ofHours(1));
+
+        var kccCtx1 = Map.of("app", "kcc", "region", "eu-west");
+        var kafkaCtx1 = Map.of("app", "kafka", "region", "eu-west");
+
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx1).build());
+
+        // some new contexts (same app, different region)
+        var kccCtx2 = Map.of("app", "kcc", "region", "us-east");
+        var kafkaCtx2 = Map.of("app", "kafka", "region", "us-east");
+
+        // insert again, but this time with a different context for the same app (this is to test that values for the same app in the same time window get summed up)
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx2).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx2).build());
+
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "app");
+        assertThat(history).hasSize(2);
+        assertThat(history.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("kcc", "kafka");
+        // each history entry should have two distinct timestamps
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kafka"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start.truncatedTo(ChronoUnit.SECONDS), start2.truncatedTo(ChronoUnit.SECONDS));
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kcc"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start.truncatedTo(ChronoUnit.SECONDS), start2.truncatedTo(ChronoUnit.SECONDS));
+        // each history entry should have two values
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kafka"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactlyInAnyOrder(1., 2.);
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kcc"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactlyInAnyOrder(1., 2.);
+
+        // now group by region (we expect a value of 2 for eu-west for both timestamps)
+        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "region");
+        assertThat(historyByRegion).hasSize(2);
+        assertThat(historyByRegion.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("eu-west", "us-east");
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("eu-west"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start.truncatedTo(ChronoUnit.SECONDS), start2.truncatedTo(ChronoUnit.SECONDS));
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("us-east"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactlyInAnyOrder(start2.truncatedTo(ChronoUnit.SECONDS)); // us-east only has data for the second timestamp
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("eu-west"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(2., 2.); // eu-west has a value of 2 for both timestamps
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("us-east"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(2.); // us-east only has data for the second timestamp
+    }
+
+    @DisplayName("Group history by context key but not by hour")
+    @Test
+    void groupHistoryByContextKey() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+        // distant future
+        var start2 = end.plus(Duration.ofDays(30));
+        var end2 = start2.plus(Duration.ofHours(1));
+
+        var kccCtx1 = Map.of("app", "kcc", "region", "eu-west");
+        var kafkaCtx1 = Map.of("app", "kafka", "region", "eu-west");
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(2).setContext(kafkaCtx1).build());
+
+        repo.flushToDb();
+        var bucketWidth = Duration.between(start, end2).toHours();
+        var history = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "app", bucketWidth);
+
+        // we now expect one row per app, with the values summed up
+        assertThat(history).hasSize(2);
+        assertThat(history.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("kcc", "kafka");
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kafka"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactly(start.truncatedTo(ChronoUnit.SECONDS)); // the time bucket begins at the start of the queried interval
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kcc"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactly(start.truncatedTo(ChronoUnit.SECONDS)); // the time bucket begins at the start of the queried interval
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kafka"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(3.); // both values summed up
+        assertThat(history.stream()
+                .filter(e -> e.getName().equals("kcc"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(2.); // both values summed up
+
+        // now group by region (we expect just one row for eu-west with a value of 1+1+1+2)
+        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "region", bucketWidth);
+        assertThat(historyByRegion).hasSize(1);
+        assertThat(historyByRegion.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("eu-west");
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("eu-west"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactly(start.truncatedTo(ChronoUnit.SECONDS)); // the time bucket begins at the start of the queried interval
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("eu-west"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(5.); // all values summed up
+    }
+
+    @DisplayName("Group history by non-existent key")
+    @Test
+    void groupHistoryByBadContextKey() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+        // distant future
+        var start2 = end.plus(Duration.ofDays(30));
+        var end2 = start2.plus(Duration.ofHours(1));
+
+        var kccCtx1 = Map.of("app", "kcc", "region", "eu-west");
+        var kafkaCtx1 = Map.of("app", "kafka", "region", "eu-west");
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kccCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).setContext(kafkaCtx1).build());
+        repo.insertRow(randomDatapoint().setStartTime(start2).setEndTime(end2).setInitialMetricName("my-awesome-metric").setValue(2).setContext(kafkaCtx1).build());
+
+        repo.flushToDb();
+        var bucketWidth = Duration.between(start, end2).toHours();
+
+        // now group by stage (we expect just one row for "unknown" with a value of 1+1+1+2)
+        var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "stage", bucketWidth);
+        assertThat(historyByRegion).hasSize(1);
+        assertThat(historyByRegion.stream().map(MetricHistoryTO::getName)).containsExactlyInAnyOrder("unknown");
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("unknown"))
+                .map(MetricHistoryTO::getTimes)
+                .flatMap(Collection::stream)
+                .map(t -> t.truncatedTo(ChronoUnit.SECONDS))
+        ).containsExactly(start.truncatedTo(ChronoUnit.SECONDS)); // the time bucket begins at the start of the queried interval
+        assertThat(historyByRegion.stream()
+                .filter(e -> e.getName().equals("unknown"))
+                .map(MetricHistoryTO::getValues)
+                .flatMap(Collection::stream)
+        ).containsExactly(5.); // all values summed up
+    }
+
     @DisplayName("Get only rows that match the specified metric name")
     @Test
     void filterHistoryRowsByMetricName() {
-        repo.init();
-
         var start = Instant.now();
         var end = start.plus(Duration.ofHours(1));
         var start2 = end.plusSeconds(1);
@@ -138,8 +319,6 @@ class AggregatedMetricsRepositoryTest {
         var randomDp1 = randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(1).build();
         var randomDp2 = randomDatapoint().setStartTime(start).setEndTime(end).setInitialMetricName("my-awesome-metric").setValue(2).build();
 
-        repo.init();
-
         repo.insertRow(randomDp1);
         repo.insertRow(randomDp2);
 
@@ -153,8 +332,6 @@ class AggregatedMetricsRepositoryTest {
     @Test
     @DisplayName("Flush to DB occurs automatically if buffer is full")
     void insertRowBufferFull() {
-        repo.init();
-
         for (int i = 0; i < testOlapConfig.databaseMaxBufferedRows() - 1; i++) {
             repo.insertRow(randomDatapoint().setInitialMetricName("my-awesome-metric").build());
         }
@@ -186,7 +363,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all tag keys")
     void getAllTagKeys() {
         // insert to db and flush, make sure we get all the tags we specified
-        repo.init();
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandnorth", "stage", "test")).build());
         repo.flushToDb();
         assertThat(repo.getAllTagKeys()).contains("env", "stage");
@@ -196,7 +372,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all context keys")
     void getAllContextKeys() {
         // insert to db and flush, make sure we get all the context keys we specified
-        repo.init();
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic")).build());
         repo.flushToDb();
         assertThat(repo.getAllContextKeys()).contains("app", "org", "topic");
@@ -206,7 +381,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all metric names")
     void getAllMetrics() {
         // insert to db and flush, make sure we get all the metrics we specified
-        repo.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").build());
         repo.flushToDb();
@@ -217,7 +391,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all tag values for a given key")
     void getAllTagValues() {
         // insert to db and flush, make sure we get all the tag values we specified
-        repo.init();
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandnorth", "stage", "test")).build());
         repo.insertRow(randomDatapoint().setTags(Map.of("env", "switzerlandwest", "stage", "prod")).build());
         repo.flushToDb();
@@ -229,7 +402,6 @@ class AggregatedMetricsRepositoryTest {
     @DisplayName("Get all context values for a given key")
     void getAllContextValues() {
         // insert to db and flush, make sure we get all the context values we specified
-        repo.init();
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic")).build());
         repo.insertRow(randomDatapoint().setContext(Map.of("app", "kcc", "org", "spoud", "topic", "kcc-topic-2")).build());
         repo.flushToDb();
@@ -241,7 +413,6 @@ class AggregatedMetricsRepositoryTest {
     @Test
     @DisplayName("Export metrics to jsonl file")
     void getAllMetricsJsonExport() throws IOException {
-        repo.init();
         repo.insertRow(randomDatapoint().setInitialMetricName("metric1").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.insertRow(randomDatapoint().setInitialMetricName("metric2").setValue(10.0).setStartTime(Instant.now()).setEndTime(Instant.now().plusMillis(1000)).build());
         repo.flushToDb();

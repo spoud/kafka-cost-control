@@ -1,11 +1,13 @@
 <h2 mat-dialog-title>Confirm deletion</h2>
 <mat-dialog-content>
     <p><b>Do you really want to permanently delete the context data with:</b></p>
-    <p>Regex: <code>{{ data.element.regex }}</code></p>
-    <p>Context:
+    <p>
+        Regex: <code>{{ data.element.regex }}</code>
+    </p>
+    <p>
+        Context:
         <app-key-value-list [entries]="data.element.context"></app-key-value-list>
     </p>
-
 </mat-dialog-content>
 <mat-dialog-actions align="end">
     <button mat-flat-button mat-dialog-close>No, cancel</button>
