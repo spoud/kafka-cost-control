@@ -1,0 +1,27 @@
+[project]
+name = "kcc-confluent-scraping-agent"
+version = "0.1.0"
+description = "Scraper for the Confluent Cloud metrics API"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "kafka-python>=2.2.15",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.10.1",
+    "requests>=2.32.5",
+    "schedule>=1.2.2",
+    "tenacity>=9.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.1",
+    "responses>=0.25.8",
+    "testcontainers[kafka]>=4.12.0",
+]
