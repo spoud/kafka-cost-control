@@ -1,7 +1,7 @@
 [project]
 name = "kcc-confluent-scraping-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Scraper for the Confluent Cloud metrics API"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

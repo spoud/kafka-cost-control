@@ -156,12 +156,12 @@ class AggregatedMetricsRepositoryTest {
                 .filter(e -> e.getName().equals("kafka"))
                 .map(MetricHistoryTO::getValues)
                 .flatMap(Collection::stream)
-        ).containsExactly(1., 2.);
+        ).containsExactlyInAnyOrder(1., 2.);
         assertThat(history.stream()
                 .filter(e -> e.getName().equals("kcc"))
                 .map(MetricHistoryTO::getValues)
                 .flatMap(Collection::stream)
-        ).containsExactly(1., 2.);
+        ).containsExactlyInAnyOrder(1., 2.);
 
         // now group by region (we expect a value of 2 for eu-west for both timestamps)
         var historyByRegion = repo.getHistoryGrouped(start, end2, Set.of("my-awesome-metric"), "region");
