@@ -8,8 +8,12 @@ import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
+import io.spoud.kcc.aggregator.graphql.data.CalculateTopDownRequest;
+import io.spoud.kcc.aggregator.graphql.data.CalculateTopDownResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
+import io.spoud.kcc.aggregator.graphql.data.TableResponse;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
+import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.olap.domain.tables.AggregatedData;
 import io.spoud.kcc.olap.domain.tables.records.AggregatedDataRecord;
@@ -17,12 +21,12 @@ import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.jooq.Condition;
-import org.jooq.DSLContext;
-import org.jooq.Record1;
-import org.jooq.Result;
+import org.eclipse.microprofile.graphql.NonNull;
+import org.jooq.*;
+import org.jooq.Record;
 import org.jooq.impl.DSL;
 
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -34,9 +38,12 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.spoud.kcc.olap.domain.Tables.AGGREGATED_DATA;
+import static org.jooq.impl.DSL.sum;
 
 @Startup
 @ApplicationScoped
@@ -73,18 +80,19 @@ public class AggregatedMetricsRepository {
 
     @Shutdown
     public void cleanUp() {
-        if (olapConfig.enabled()) {
-            Log.info("Shutting down OLAP module. Performing final flush and closing connection...");
-            flushToDb();
-            olapInfra.getConnection().ifPresent((conn) -> {
-                try {
-                    conn.close();
-                    Log.info("Closed OLAP database connection");
-                } catch (SQLException e) {
-                    Log.error("Failed to close OLAP database connection", e);
-                }
-            });
+        if (!olapConfig.enabled()) {
+            return;
         }
+        Log.info("Shutting down OLAP module. Performing final flush and closing connection...");
+        flushToDb();
+        olapInfra.getConnection().ifPresent((conn) -> {
+            try {
+                conn.close();
+                Log.info("Closed OLAP database connection");
+            } catch (SQLException e) {
+                Log.error("Failed to close OLAP database connection", e);
+            }
+        });
     }
 
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
@@ -278,8 +286,188 @@ public class AggregatedMetricsRepository {
         return metricToAggregatedValue;
     }
 
+    public Map<String, Double> getAggregatedValue(Instant startDate, Instant endDate, Set<String> names) {
+        List<MetricEO> history = getHistory(startDate, endDate, names);
 
-    public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> names) {
+        Map<String, List<Double>> collect = history.stream().collect(Collectors.toMap(
+                MetricEO::initialMetricName,
+                x -> List.of(x.value()),
+                (a, b) -> Stream.concat(a.stream(), b.stream()).toList()
+        ));
+
+        return collect.entrySet().stream().collect(
+                Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue()
+                                .stream()
+                                .reduce(0d, MetricReducer.AggregationType.SUM::combine)
+                )
+        );
+    }
+
+    Map<String, Function<CalculateTopDownRequest, Integer>> metricToProvidedValue = Map.of(
+            "confluent_kafka_server_retained_bytes", CalculateTopDownRequest::kafkaStorageCents,
+            "confluent_kafka_server_request_bytes", CalculateTopDownRequest::kafkaNetworkReadCents,
+            "confluent_kafka_server_response_bytes", CalculateTopDownRequest::kafkaNetworkWriteCents
+    );
+
+    public @NonNull TableResponse calculateTable(CalculateTopDownRequest request) {
+        Set<String> allMetrics = getAllMetrics();
+        return olapInfra.getDSLContext().map((dslContext) -> {
+                    AggregatedData a = AGGREGATED_DATA.as("a");
+
+                    Map<String, Double> metricToTotal = dslContext
+                            .select(a.INITIAL_METRIC_NAME, sum(a.VALUE))
+                            .from(a)
+                            .groupBy(a.INITIAL_METRIC_NAME)
+                            .stream()
+                            .collect(Collectors.toMap(
+                                    record -> record.value1(),
+                                    record -> record.value2().doubleValue()
+                            ));
+
+                    List<Field<String>> contextKeys = request.contextKeysToGroupBy().stream()
+                            .map(key -> DSL.field("context->>'$." + key + "'", String.class).as(key))
+                            .toList();
+                    List<Field<?>> combined = new ArrayList<>(contextKeys);
+                    combined.add(a.INITIAL_METRIC_NAME);
+
+                    List<TableResponse.TableEntry> entries = dslContext
+                            .select(a.INITIAL_METRIC_NAME)
+                            .select(contextKeys)
+                            .select(sum(a.VALUE))
+                            .from(a)
+                            .where(a.START_TIME.ge(request.from().atOffset(ZoneOffset.UTC))
+                                    .and(a.END_TIME.le(request.to().atOffset(ZoneOffset.UTC))))
+                            .groupBy(combined)
+                            .orderBy(contextKeys)
+                            .stream()
+                            .map(record -> {
+                                List<String> context = contextKeys.stream()
+                                        .map(record::get)
+                                        .map(contextValue -> Objects.requireNonNullElse(contextValue, "<unknown>"))
+                                        .toList();
+
+                                String initialMetricName = record.get(a.INITIAL_METRIC_NAME);
+                                double total = record.get(sum(a.VALUE)).doubleValue();
+                                Double totalForMetric = metricToTotal.get(initialMetricName);
+                                return new TableResponse.TableEntry(
+                                        initialMetricName,
+                                        context,
+                                        total,
+                                        total / totalForMetric
+                                );
+                            }).toList();
+                    return new TableResponse(entries);
+                }).
+
+                orElseGet(() -> new
+
+                        TableResponse(List.of()));
+    }
+
+    /**
+     * Per metric!
+     * <p>
+     * could be other context
+     * context-1      context-2   percentage
+     * dev              app-1       10%
+     * prod             app-1       2.5%
+     * dev              app-2       5%
+     * null             null        30%   <-- "other"
+     * ...              ...         ...
+     */
+    public CalculateTopDownResponse calculateCosts(CalculateTopDownRequest request) {
+        List<CalculateTopDownResponse.MetricToDistributionMap> metricToDistributionMapList = new ArrayList<>();
+
+        metricToProvidedValue.forEach((metricName, value) -> {
+            Integer priceInCents = value.apply(request);
+            if (priceInCents == 0) {
+                // if we have a zero amount of costs we don't do any calculations for that metric
+                return;
+            }
+            double totalForMetric = getTotalForMetric(request.from(), request.to(), metricName);
+            // TODO - context dynamic
+            List<AggregatedTotal> totalGroupedByContext = getTotalGroupedByContext(request.from(), request.to(), List.of("application"), metricName);
+
+            List<AggregatedTotal> inPercentage = totalGroupedByContext.stream()
+                    .map(aggregatedTotal -> new AggregatedTotal(aggregatedTotal.contextValues(), aggregatedTotal.total() / totalForMetric))
+                    .toList();
+
+            List<CalculateTopDownResponse.MetricToDistributionMap.NameToPrice> nameToPrices = inPercentage.stream()
+                    .map(aggregatedInPercentage -> {
+                        return new CalculateTopDownResponse.MetricToDistributionMap.NameToPrice(
+                                aggregatedInPercentage.contextValues.getLast(), // TODO: groups for other context keys
+//                                aggregatedInPercentage.contextValues.stream().collect(Collectors.joining(",")),
+                                aggregatedInPercentage.total * priceInCents
+                        );
+                    })
+                    .toList();
+            metricToDistributionMapList.add(new CalculateTopDownResponse.MetricToDistributionMap(metricName, nameToPrices));
+
+        });
+        return new CalculateTopDownResponse(metricToDistributionMapList);
+    }
+
+    private double getTotalForMetric(Instant startDate, Instant endDate, String initialMetricName) {
+        return olapInfra.getDSLContext().map(dslContext -> {
+            AggregatedData a = AGGREGATED_DATA.as("a");
+            Record1<BigDecimal> record = dslContext
+                    .select(sum(a.VALUE))
+                    .from(a)
+                    .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
+                            .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
+                            .and(a.INITIAL_METRIC_NAME.eq(initialMetricName)))
+                    .fetchOne();
+            if (record == null || record.value1() == null) {
+                return 0.0;
+            }
+            return record.value1().doubleValue();
+        }).orElse(0.0);
+    }
+
+    private record AggregatedTotal(List<String> contextValues, double total) {
+    }
+
+    private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName) {
+        List<AggregatedTotal> aggregatedTotals = new ArrayList<>();
+        return olapInfra.getDSLContext().map((dslContext) -> {
+            List<Field<Object>> contextKeys = contextKeysToGroupBy.stream()
+                    .map(key -> DSL.field("context->>'$." + key + "'").as(key))
+                    .toList();
+
+            AggregatedData a = AGGREGATED_DATA.as("a");
+            SelectSeekStepN<Record> select = dslContext
+                    .select(contextKeys)
+                    .select(sum(a.VALUE).as("sum"))
+                    .from(a)
+                    .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
+                            .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
+                            .and(a.INITIAL_METRIC_NAME.eq(initialMetricName)))
+                    .groupBy(contextKeys)
+                    .orderBy(contextKeys);
+
+            select.fetch().forEach(record -> {
+                List<String> values = new ArrayList<>();
+                for (String contextKey : contextKeysToGroupBy) {
+                    Object value = record.get(DSL.field(contextKey));
+                    if (value == null) {
+                        values.add("<other>");
+                    } else {
+                        values.add(value.toString());
+                    }
+                    aggregatedTotals.add(new AggregatedTotal(
+                            values,
+                            record.get(sum(a.VALUE)).doubleValue()
+                    ));
+                }
+            });
+            return aggregatedTotals;
+        }).orElse(Collections.emptyList());
+    }
+
+
+    public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> metricNames) {
         return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
@@ -290,8 +478,8 @@ public class AggregatedMetricsRepository {
 
             Condition condition = a.START_TIME.ge(finalStartDate.atOffset(ZoneOffset.UTC))
                     .and(a.END_TIME.le(finalEndDate.atOffset(ZoneOffset.UTC)));
-            if (!names.isEmpty()) {
-                condition = condition.and(a.INITIAL_METRIC_NAME.in(names));
+            if (!metricNames.isEmpty()) {
+                condition = condition.and(a.INITIAL_METRIC_NAME.in(metricNames));
             }
 
             Result<AggregatedDataRecord> fetchResult = dslContext
@@ -390,5 +578,6 @@ public class AggregatedMetricsRepository {
         }
         return Collections.emptyMap();
     }
+
 
 }

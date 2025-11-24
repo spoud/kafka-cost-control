@@ -1,4 +1,4 @@
- package io.spoud.kcc.aggregator.stream;
+package io.spoud.kcc.aggregator.stream;
 
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 import io.micrometer.core.instrument.Tags;
@@ -8,7 +8,8 @@ import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
-import io.spoud.kcc.aggregator.repository.ContextDataRepository;
+import io.spoud.kcc.aggregator.olap.OlapInfra;
+import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
 import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
@@ -90,16 +91,16 @@ class MetricEnricherTest {
                 )
                 .build();
         metricReducer = Mockito.spy(new MetricReducer(configProperties));
-        metricRepository = new MetricNameRepository(metricReducer);
+        metricRepository = new MetricNameRepository(metricReducer, Mockito.mock(OlapInfra.class));
         gaugeRepository = new GaugeRepository(new SimpleMeterRegistry(), configProperties);
         var kafkaStreams = Mockito.mock(KafkaStreams.class);
-        ContextDataRepository contextDataRepository = new ContextDataRepository(Mockito.mock(Emitter.class), kafkaStreams);
+        ContextDataStreamRepository contextDataStreamRepository = new ContextDataStreamRepository(Mockito.mock(Emitter.class), kafkaStreams);
 
         Properties kafkaProperties = createKafkaProperties();
         SerdeFactory serdeFactory = new SerdeFactory(new HashMap(kafkaProperties));
         reducerResult = new ResultCaptor<>();
         Mockito.doAnswer(reducerResult).when(metricReducer).apply(Mockito.any(), Mockito.any());
-        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, contextDataRepository, configProperties, serdeFactory, gaugeRepository, metricReducer, Mockito.mock(AggregatedMetricsRepository.class));
+        MetricEnricher metricEnricher = new MetricEnricher(metricRepository, contextDataStreamRepository, configProperties, serdeFactory, gaugeRepository, metricReducer, Mockito.mock(AggregatedMetricsRepository.class));
         final Topology topology = metricEnricher.metricEnricherTopology();
         System.out.println(topology.describe());
 
@@ -381,9 +382,9 @@ class MetricEnricherTest {
         contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
                 EntityType.TOPIC, "spoud_.*", Map.of("writers", "alice,bob", "application", "flux-capacitor")));
         contextDataStore.put("id2", new ContextData(Instant.now().minusSeconds(10), null, null,
-            EntityType.PRINCIPAL, "alice", Map.of("application", "alice-app")));
+                EntityType.PRINCIPAL, "alice", Map.of("application", "alice-app")));
         contextDataStore.put("id3", new ContextData(Instant.now().minusSeconds(10), null, null,
-            EntityType.PRINCIPAL, "bob", Map.of("application", "bob-app")));
+                EntityType.PRINCIPAL, "bob", Map.of("application", "bob-app")));
         final RawTelegrafData topicMetric = generateTopicRawTelegraf(Instant.now(), "bytesin_transposable", "spoud_topic_v1", 10.0);
 
         rawTelegrafDataTopic.pipeInput(topicMetric);

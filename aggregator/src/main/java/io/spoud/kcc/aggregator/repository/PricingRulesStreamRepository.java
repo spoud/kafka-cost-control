@@ -19,12 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
-public class PricingRulesRepository {
+public class PricingRulesStreamRepository {
 
   private Emitter<Record<String, PricingRule>> pricingRulesEmitter;
     private final KafkaStreams kafkaStreams;
 
-    public PricingRulesRepository(
+    public PricingRulesStreamRepository(
             @Channel("pricing-rules-out") Emitter<Record<String, PricingRule>> pricingRulesEmitter,
             KafkaStreams kafkaStreams) {
         this.pricingRulesEmitter = pricingRulesEmitter;

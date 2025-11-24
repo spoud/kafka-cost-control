@@ -30,6 +30,10 @@ export const routes: Routes = [
             ),
     },
     {
+        path: 'costs',
+        loadComponent: () => import('./costs/cost.component').then(m => m.CostComponent),
+    },
+    {
         path: 'others',
         loadComponent: () =>
             import('./tab-others/others/others.component').then(m => m.OthersComponent),
@@ -44,10 +48,23 @@ export interface Link {
     path: string;
     label: string;
     icon?: string;
-    helptext?: string;
 }
 
-export const homeLinks: Link[] = [
+export interface HomeLink extends Link {
+    helptext: string;
+}
+
+export interface NavLink extends Link {
+    sortOrder: number;
+}
+
+export const homeLinks: HomeLink[] = [
+    {
+        path: '/costs',
+        label: 'Cost Control',
+        icon: 'attach_money',
+        helptext: 'Control and distribute costs',
+    },
     {
         path: '/graphs',
         label: 'Graphs',
@@ -66,20 +83,17 @@ export const homeLinks: Link[] = [
         icon: 'label',
         helptext: 'View, add and change context data to enrich metrics',
     },
-    {
-        path: '/pricing-rules',
-        label: 'Pricing Rules',
-        icon: 'price_check',
-        helptext: 'View Pricing Rules which determine the costs from collected metrics',
-    },
 ];
 
-export const menuLinks: Link[] = [
-    { path: '/home', label: 'Home', icon: 'home' },
-    { path: '/graphs', label: 'Graphs', icon: 'bar_chart' },
-    { path: '/reporting', label: 'Reporting', icon: 'assignment' },
-    { path: '/context-data', label: 'Context Data', icon: 'label' },
-    { path: '/pricing-rules', label: 'Pricing Rules', icon: 'price_check' },
+export const menuLinks: NavLink[] = [
+    { sortOrder: 0, path: '/home', label: 'Home', icon: 'home' },
+    { sortOrder: 2, path: '/graphs', label: 'Graphs', icon: 'bar_chart' },
+    { sortOrder: 3, path: '/reporting', label: 'Reporting', icon: 'assignment' },
+    { sortOrder: 4, path: '/context-data', label: 'Context Data', icon: 'label' },
+    { sortOrder: 5, path: '/pricing-rules', label: 'Pricing Rules', icon: 'price_check' },
 ];
 
-export const menuLinksLoggedIn: Link[] = [{ path: '/others', label: 'Others' }];
+export const menuLinksLoggedIn: NavLink[] = [
+    { sortOrder: 99, path: '/others', label: 'Others' },
+    { sortOrder: 1, path: '/costs', label: 'Cost Control', icon: 'attach_money' },
+];

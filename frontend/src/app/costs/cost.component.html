@@ -1,0 +1,76 @@
+<h1>Cost Control</h1>
+<mat-stepper orientation="vertical">
+    <mat-step>
+        <form [formGroup]="costs">
+            <ng-template matStepLabel>Costs for a past period</ng-template>
+            <mat-form-field>
+                <mat-label>Date range</mat-label>
+                <mat-date-range-input [rangePicker]="picker">
+                    <input matStartDate placeholder="Start date" formControlName="from" />
+                    <input matEndDate placeholder="End date" formControlName="to" />
+                </mat-date-range-input>
+                <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                <mat-date-range-picker #picker></mat-date-range-picker>
+            </mat-form-field>
+            <mat-form-field class="form-full-width">
+                <mat-label>Total</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="total" />
+            </mat-form-field>
+            <mat-form-field class="form-full-width">
+                <mat-label>KAFKA_STORAGE</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="kafkaStorage" />
+            </mat-form-field>
+            <mat-form-field class="form-full-width">
+                <mat-label>KAFKA_NETWORK_READ</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="kafkaNetworkRead" />
+            </mat-form-field>
+            <mat-form-field class="form-full-width">
+                <mat-label>KAFKA_NETWORK_WRITE</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="kafkaNetworkWrite" />
+            </mat-form-field>
+            <div>
+                <button matButton matStepperNext>Next</button>
+            </div>
+        </form>
+    </mat-step>
+    <mat-step>
+        <form [formGroup]="contextLabels">
+            <ng-template matStepLabel>Context to group by</ng-template>
+            <mat-form-field>
+                <mat-label>Group by context</mat-label>
+                <mat-select disabled value="stage">
+                    <mat-option [value]="'stage'">Stage</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+                <mat-label>Group by context</mat-label>
+                <mat-select disabled value="application">
+                    <mat-option [value]="'application'">Application</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <div>
+                <button matButton matStepperPrevious>Back</button>
+                <button matButton matStepperNext>Next</button>
+            </div>
+        </form>
+    </mat-step>
+    <mat-step>
+        <ng-template matStepLabel>Calculate!</ng-template>
+        <div>
+            <button matButton matStepperPrevious>Back</button>
+            <button matButton="filled" (click)="calculate()">Calculate</button>
+        </div>
+    </mat-step>
+</mat-stepper>
+
+<!--<div>-->
+<!--    <button type="submit" matButton="filled">Calculate</button>-->
+<!--    <button type="reset" matButton="outlined">Reset form</button>-->
+<!--</div>-->
+
+<app-cost-table [inputData]="tableData()" [lastRequest]="lastRequest()"></app-cost-table>
+<app-sankey [inputData]="data()" [lastRequest]="lastRequest()"></app-sankey>

@@ -1,3 +1,7 @@
+type CalculateTopDownResponse {
+  metricToDistributionMapList: [MetricToDistributionMap]
+}
+
 type ContextDataEntity {
   context(
     "Get entry/entries for a certain key/s"
@@ -15,8 +19,11 @@ type ContextDataEntity {
 }
 
 type ContextTestResponse {
-    entityType: EntityType!
-    context: [Entry_String_String!]!
+  context(
+    "Get entry/entries for a certain key/s"
+    key: [String]
+  ): [Entry_String_String!]!
+  entityType: EntityType!
 }
 
 type Entry_String_String {
@@ -42,6 +49,11 @@ type MetricNameEntity {
   metricName: String!
 }
 
+type MetricToDistributionMap {
+  metric: String
+  nameToPriceList: [NameToPrice]
+}
+
 "Mutation root"
 type Mutation {
   deleteContextData(request: ContextDataDeleteRequestInput): ContextDataEntity
@@ -55,6 +67,11 @@ type Mutation {
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
 }
 
+type NameToPrice {
+  name: String
+  price: Float
+}
+
 type PricingRuleEntity {
   baseCost: Float!
   costFactor: Float!
@@ -65,11 +82,12 @@ type PricingRuleEntity {
 
 "Query root"
 type Query {
+  calculateTable(request: CalculateTopDownRequestInput): TableResponse!
+  calculateTopDown(request: CalculateTopDownRequestInput): CalculateTopDownResponse!
   contextData: [ContextDataEntity!]!
-  contextTest(
-    testString: String!
-  ): [ContextTestResponse!]!
+  contextTest(testString: String): [ContextTestResponse!]!
   currentUser: String!
+  existingContextKeys: [String!]!
   history(
     "ISO-8601"
     from: DateTime!,
@@ -81,6 +99,17 @@ type Query {
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
   pricingRules: [PricingRuleEntity!]!
+}
+
+type TableEntry {
+  context: [String]
+  initialMetricName: String
+  percentage: Float!
+  total: Float!
+}
+
+type TableResponse {
+  entries: [TableEntry]
 }
 
 enum EntityType {
@@ -97,6 +126,18 @@ scalar BigInteger
 
 "Scalar for DateTime"
 scalar DateTime
+
+input CalculateTopDownRequestInput {
+  contextKeysToGroupBy: [String]
+  "ISO-8601"
+  from: DateTime
+  kafkaNetworkReadCents: Int
+  kafkaNetworkWriteCents: Int
+  kafkaStorageCents: Int
+  "ISO-8601"
+  to: DateTime
+  totalCents: Int
+}
 
 input ContextDataDeleteRequestInput {
   id: String!

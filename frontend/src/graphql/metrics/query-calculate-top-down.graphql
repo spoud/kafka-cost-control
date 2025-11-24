@@ -1,0 +1,22 @@
+query calculateTopDown ($request: CalculateTopDownRequestInput!) {
+    calculateTopDown(request: $request) {
+        metricToDistributionMapList {
+            metric
+            nameToPriceList {
+                name
+                price
+            }
+        }
+    }
+}
+
+query calculateTable ($request: CalculateTopDownRequestInput!) {
+    calculateTable(request: $request) {
+        entries {
+            initialMetricName
+            context
+            total
+            percentage
+        }
+    }
+}

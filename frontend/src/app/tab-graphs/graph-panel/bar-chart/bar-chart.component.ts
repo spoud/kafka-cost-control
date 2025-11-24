@@ -68,17 +68,17 @@ export class BarChartComponent {
             tooltip: {
                 trigger: 'axis',
             },
-            dataZoom: [
-                {
-                    type: 'inside',
-                    start: 0,
-                    end: 100,
-                },
-                {
-                    start: 0,
-                    end: 100,
-                },
-            ],
+            // dataZoom: [
+            //     {
+            //         type: 'inside',
+            //         start: 0,
+            //         end: 100,
+            //     },
+            //     {
+            //         start: 0,
+            //         end: 100,
+            //     },
+            // ],
             xAxis: {
                 type: 'time',
             },
@@ -110,6 +110,7 @@ export class BarChartComponent {
                 return {
                     name: metricHistory.name,
                     type: 'line',
+                    // sampling: 'lttb', // largest triangle three bucket (keep trends & extremas)
                     areaStyle: {},
                     emphasis: {
                         focus: 'series',
@@ -121,7 +122,9 @@ export class BarChartComponent {
                     },
                 };
             }),
-            legend: {},
+            legend: {
+                type: 'scroll',
+            },
         };
     });
 
