@@ -27,7 +27,7 @@
     "@angular/router": "^20.3.10",
     "@apollo/client": "^3.13.9",
     "@ngrx/signals": "^20.1.0",
-    "apollo-angular": "^11.0.0",
+    "apollo-angular": "^12.1.0",
     "echarts": "^6.0.0",
     "file-saver-es": "^2.0.5",
     "graphql": "^16.12.0",
