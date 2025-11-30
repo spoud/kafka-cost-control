@@ -13,6 +13,9 @@ spec:
   replicas: {{ .Values.ui.replicas }}
   template:
     metadata:
+      annotations:
+        # restart deployment when nginx config changes
+        checksum/config: {{ include (print $.Template.BasePath "/kcc-frontend-nginx-config.yaml") . | sha256sum }}
       labels:
         k8s-app: {{ .Release.Name}}-kafka-cost-control-ui
         {{- with .Values.ui.labels }}
@@ -26,7 +29,10 @@ spec:
       terminationGracePeriodSeconds: 10
       volumes:
         - name: empty-dir
-          emptyDir: {}
+          emptyDir: { }
+        - name: nginx-config
+          configMap:
+            name: {{ .Release.Name }}-kafka-cost-control-ui-nginx-conf
       containers:
         - name: kafka-cost-control-ui
           image: {{ .Values.ui.image }}
@@ -43,6 +49,9 @@ spec:
           volumeMounts:
             - name: empty-dir
               mountPath: /tmp
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: default.conf
           ports:
             - containerPort: 8080
               name: http
@@ -92,7 +101,7 @@ spec:
     - host: {{ .Values.ui.host }}
       http:
         paths:
-          - path: /
+          - path: {{ .Values.ui.contextPath }}
             pathType: Prefix
             backend:
               service:
