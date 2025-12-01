@@ -151,7 +151,9 @@ aggregator:
 ui:
   enabled: false
   host: "kcc.host"
-  image: spoud/kafka-cost-control-ui:latest
+  # needs an ending slash (/)
+  contextPath: "/some/context/"
+  image: spoud/kafka-cost-control-ui:context-test-2
   replicas: 1
   # Labels that will be added to the pod
   labels: { }

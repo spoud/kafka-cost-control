@@ -50,7 +50,7 @@ spec:
           image: {{ .Values.aggregator.image }}
           securityContext:
             {{- .Values.aggregator.securityContext | toYaml | nindent 12 }}
-          imagePullPolicy: Always
+          imagePullPolicy: Never
           resources:
             limits:
               cpu: {{ .Values.aggregator.resources.limits.cpu }}
@@ -94,6 +94,8 @@ spec:
               value: {{ .Values.aggregator.aggregationWindowSize }}
             - name: CC_TOPICS_RAW_DATA
               value: {{ $rawMetricsTopics }}
+            - name: QUARKUS_HTTP_ROOT_PATH
+              value: {{ .Values.ui.contextPath }}
             {{ if eq .Values.strimzi.auth "scram-sha-512" }}
             - name: KAFKA_SASL_MECHANISM
               value: SCRAM-SHA-512
@@ -214,14 +216,14 @@ spec:
     - host: {{ .Values.ui.host }}
       http:
         paths:
-          - path: /graphql
+          - path: {{ .Values.ui.contextPath }}graphql
             pathType: Prefix
             backend:
               service:
                 name: {{ .Release.Name }}-kafka-cost-control-service
                 port:
                   number: 80
-          - path: /olap
+          - path: {{ .Values.ui.contextPath }}olap
             pathType: Prefix
             backend:
               service:
