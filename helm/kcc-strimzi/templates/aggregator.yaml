@@ -98,6 +98,10 @@ spec:
               value: {{ .Values.aggregator.aggregationWindowSize }}
             - name: CC_TOPICS_RAW_DATA
               value: {{ $rawMetricsTopics }}
+            {{- if .Values.ui.enabled }}
+            - name: CC_BASEPATH
+              value: {{ .Values.ui.contextPath }}
+            {{- end }}
             {{ if eq .Values.strimzi.auth "scram-sha-512" }}
             - name: KAFKA_SASL_MECHANISM
               value: SCRAM-SHA-512
@@ -218,14 +222,14 @@ spec:
     - host: {{ .Values.ui.host }}
       http:
         paths:
-          - path: /graphql
+          - path: {{ .Values.ui.contextPath }}graphql
             pathType: Prefix
             backend:
               service:
                 name: {{ .Release.Name }}-kafka-cost-control-service
                 port:
                   number: 80
-          - path: /olap
+          - path: {{ .Values.ui.contextPath }}olap
             pathType: Prefix
             backend:
               service:

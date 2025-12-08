@@ -50,7 +50,7 @@ data:
         }
 
         # Types by default in cache:
-        location ~* \.(css|js|woff|woff2|eot|svg|ttf|otf)$ {
+        location ~* \.(css|js|woff|woff2|eot|svg|ttf|otf|png)$ {
           {{ if ne .Values.ui.contextPath "/" }}
           rewrite ^{{ .Values.ui.contextPath }}(.*)$ /$1 break;
           {{ end }}

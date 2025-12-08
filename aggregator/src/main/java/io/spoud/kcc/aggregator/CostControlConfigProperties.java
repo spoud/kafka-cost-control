@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @ConfigMapping(prefix = "cc")
 public interface CostControlConfigProperties {
@@ -76,6 +77,9 @@ public interface CostControlConfigProperties {
     @WithName("metrics.transformations.config.splitMetricAmongPrincipals.fallbackPrincipal")
     @WithDefault("unknown")
     String splitMetricAmongPrincipalsFallbackPrincipal();
+
+    @WithName("basePath")
+    Optional<String> basePath();
 
     enum MissingKeyHandling {
         /**

@@ -6,6 +6,7 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { provideGraphql } from './graphql-provider';
 import { provideNativeDateAdapter } from '@angular/material/core';
+import {APP_BASE_HREF, PlatformLocation} from '@angular/common';
 
 export const BROWSER_LOCALE = new InjectionToken<string>('BrowserLocale');
 
@@ -14,6 +15,11 @@ export const appConfig: ApplicationConfig = {
         provideRouter(routes),
         provideAnimations(),
         provideHttpClient(),
+        {
+            provide: APP_BASE_HREF,
+            useFactory: (s: PlatformLocation) => s.getBaseHrefFromDOM(),
+            deps: [PlatformLocation],
+        },
         provideGraphql(),
         provideNativeDateAdapter(),
         {

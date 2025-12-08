@@ -3,6 +3,7 @@ import { Apollo, APOLLO_OPTIONS } from 'apollo-angular';
 import { InMemoryCache } from '@apollo/client/core';
 import { AdditionalHeadersService } from './services/additional-headers.service';
 import { ApolloClient, HttpLink } from '@apollo/client';
+import { APP_BASE_HREF } from '@angular/common';
 
 const httpLink = new HttpLink({
     uri: '/graphql',
@@ -15,10 +16,17 @@ function authLink(additionalHeadersService: AdditionalHeadersService): HttpLink 
 }
 
 export function createApollo(
-    additionalHeadersService: AdditionalHeadersService
+    additionalHeadersService: AdditionalHeadersService,
+    baseHref: string
 ): ApolloClient.Options {
+    const contextPath = baseHref || '/';
+    const cleanPath = contextPath.endsWith('/') ? contextPath : `${contextPath}/`;
     return {
-        link: authLink(additionalHeadersService).concat(httpLink),
+        link: authLink(additionalHeadersService).concat(
+            createHttpLink({
+                uri: `${cleanPath}graphql`,
+            })
+        ),
         cache: new InMemoryCache(),
         defaultOptions: {
             watchQuery: {
@@ -34,7 +42,7 @@ export function provideGraphql(): Provider[] {
         {
             provide: APOLLO_OPTIONS,
             useFactory: createApollo,
-            deps: [AdditionalHeadersService],
+            deps: [AdditionalHeadersService, APP_BASE_HREF],
         },
         {
             provide: Apollo,
