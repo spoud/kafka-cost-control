@@ -47,7 +47,7 @@
     "@angular/build": "^20.3.9",
     "@angular/cli": "^20.3.9",
     "@angular/compiler-cli": "^20.3.10",
-    "@graphql-codegen/cli": "^6.0.1",
+    "@graphql-codegen/cli": "^6.1.0",
     "@graphql-codegen/fragment-matcher": "^6.0.0",
     "@graphql-codegen/typescript": "^5.0.6",
     "@graphql-codegen/typescript-apollo-angular": "^4.0.1",
