@@ -5,7 +5,7 @@
     <span>KCC - Kafka Cost Control</span>
     <span class="spacer"></span>
     <mat-icon>light_mode</mat-icon>
-    <mat-slide-toggle (change)="onThemeChange()"></mat-slide-toggle>
+    <mat-slide-toggle (change)="toggleDarkMode()" [checked]="darkModeEnabled()"></mat-slide-toggle>
     <mat-icon class="mr-1">dark_mode</mat-icon>
     @if (isAuthenticated()) {
         <button
