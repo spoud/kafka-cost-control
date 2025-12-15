@@ -19,7 +19,7 @@ spec:
           image: spoud/kafka-cost-control-ui:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           resources:
             limits:
@@ -35,9 +35,9 @@ metadata:
   name: kafka-cost-control-ui-service
 spec:
   ports:
-    - port: 80
+    - port: 8080
       protocol: TCP
-      targetPort: 80
+      targetPort: 8080
   selector:
     k8s-app: kafka-cost-control-ui
 
@@ -57,4 +57,4 @@ spec:
               service:
                 name: kafka-cost-control-ui-service
                 port:
-                  number: 80
+                  number: 8080
