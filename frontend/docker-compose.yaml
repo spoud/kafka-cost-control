@@ -1,5 +1,0 @@
-version: '3.0'
-services:
-  ui:
-    image: spoud/kafka-cost-control-ui:latest
-    build: .
