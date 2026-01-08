@@ -9,10 +9,7 @@ import {
 import { setContext } from '@apollo/client/link/context';
 import generatedFragments from '../generated/graphql/fragments';
 import { AdditionalHeadersService } from './services/additional-headers.service';
-
-const httpLink = createHttpLink({
-    uri: '/graphql',
-});
+import { APP_BASE_HREF } from '@angular/common';
 
 function authLink(additionalHeadersService: AdditionalHeadersService): ApolloLink {
     return setContext((_, { headers }) => {
@@ -26,10 +23,18 @@ function authLink(additionalHeadersService: AdditionalHeadersService): ApolloLin
 }
 
 export function createApollo(
-    additionalHeadersService: AdditionalHeadersService
+    additionalHeadersService: AdditionalHeadersService,
+    baseHref: string
 ): ApolloClientOptions<unknown> {
+    const contextPath = baseHref || '/';
+    const cleanPath = contextPath.endsWith('/') ? contextPath : `${contextPath}/`;
+
     return {
-        link: authLink(additionalHeadersService).concat(httpLink),
+        link: authLink(additionalHeadersService).concat(
+            createHttpLink({
+                uri: `${cleanPath}graphql`,
+            })
+        ),
         cache: new InMemoryCache({
             possibleTypes: generatedFragments.possibleTypes,
         }),
@@ -47,7 +52,7 @@ export function provideGraphql(): Provider[] {
         {
             provide: APOLLO_OPTIONS,
             useFactory: createApollo,
-            deps: [AdditionalHeadersService],
+            deps: [AdditionalHeadersService, APP_BASE_HREF],
         },
         {
             provide: Apollo,
