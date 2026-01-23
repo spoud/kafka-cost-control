@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   kcc-strimzi:
   - apiVersion: v2
+    appVersion: 0.4.6
+    created: "2026-01-23T12:43:17.562160358Z"
+    description: A Helm chart for deploying Kafka Cost Control alongside Strimzi
+    digest: b22922a07550bba705276b435fad53bf1e1e879d4b4656acb33b8c34697a2cd5
+    name: kcc-strimzi
+    type: application
+    urls:
+    - https://github.com/spoud/kafka-cost-control/releases/download/kcc-strimzi-0.4.6/kcc-strimzi-0.4.6.tgz
+    version: 0.4.6
+  - apiVersion: v2
     appVersion: 0.4.5
     created: "2025-11-20T14:46:52.032678686Z"
     description: A Helm chart for deploying Kafka Cost Control alongside Strimzi
@@ -41,4 +51,4 @@ entries:
     urls:
     - https://github.com/spoud/kafka-cost-control/releases/download/kcc-strimzi-0.1.1/kcc-strimzi-0.1.1.tgz
     version: 0.1.1
-generated: "2025-11-20T14:46:52.032691269Z"
+generated: "2026-01-23T12:43:17.562178812Z"
