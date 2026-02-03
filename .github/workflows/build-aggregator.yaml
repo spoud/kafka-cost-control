@@ -30,12 +30,6 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
@@ -47,8 +41,7 @@ jobs:
         working-directory: aggregator/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=spoud_kafka-cost-control -Pfailsafe
+        run: mvn -B clean verify -Pfailsafe
 
       - name: Login to Docker Hub
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
