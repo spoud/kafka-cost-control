@@ -1,7 +1,9 @@
 package io.spoud.kcc.operator.users;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkus.cache.CacheInvalidateAll;
 import io.quarkus.cache.CacheResult;
+import io.quarkus.logging.Log;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -31,5 +33,10 @@ public class KafkaUserRepository {
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
         return client.resources(KafkaUser.class).inNamespace(config.namespace()).list().getItems();
+    }
+
+    @CacheInvalidateAll(cacheName = CACHE_NAME)
+    public void invalidateCache() {
+        Log.debug("Invalidating KafkaUser cache");
     }
 }
