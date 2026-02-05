@@ -18,6 +18,10 @@ spec:
         {{- with .Values.ui.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      annotations:
+        {{- with .Values.ui.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       terminationGracePeriodSeconds: 10
       volumes:
