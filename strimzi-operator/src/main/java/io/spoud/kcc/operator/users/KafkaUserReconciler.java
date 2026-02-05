@@ -19,15 +19,17 @@ public class KafkaUserReconciler implements Reconciler<KafkaUser> {
 
     private final KafkaTopicReconciler kafkaTopicReconciler;
     private final AtomicBoolean recalculateContexts = new AtomicBoolean(false);
+    private final KafkaUserRepository kafkaUserRepository;
 
-    public KafkaUserReconciler(KafkaTopicReconciler kafkaTopicReconciler) {
+    public KafkaUserReconciler(KafkaTopicReconciler kafkaTopicReconciler, KafkaUserRepository kafkaUserRepository) {
         this.kafkaTopicReconciler = kafkaTopicReconciler;
+        this.kafkaUserRepository = kafkaUserRepository;
     }
 
     @Override
-    @CacheInvalidateAll(cacheName = CACHE_NAME) // Invalidate the cache of KafkaUserRepository
     public UpdateControl<KafkaUser> reconcile(KafkaUser kafkaUser, Context<KafkaUser> context) throws Exception {
         Log.debugv("Detected change in KafkaUser {0}, marking contexts for recalculation", kafkaUser.getMetadata().getName());
+        kafkaUserRepository.invalidateCache();
         recalculateContexts.set(true);
         return UpdateControl.noUpdate();
     }
@@ -43,5 +45,12 @@ public class KafkaUserReconciler implements Reconciler<KafkaUser> {
                 recalculateContexts.set(true);
             }
         }
+    }
+
+    @Scheduled(every = "${cc.strimzi.operator.reconcile.interval-seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    public void periodicRecalculation() {
+        Log.infov("Triggering periodic context recalculation for ALL topics");
+        kafkaUserRepository.invalidateCache();
+        recalculateContexts.set(true);
     }
 }

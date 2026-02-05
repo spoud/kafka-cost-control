@@ -1,6 +1,8 @@
 cc:
   strimzi:
     operator:
+      reconcile:
+        interval-seconds: 3600
       topics:
         context-data: context-data
 
