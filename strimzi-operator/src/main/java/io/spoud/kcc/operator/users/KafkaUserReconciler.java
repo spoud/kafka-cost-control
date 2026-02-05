@@ -47,7 +47,7 @@ public class KafkaUserReconciler implements Reconciler<KafkaUser> {
         }
     }
 
-    @Scheduled(every = "${cc.strimzi.operator.reconcile.interval-seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @Scheduled(every = "3600s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     public void periodicRecalculation() {
         Log.infov("Triggering periodic context recalculation for ALL topics");
         kafkaUserRepository.invalidateCache();

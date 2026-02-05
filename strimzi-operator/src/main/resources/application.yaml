@@ -1,8 +1,6 @@
 cc:
   strimzi:
     operator:
-      reconcile:
-        interval-seconds: 3600
       topics:
         context-data: context-data
 
@@ -33,6 +31,8 @@ avro:
       imports: entity-type-enum.avsc
 
 kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   auto:
     offset:
       reset: earliest
