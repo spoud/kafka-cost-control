@@ -2,10 +2,11 @@ import { computed, inject, Injectable, resource, ResourceRef, Signal } from '@an
 import { firstValueFrom, map } from 'rxjs';
 import {
     MetricContextKeysGQL,
+    MetricHistory,
     MetricHistoryGQL,
+    MetricNameEntity,
     MetricNamesGQL,
 } from '../../../generated/graphql/sdk';
-import { MetricHistory, MetricNameEntity } from '../../../generated/graphql/types';
 import { GraphFilter } from '../tab-graphs.component';
 
 @Injectable({
@@ -16,13 +17,13 @@ export class GraphFilterService {
     metricNamesGql = inject(MetricNamesGQL);
     historyGql = inject(MetricHistoryGQL);
 
-    contextKeysResource = resource<string[], never>({
+    contextKeysResource = resource<string[] | undefined, never>({
         loader: () =>
             firstValueFrom(
                 this.metricContextKeysGql.fetch().pipe(map(res => res.data?.metricContextKeys))
             ),
     });
-    metricNamesResource = resource<MetricNameEntity[], never>({
+    metricNamesResource = resource<MetricNameEntity[] | undefined, never>({
         loader: () =>
             firstValueFrom(this.metricNamesGql.fetch().pipe(map(res => res.data?.metricNames))),
     });
@@ -46,8 +47,10 @@ export class GraphFilterService {
                     groupByContextKeys: _filter.groupByContext || [],
                 };
             },
-            loader: ({ params }): Promise<MetricHistory[]> =>
-                firstValueFrom(this.historyGql.fetch(params).pipe(map(res => res.data?.history))),
+            loader: ({ params }): Promise<MetricHistory[] | undefined> =>
+                firstValueFrom(
+                    this.historyGql.fetch({ variables: params }).pipe(map(res => res.data?.history))
+                ),
         });
     }
 }

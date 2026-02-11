@@ -4,8 +4,12 @@ import { KeyValueListComponent } from '../../common/key-value-list/key-value-lis
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { Entry_String_String } from '../../../generated/graphql/types';
-import { EntityType, TestContextGQL, TestContextQuery } from '../../../generated/graphql/sdk';
+import {
+    EntityType,
+    Entry_String_String,
+    TestContextGQL,
+    TestContextQuery,
+} from '../../../generated/graphql/sdk';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     MatDialogActions,
@@ -14,7 +18,6 @@ import {
     MatDialogTitle,
 } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
-import { ApolloQueryResult } from '@apollo/client';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
 
 @Component({
@@ -55,9 +58,18 @@ export class ContextDataTestComponent {
         }
         this.pending = true;
         this.contextTester
-            .fetch({ testString: this.testString })
+            .fetch({ variables: { testString: this.testString } })
             .subscribe({
-                next: result => this.unwrap(result),
+                next: result => {
+                    if (result.error) {
+                        this._snackBar.open(
+                            `Could not test contexts. ${result.error.message}`,
+                            'close'
+                        );
+                    } else if (result.data) {
+                        this.unwrap(result.data);
+                    }
+                },
                 error: err =>
                     this._snackBar.open(`Could not test contexts. ${err.message}`, 'close'),
             })
@@ -66,11 +78,11 @@ export class ContextDataTestComponent {
             });
     }
 
-    private unwrap(result: ApolloQueryResult<TestContextQuery>) {
+    private unwrap(data: TestContextQuery) {
         this.matchedTopicsContext = [];
         this.matchedPrincipalContext = [];
         this.previousInput = this.testString;
-        result.data.contextTest.forEach(context => {
+        data.contextTest.forEach(context => {
             if (context.entityType === EntityType.Topic) {
                 this.matchedTopicsContext?.push(...context.context);
             } else if (context.entityType === EntityType.Principal) {

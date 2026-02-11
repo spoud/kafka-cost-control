@@ -1,13 +1,13 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
-import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/types';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption, EChartsType } from 'echarts/core';
 import { saveAs } from 'file-saver-es';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { Panel } from '../../../tab-reporting/panel.type';
+import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/sdk';
 
 export type BarOrLine = 'bar' | 'line';
 
@@ -52,7 +52,7 @@ export class BarChartComponent {
                 if (index > -1 && metricHistory.values[index]) {
                     timeSeries.push(metricHistory.values[index]);
                     if (this.normalized()) {
-                        sum += metricHistory.values[index];
+                        sum += metricHistory.values[index]!;
                     }
                 } else {
                     timeSeries.push(null);

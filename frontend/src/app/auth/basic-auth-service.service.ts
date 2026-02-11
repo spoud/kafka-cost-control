@@ -44,13 +44,13 @@ export class BasicAuthServiceService {
         this._additionalHeaders.setHeader(HEADER_AUTHORIZATION, `Basic ${basicAuth}`);
 
         this._loginTest
-            .fetch({})
+            .fetch()
             .pipe(
                 map(response => {
                     if (response.error) {
                         throw new Error(response.error.message);
                     } else {
-                        return response.data.currentUser;
+                        return response.data?.currentUser;
                     }
                 })
             )

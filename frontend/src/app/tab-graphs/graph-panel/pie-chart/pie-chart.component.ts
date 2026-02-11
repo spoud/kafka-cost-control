@@ -1,11 +1,11 @@
 import { Component, computed, input, output } from '@angular/core';
-import { MetricHistory } from '../../../../generated/graphql/types';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption, EChartsType } from 'echarts/core';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 import { saveAs } from 'file-saver-es';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import {MetricHistory} from '../../../../generated/graphql/sdk';
 
 @Component({
     selector: 'app-pie-chart',

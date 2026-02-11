@@ -1,37 +1,27 @@
 import { Provider } from '@angular/core';
 import { Apollo, APOLLO_OPTIONS } from 'apollo-angular';
-import {
-    ApolloClientOptions,
-    ApolloLink,
-    createHttpLink,
-    InMemoryCache,
-} from '@apollo/client/core';
-import { setContext } from '@apollo/client/link/context';
-import generatedFragments from '../generated/graphql/fragments';
+import { InMemoryCache } from '@apollo/client/core';
+// import generatedFragments from '../generated/graphql/fragments';
 import { AdditionalHeadersService } from './services/additional-headers.service';
+import { ApolloClient, HttpLink } from '@apollo/client';
 
-const httpLink = createHttpLink({
+const httpLink = new HttpLink({
     uri: '/graphql',
 });
 
-function authLink(additionalHeadersService: AdditionalHeadersService): ApolloLink {
-    return setContext((_, { headers }) => {
-        return {
-            headers: {
-                ...headers,
-                ...additionalHeadersService.getHeaders(),
-            },
-        };
+function authLink(additionalHeadersService: AdditionalHeadersService): HttpLink {
+    return new HttpLink({
+        headers: additionalHeadersService.getHeaders(),
     });
 }
 
 export function createApollo(
     additionalHeadersService: AdditionalHeadersService
-): ApolloClientOptions<unknown> {
+): ApolloClient.Options {
     return {
         link: authLink(additionalHeadersService).concat(httpLink),
         cache: new InMemoryCache({
-            possibleTypes: generatedFragments.possibleTypes,
+            // possibleTypes: generatedFragments.possibleTypes,
         }),
         defaultOptions: {
             watchQuery: {
