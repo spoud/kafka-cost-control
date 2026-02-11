@@ -61,10 +61,8 @@ export const PanelStore = signalStore(
             }
             effect(() => {
                 // every time store entities (panels) change we save them to localStorage
-                store.entityMap();
                 // we ignore eChartsInstance when serializing, this gets set again when eCharts instantiates
-                const serializable = store
-                    .entities()
+                const serializable = store.entities() // TOOD I'm not even sure if that's correct atm
                     .map(panel => ({ ...panel, eChartsInstance: undefined }));
                 localStorage.setItem(PANEL_KEY, JSON.stringify(serializable));
             });

@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core';
-import { PricingRuleEntity } from '../../../generated/graphql/types';
+import {PricingRuleEntity} from '../../../generated/graphql/sdk';
 
 @Pipe({
     name: 'bytesToGb',

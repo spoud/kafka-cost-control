@@ -1,19 +1,18 @@
-import { AfterViewInit, Component, inject, OnInit, ViewChild } from '@angular/core';
-import { DeleteContextDataGQL, GetContextDatasGQL } from '../../../generated/graphql/sdk';
-import { ContextDataEntity } from '../../../generated/graphql/types';
-import { LiveAnnouncer } from '@angular/cdk/a11y';
-import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
-import { MatTableDataSource, MatTableModule } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
-import { MatButton, MatFabButton, MatIconButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
-import { ContextDataSaveComponent } from '../context-data-save/context-data-save.component';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { LoggedInDirective } from '../../auth/logged-in.directive';
-import { IntlDatePipe } from '../../common/intl-date.pipe';
-import { ContextDataTestComponent } from '../context-data-test/context-data-test.component';
-import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
+import {AfterViewInit, Component, inject, OnInit, ViewChild} from '@angular/core';
+import {ContextDataEntity, DeleteContextDataGQL, GetContextDatasGQL} from '../../../generated/graphql/sdk';
+import {LiveAnnouncer} from '@angular/cdk/a11y';
+import {MatSort, MatSortModule, Sort} from '@angular/material/sort';
+import {MatTableDataSource, MatTableModule} from '@angular/material/table';
+import {MatSnackBar} from '@angular/material/snack-bar';
+import {KeyValueListComponent} from '../../common/key-value-list/key-value-list.component';
+import {MatButton, MatFabButton, MatIconButton} from '@angular/material/button';
+import {MatIcon} from '@angular/material/icon';
+import {ContextDataSaveComponent} from '../context-data-save/context-data-save.component';
+import {MatDialog, MatDialogRef} from '@angular/material/dialog';
+import {LoggedInDirective} from '../../auth/logged-in.directive';
+import {IntlDatePipe} from '../../common/intl-date.pipe';
+import {ContextDataTestComponent} from '../context-data-test/context-data-test.component';
+import {ConfirmDialogComponent} from '../confirm-dialog/confirm-dialog.component';
 
 @Component({
     selector: 'app-context-data-list',
@@ -59,9 +58,13 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
     private loadContextData() {
         this.contextDataService.fetch().subscribe({
-            next: value => (this.dataSource.data = value.data.contextData),
-            error: err =>
-                this._snackBar.open('Could not load context data. ' + err.message, 'close'),
+            next: value => {
+                if (value.error) {
+                    this._snackBar.open('Could not load context data. ' + value.error.message, 'close')
+                } else if (value.data) {
+                    this.dataSource.data = value.data.contextData
+                }
+            },
         });
     }
 
@@ -112,7 +115,7 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
         });
         confirmDialogRef.afterClosed().subscribe(confirmation => {
             if (confirmation) {
-                this.deleteContextDataService.mutate({ request: { id: element.id! } }).subscribe({
+                this.deleteContextDataService.mutate({variables: { request: { id: element.id! } }}).subscribe({
                     next: _ => {
                         this.loadContextData();
                         this._snackBar.open(
