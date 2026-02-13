@@ -1,7 +1,6 @@
 import { Provider } from '@angular/core';
 import { Apollo, APOLLO_OPTIONS } from 'apollo-angular';
 import { InMemoryCache } from '@apollo/client/core';
-// import generatedFragments from '../generated/graphql/fragments';
 import { AdditionalHeadersService } from './services/additional-headers.service';
 import { ApolloClient, HttpLink } from '@apollo/client';
 
@@ -20,9 +19,7 @@ export function createApollo(
 ): ApolloClient.Options {
     return {
         link: authLink(additionalHeadersService).concat(httpLink),
-        cache: new InMemoryCache({
-            // possibleTypes: generatedFragments.possibleTypes,
-        }),
+        cache: new InMemoryCache(),
         defaultOptions: {
             watchQuery: {
                 errorPolicy: 'all',

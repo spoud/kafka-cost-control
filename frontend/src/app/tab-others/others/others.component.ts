@@ -44,7 +44,7 @@ export class OthersComponent {
                     this._snackBar.open('Reprocessing started', 'close', {
                         duration: 5000,
                     });
-                    return this._mutationReprocess.mutate({ variables: { startTime: startTime } });
+                    return this._mutationReprocess.mutate({ variables: { startTime } });
                 })
             )
             .subscribe({
