@@ -7,7 +7,7 @@
     "build": "ng build",
     "test:watch": "ng test",
     "test": "ng test --watch=false --browsers=ChromeHeadless",
-    "generate": "./node_modules/.bin/graphql-codegen --config graphql/codegen.yml",
+    "generate": "rm -f ./src/generated/graphql/* && ./node_modules/.bin/graphql-codegen --config graphql/codegen.yml",
     "update-schema": "wget -O graphql/schema.graphql http://localhost:8080/graphql/schema.graphql",
     "lint": "ng lint",
     "format": "prettier --write .",
