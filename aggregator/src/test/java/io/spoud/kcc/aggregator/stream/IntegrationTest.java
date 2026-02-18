@@ -20,6 +20,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.streams.KafkaStreams;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +38,11 @@ import static org.awaitility.Awaitility.await;
 @QuarkusTestResource(KafkaResource.class)
 @QuarkusTestResource(SchemaRegistryResource.class)
 public class IntegrationTest {
+
+    @BeforeAll
+    static void dockerSetup() {
+        System.setProperty("api.version", "1.44");
+    }
 
     private static final String TOPIC_INPUT_RAW_METRICS = "metrics-raw-telegraf-env";
     private static final String TOPIC_INPUT_PRICING_RULES = "pricing-rules";
