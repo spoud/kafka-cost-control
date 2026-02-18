@@ -39,11 +39,6 @@ import static org.awaitility.Awaitility.await;
 @QuarkusTestResource(SchemaRegistryResource.class)
 public class IntegrationTest {
 
-    @BeforeAll
-    static void dockerSetup() {
-        System.setProperty("api.version", "1.44");
-    }
-
     private static final String TOPIC_INPUT_RAW_METRICS = "metrics-raw-telegraf-env";
     private static final String TOPIC_INPUT_PRICING_RULES = "pricing-rules";
     private static final String TOPIC_INPUT_CONTEXT_DATA = "context-data";
