@@ -60,6 +60,8 @@ data:
         routing_tag = "host"
         idempotent_writes = true
         max_retry = 3
+        # Gzip compression
+        compression_codec = 1
         {{ if eq .Values.strimzi.auth "scram-sha-512" }}
         sasl_username = "{{ .Release.Name }}-telegraf"
         sasl_password = "${OUTPUT_KAFKA_SASL_PASSWORD}"

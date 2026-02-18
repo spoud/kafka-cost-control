@@ -58,6 +58,10 @@ spec:
         {{- with .Values.timescaledb.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      annotations:
+        {{- with .Values.timescaledb.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       terminationGracePeriodSeconds: 10
       volumes:

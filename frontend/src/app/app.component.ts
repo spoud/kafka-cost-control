@@ -1,4 +1,4 @@
-import { Component, computed, DOCUMENT, inject, Signal } from '@angular/core';
+import { Component, computed, DOCUMENT, effect, inject, signal, Signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbar } from '@angular/material/toolbar';
@@ -64,6 +64,7 @@ export class AppComponent {
     private _dialog = inject(MatDialog);
     private _authService = inject(BasicAuthServiceService);
     private document = inject(DOCUMENT);
+    private readonly DARK_MODE_KEY = 'dark-mode';
 
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
@@ -73,9 +74,18 @@ export class AppComponent {
         }
         return list;
     });
+    darkModeEnabled = signal<boolean>(localStorage.getItem(this.DARK_MODE_KEY) === 'true');
 
     constructor() {
         this.isAuthenticated = this._authService.authenticated();
+        effect(() => {
+            // set the class based on the current theme
+            if (this.darkModeEnabled()) {
+                this.document.body.classList.add('dark');
+            } else {
+                this.document.body.classList.remove('dark');
+            }
+        });
     }
 
     signOut(): void {
@@ -90,7 +100,9 @@ export class AppComponent {
         });
     }
 
-    onThemeChange() {
-        this.document.body.classList.toggle('dark');
+    toggleDarkMode() {
+        const newValue = !this.darkModeEnabled();
+        this.darkModeEnabled.set(newValue);
+        localStorage.setItem(this.DARK_MODE_KEY, newValue.toString());
     }
 }
