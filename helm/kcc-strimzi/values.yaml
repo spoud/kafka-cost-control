@@ -36,6 +36,7 @@ telegraf:
   image: telegraf:1.31.3-alpine
   enabled: true
   labels: { }
+  annotations: { }
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -71,6 +72,7 @@ strimzi:
   scramOverTls: true
   contextOperator:
     labels: { }
+    annotations: { }
     enabled: true
     image: spoud/kafka-cost-control-strimzi-operator:latest
     # will be applied to the container
@@ -121,6 +123,12 @@ aggregator:
   image: spoud/kafka-cost-control:latest
   # Labels that will be added to the pod
   labels: { }
+  annotations: { }
+  # Example annotations:
+  # annotations:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "8080"
+  #   prometheus.io/path: "/q/metrics"
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -155,6 +163,7 @@ ui:
   replicas: 1
   # Labels that will be added to the pod
   labels: { }
+  annotations: { }
   # will be applied to the container
   securityContext:
     allowPrivilegeEscalation: false
@@ -199,6 +208,7 @@ timescaledb:
   enabled: true
   image: timescale/timescaledb:2.17.2-pg16
   labels: {}
+  annotations: {}
   # If you want to use a custom secret for the PostgreSQL username and password, uncomment the following lines and set the secret name and keys
   passwordSecretRef:
 #    name: password-secret-name
