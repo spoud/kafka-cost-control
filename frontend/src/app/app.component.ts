@@ -74,7 +74,7 @@ export class AppComponent {
         }
         return list;
     });
-    darkModeEnabled = signal<boolean>( localStorage.getItem(this.DARK_MODE_KEY) === 'true');
+    darkModeEnabled = signal<boolean>(localStorage.getItem(this.DARK_MODE_KEY) === 'true');
 
     constructor() {
         this.isAuthenticated = this._authService.authenticated();
@@ -100,7 +100,7 @@ export class AppComponent {
         });
     }
 
-    toggleDarkMode(){
+    toggleDarkMode() {
         const newValue = !this.darkModeEnabled();
         this.darkModeEnabled.set(newValue);
         localStorage.setItem(this.DARK_MODE_KEY, newValue.toString());

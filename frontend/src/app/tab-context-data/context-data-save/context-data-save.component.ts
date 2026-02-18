@@ -20,7 +20,10 @@ import {
     Validators,
 } from '@angular/forms';
 import {
+    ContextDataEntity,
     ContextDataSaveRequestInput,
+    EntityType,
+    Entry_String_String,
     Entry_String_StringInput,
     SaveContextDataGQL,
 } from '../../../generated/graphql/sdk';
@@ -30,11 +33,6 @@ import {
     MatDatepickerInput,
     MatDatepickerToggle,
 } from '@angular/material/datepicker';
-import {
-    ContextDataEntity,
-    EntityType,
-    Entry_String_String,
-} from '../../../generated/graphql/types';
 import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { DateAdapter } from '@angular/material/core';
@@ -159,7 +157,7 @@ export class ContextDataSaveComponent {
                 context: this.saveForm.value.context ?? [],
             },
         };
-        this.contextDataService.mutate(variables).subscribe({
+        this.contextDataService.mutate({ variables }).subscribe({
             next: _ => {
                 this.snackBar.open('Context successfully saved', 'close', {
                     politeness: 'polite',

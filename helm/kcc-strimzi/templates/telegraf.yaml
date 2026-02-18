@@ -20,6 +20,10 @@ spec:
         {{- with .Values.telegraf.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      annotations:
+        {{- with .Values.telegraf.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-telegraf
       volumes:
