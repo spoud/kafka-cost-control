@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, OnInit, ViewChild, inject } from '@angular/core';
-import { GetPricingRulesGQL, PricingRuleEntity} from '../../../generated/graphql/sdk';
+import { GetPricingRulesGQL, PricingRuleEntity } from '../../../generated/graphql/sdk';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
