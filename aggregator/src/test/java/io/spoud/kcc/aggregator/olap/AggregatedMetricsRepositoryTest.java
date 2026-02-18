@@ -10,6 +10,7 @@ import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.data.EntityType;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,11 @@ class AggregatedMetricsRepositoryTest {
 
     AggregatedMetricsRepository repo;
     OlapInfra olapInfra;
+
+    @BeforeAll
+    static void setup() {
+        System.setProperty("api.version", "1.44");
+    }
 
     @BeforeEach
     void setUp() {
