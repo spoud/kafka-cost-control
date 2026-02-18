@@ -3,7 +3,6 @@ import { ReprocessDialogComponent } from '../reprocess-dialog/reprocess-dialog.c
 import { MatDialog } from '@angular/material/dialog';
 import { ReprocessGQL } from '../../../generated/graphql/sdk';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ApolloError } from '@apollo/client';
 import { filter, mergeMap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -45,13 +44,14 @@ export class OthersComponent {
                     this._snackBar.open('Reprocessing started', 'close', {
                         duration: 5000,
                     });
-                    return this._mutationReprocess.mutate({ startTime });
+                    return this._mutationReprocess.mutate({ variables: { startTime } });
                 })
             )
             .subscribe({
                 next: result => console.log('Reprocessing result', result),
-                error: (err: ApolloError) =>
-                    this._snackBar.open('Processing failed: ' + err.message, 'close'),
+                error: (err: Error) => {
+                    return this._snackBar.open('Processing failed: ' + err.message, 'close');
+                },
             });
     }
 
