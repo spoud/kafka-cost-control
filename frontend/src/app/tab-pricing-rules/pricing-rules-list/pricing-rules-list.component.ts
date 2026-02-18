@@ -1,6 +1,5 @@
 import { AfterViewInit, Component, OnInit, ViewChild, inject } from '@angular/core';
-import { GetPricingRulesGQL } from '../../../generated/graphql/sdk';
-import { PricingRuleEntity } from '../../../generated/graphql/types';
+import { GetPricingRulesGQL, PricingRuleEntity } from '../../../generated/graphql/sdk';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
@@ -32,9 +31,16 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
 
     ngOnInit(): void {
         this._pricingRules.fetch().subscribe({
-            next: value => (this.dataSource.data = value.data.pricingRules),
-            error: err =>
-                this._snackbar.open('Could not load pricing rules. ' + err.message, 'close'),
+            next: value => {
+                if (value.error) {
+                    this._snackbar.open(
+                        'Could not load pricing rules. ' + value.error.message,
+                        'close'
+                    );
+                } else if (value.data) {
+                    this.dataSource.data = value.data.pricingRules;
+                }
+            },
         });
     }
 
