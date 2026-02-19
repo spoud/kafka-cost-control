@@ -5,10 +5,6 @@ import { AdditionalHeadersService } from './services/additional-headers.service'
 import { ApolloClient, HttpLink } from '@apollo/client';
 import { APP_BASE_HREF } from '@angular/common';
 
-const httpLink = new HttpLink({
-    uri: '/graphql',
-});
-
 function authLink(additionalHeadersService: AdditionalHeadersService): HttpLink {
     return new HttpLink({
         headers: additionalHeadersService.getHeaders(),
@@ -23,7 +19,7 @@ export function createApollo(
     const cleanPath = contextPath.endsWith('/') ? contextPath : `${contextPath}/`;
     return {
         link: authLink(additionalHeadersService).concat(
-            createHttpLink({
+            new HttpLink({
                 uri: `${cleanPath}graphql`,
             })
         ),

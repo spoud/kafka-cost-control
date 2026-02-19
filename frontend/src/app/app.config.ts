@@ -6,7 +6,7 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { provideGraphql } from './graphql-provider';
 import { provideNativeDateAdapter } from '@angular/material/core';
-import {APP_BASE_HREF, PlatformLocation} from '@angular/common';
+import { APP_BASE_HREF, PlatformLocation } from '@angular/common';
 
 export const BROWSER_LOCALE = new InjectionToken<string>('BrowserLocale');
 
