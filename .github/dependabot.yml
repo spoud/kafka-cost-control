@@ -6,6 +6,10 @@
 version: 2
 updates:
   - package-ecosystem: "maven"
+    directory: "/strimzi-operator"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "maven"
     directory: "/aggregator"
     schedule:
       interval: "weekly"
