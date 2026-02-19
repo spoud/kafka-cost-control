@@ -6,6 +6,7 @@ import lombok.Builder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Builder
 public class TestConfigProperties implements CostControlConfigProperties {
@@ -82,5 +83,10 @@ public class TestConfigProperties implements CostControlConfigProperties {
     @Override
     public String splitMetricAmongPrincipalsFallbackPrincipal() {
         return splitMetricAmongPrincipalsFallbackPrincipal;
+    }
+
+    @Override
+    public Optional<String> basePath() {
+        return Optional.empty();
     }
 }

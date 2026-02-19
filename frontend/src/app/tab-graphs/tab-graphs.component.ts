@@ -28,7 +28,7 @@ export class TabGraphsComponent {
             this.filter()?.from.toISOString() ??
             new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const to = this.filter()?.to?.toISOString() ?? new Date().toISOString();
-        return `/olap/export/aggregated?fromDate=${from}&toDate=${to}&groupByContextKey=${this.filter()?.groupByContext}`;
+        return `olap/export/aggregated?fromDate=${from}&toDate=${to}&groupByContextKey=${this.filter()?.groupByContext}`;
     });
 
     historyData = this.graphFilterService.historyResource(this.filter);

@@ -1,4 +1,3 @@
-version: '3.0'
 services:
   kcc:
     image: spoud/kafka-cost-control:latest

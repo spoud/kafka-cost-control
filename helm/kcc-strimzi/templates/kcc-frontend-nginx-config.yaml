@@ -1,0 +1,63 @@
+{{ if .Values.ui.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-kafka-cost-control-ui-nginx-conf
+data:
+  default.conf: |
+    pid /tmp/nginx.pid;
+
+    events {
+        # events context
+    }
+
+    http{
+        include /etc/nginx/mime.types;
+
+        client_body_temp_path /tmp/client_temp;
+        proxy_temp_path       /tmp/proxy_temp_path;
+        fastcgi_temp_path     /tmp/fastcgi_temp;
+        uwsgi_temp_path       /tmp/uwsgi_temp;
+        scgi_temp_path        /tmp/scgi_temp;
+
+      server {
+        listen 8080 default_server;
+        root /usr/share/nginx/html;
+        charset utf-8;
+        gzip on;
+        gzip_types
+            text/plain
+            text/css
+            text/js
+            text/xml
+            text/javascript
+            application/javascript
+            application/x-javascript
+            application/json
+            application/xml
+            application/rss+xml
+            image/svg+xml/javascript;
+
+        add_header X-Frame-Options "DENY";
+
+        location {{ .Values.ui.contextPath }} {
+          rewrite ^ /index.html break;
+          {{ if ne .Values.ui.contextPath "/" }}
+          sub_filter_once on;
+          sub_filter '<base href="/">' '<base href="{{ .Values.ui.contextPath }}">';
+          {{ end }}
+          expires -1;
+        }
+
+        # Types by default in cache:
+        location ~* \.(css|js|woff|woff2|eot|svg|ttf|otf|png)$ {
+          {{ if ne .Values.ui.contextPath "/" }}
+          rewrite ^{{ .Values.ui.contextPath }}(.*)$ /$1 break;
+          {{ end }}
+          expires 1y;
+          access_log off;
+          add_header Cache-Control "public";
+        }
+      }
+    }
+{{- end -}}
