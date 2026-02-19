@@ -113,6 +113,10 @@ spec:
         {{- with .Values.strimzi.contextOperator.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      annotations:
+        {{- with .Values.strimzi.contextOperator.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-context-operator
       volumes:

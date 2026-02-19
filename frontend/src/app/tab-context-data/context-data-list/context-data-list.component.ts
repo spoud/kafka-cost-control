@@ -1,6 +1,9 @@
 import { AfterViewInit, Component, inject, OnInit, ViewChild } from '@angular/core';
-import { DeleteContextDataGQL, GetContextDatasGQL } from '../../../generated/graphql/sdk';
-import { ContextDataEntity } from '../../../generated/graphql/types';
+import {
+    ContextDataEntity,
+    DeleteContextDataGQL,
+    GetContextDatasGQL,
+} from '../../../generated/graphql/sdk';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
@@ -59,9 +62,16 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
     private loadContextData() {
         this.contextDataService.fetch().subscribe({
-            next: value => (this.dataSource.data = value.data.contextData),
-            error: err =>
-                this._snackBar.open('Could not load context data. ' + err.message, 'close'),
+            next: value => {
+                if (value.error) {
+                    this._snackBar.open(
+                        'Could not load context data. ' + value.error.message,
+                        'close'
+                    );
+                } else if (value.data) {
+                    this.dataSource.data = value.data.contextData;
+                }
+            },
         });
     }
 
@@ -112,17 +122,21 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
         });
         confirmDialogRef.afterClosed().subscribe(confirmation => {
             if (confirmation) {
-                this.deleteContextDataService.mutate({ request: { id: element.id! } }).subscribe({
-                    next: _ => {
-                        this.loadContextData();
-                        this._snackBar.open(
-                            `Successfully deleted context data with regex "${element.regex}".`
-                        );
-                    },
-                    error: err => {
-                        this._snackBar.open(`Error while deleting context data. Reason: ${err}`);
-                    },
-                });
+                this.deleteContextDataService
+                    .mutate({ variables: { request: { id: element.id! } } })
+                    .subscribe({
+                        next: _ => {
+                            this.loadContextData();
+                            this._snackBar.open(
+                                `Successfully deleted context data with regex "${element.regex}".`
+                            );
+                        },
+                        error: err => {
+                            this._snackBar.open(
+                                `Error while deleting context data. Reason: ${err}`
+                            );
+                        },
+                    });
             }
         });
     }

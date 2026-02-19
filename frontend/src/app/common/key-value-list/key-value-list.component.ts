@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { Entry_String_String } from '../../../generated/graphql/types';
+import { Entry_String_String } from '../../../generated/graphql/sdk';
 
 @Component({
     selector: 'app-key-value-list',
