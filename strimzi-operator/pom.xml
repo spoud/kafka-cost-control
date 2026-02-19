@@ -16,7 +16,7 @@
         <quarkus.platform.version>3.16.4</quarkus.platform.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
-        <confluent.platform.version>7.7.1</confluent.platform.version>
+        <confluent.platform.version>8.1.1</confluent.platform.version>
     </properties>
 
     <dependencyManagement>
