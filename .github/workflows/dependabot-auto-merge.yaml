@@ -26,6 +26,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Approve a PR if not already approved
+        if: ${{ steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major' }}
         run: |
           gh pr checkout "$PR_URL"
             if [ "$(gh pr status --json reviewDecision -q .currentBranch.reviewDecision)" != "APPROVED" ];
