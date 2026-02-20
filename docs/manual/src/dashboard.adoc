@@ -1,6 +1,0 @@
-=== Dashboard
-
-The dashboard allows you to consult aggregated data. You can easily group them by context item.
-
-
-TODO
