@@ -9,20 +9,10 @@ updates:
     directory: "/strimzi-operator"
     schedule:
       interval: "weekly"
-    ignore:
-      # For all deps
-      - dependency-name: "*"
-        # ignore all major updates
-        update-types: ["version-update:semver-major"]
   - package-ecosystem: "maven"
     directory: "/aggregator"
     schedule:
       interval: "weekly"
-    ignore:
-      # For all deps
-      - dependency-name: "*"
-        # ignore all major updates
-        update-types: ["version-update:semver-major"]
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
@@ -33,5 +23,6 @@ updates:
         patterns:
           - "@angular*"
         update-types:
+          - "major"
           - "minor"
           - "patch"
