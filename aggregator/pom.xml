@@ -220,7 +220,7 @@
             <plugin>
                 <groupId>org.jooq</groupId>
                 <artifactId>jooq-codegen-maven</artifactId>
-                <version>3.21.1</version>
+                <version>3.21.2</version>
                 <executions>
                     <execution>
                         <id>my-id</id>
