@@ -18,7 +18,7 @@ import org.eclipse.microprofile.graphql.Query;
 
 import java.util.List;
 
-@Path("/context-data")
+@Path("/api/v1/context-data")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @GraphQLApi

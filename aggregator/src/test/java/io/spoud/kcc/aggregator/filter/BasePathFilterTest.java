@@ -87,7 +87,7 @@ class BasePathFilterTest {
 
     private void testRestEndpoint(String path, int expectedStatusCode) {
         when()
-                .get(path + "/olap/export/aggregated")
+                .get(path + "/api/v1/olap/export/aggregated")
                 .then()
                 .assertThat()
                 .statusCode(expectedStatusCode);

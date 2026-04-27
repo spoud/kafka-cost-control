@@ -17,7 +17,7 @@ import org.eclipse.microprofile.graphql.Query;
 
 import java.util.List;
 
-@Path("/pricing-rules")
+@Path("/api/v1/pricing-rules")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @GraphQLApi

@@ -15,7 +15,7 @@ import org.eclipse.microprofile.graphql.NonNull;
 
 import java.time.Instant;
 
-@Path("/kafka-stream/reprocess")
+@Path("/api/v1/kafka-stream/reprocess")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @GraphQLApi

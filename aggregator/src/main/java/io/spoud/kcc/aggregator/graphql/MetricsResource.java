@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-@Path("/metrics")
+@Path("/api/v1/metrics")
 @Produces(MediaType.APPLICATION_JSON)
 @GraphQLApi
 @RequiredArgsConstructor
