@@ -18,7 +18,6 @@ public class UserResource {
     @Inject
     SecurityIdentity securityIdentity;
 
-
     @Query("currentUser")
     public @NonNull String currentUser() {
         return securityIdentity.getPrincipal().getName();

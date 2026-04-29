@@ -2,67 +2,56 @@ package io.spoud.kcc.aggregator.graphql;
 
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
-import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
-import io.spoud.kcc.aggregator.olap.MetricEO;
-import io.spoud.kcc.aggregator.repository.MetricNameRepository;
+import io.spoud.kcc.aggregator.olap.DataExportResource.DateTimeParameter;
+import io.spoud.kcc.aggregator.service.MetricsService;
 import jakarta.annotation.security.PermitAll;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import lombok.RequiredArgsConstructor;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+@Path("/api/v1/metrics")
+@Produces(MediaType.APPLICATION_JSON)
 @GraphQLApi
 @RequiredArgsConstructor
 public class MetricsResource {
-    private final AggregatedMetricsRepository aggregatedMetricsRepository;
-    private final MetricNameRepository metricNameRepository;
+    private final MetricsService metricsService;
 
+    @GET
+    @Path("/history")
     @Query("history")
     public @NonNull List<@NonNull MetricHistoryTO> history(
-            @NonNull Set<String> metricNames,
-            @NonNull Set<String> groupByContextKeys,
-            @NonNull Instant from,
-            Instant to) {
-        if (groupByContextKeys.isEmpty()) {
-            return aggregatedMetricsRepository.getHistory(from, to, metricNames).stream()
-                    .collect(Collectors.groupingBy(MetricEO::name))
-                    .entrySet().stream().map(entry -> {
-                        List<Instant> times = new ArrayList<>(entry.getValue().size());
-                        List<Double> values = new ArrayList<>(entry.getValue().size());
-                        entry.getValue().forEach(metricEO -> {
-                            times.add(metricEO.start());
-                            values.add(metricEO.value());
-                        });
-                        return MetricHistoryTO.builder()
-                                .name(entry.getKey())
-                                .context(Map.of())
-                                .times(times)
-                                .values(values)
-                                .build();
-                    }).toList();
-        } else {
-            String groupByContextKey = groupByContextKeys.stream().findFirst().get(); // only support one atm
-            return aggregatedMetricsRepository.getHistoryGrouped(from, to, metricNames, groupByContextKey).stream().toList();
-        }
+            @NonNull @QueryParam("metricNames") Set<String> metricNames,
+            @NonNull @QueryParam("groupByContextKeys") Set<String> groupByContextKeys,
+            @NonNull @QueryParam("from") DateTimeParameter from,
+            @QueryParam("to") DateTimeParameter to) {
+        
+        Instant fromInstant = Optional.ofNullable(from).map(DateTimeParameter::instant).orElseThrow(() -> new BadRequestException("from parameter is required"));
+        Instant toInstant = Optional.ofNullable(to).map(DateTimeParameter::instant).orElse(null);
+
+        return metricsService.getHistory(metricNames, groupByContextKeys, fromInstant, toInstant);
     }
 
+    @GET
+    @Path("/names")
     @PermitAll
     @Query("metricNames")
     public @NonNull List<@NonNull MetricNameEntity> metricNames() {
-        return metricNameRepository.getMetricNames();
+        return metricsService.getMetricNames();
     }
 
+    @GET
+    @Path("/context-keys")
     @PermitAll
     @Query("metricContextKeys")
     public @NonNull List<@NonNull String> contextKeys() {
-        return aggregatedMetricsRepository.getAllContextKeys().stream().sorted().toList();
+        return metricsService.getContextKeys();
     }
-
 }
