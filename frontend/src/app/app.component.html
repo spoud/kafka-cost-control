@@ -1,12 +1,25 @@
 <mat-toolbar color="primary">
-    <a routerLink="/home">
-        <img ngSrc="assets/kcc-logo.png" width="180" height="180" alt="Kafka Cost Control Logo" />
+    <a routerLink="/home" class="mr-1">
+        <img ngSrc="assets/spoud.svg" width="53" height="54" alt="Kafka Cost Control Logo" />
     </a>
-    <span>KCC - Kafka Cost Control</span>
+    <span>COST CONTROL</span>
     <span class="spacer"></span>
-    <mat-icon>light_mode</mat-icon>
-    <mat-slide-toggle (change)="toggleDarkMode()" [checked]="darkModeEnabled()"></mat-slide-toggle>
-    <mat-icon class="mr-1">dark_mode</mat-icon>
+    <mat-button-toggle-group
+        class="theme-toggle mr-1"
+        [value]="themeMode()"
+        (change)="setThemeMode($event.value)"
+        hideSingleSelectionIndicator
+    >
+        <mat-button-toggle value="light" matTooltip="Light mode">
+            <mat-icon>light_mode</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="system" matTooltip="Follow system setting">
+            <mat-icon>brightness_auto</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="dark" matTooltip="Dark mode">
+            <mat-icon>dark_mode</mat-icon>
+        </mat-button-toggle>
+    </mat-button-toggle-group>
     @if (isAuthenticated()) {
         <button
             mat-button
