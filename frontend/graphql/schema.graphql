@@ -71,12 +71,10 @@ type Query {
   ): [ContextTestResponse!]!
   currentUser: String!
   history(
-    "ISO-8601"
-    from: DateTime!,
+    from: DateTimeParameterInput!,
     groupByContextKeys: [String]!,
     metricNames: [String]!,
-    "ISO-8601"
-    to: DateTime
+    to: DateTimeParameterInput
   ): [MetricHistory!]!
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
@@ -116,6 +114,11 @@ input ContextDataSaveRequestInput {
 input Entry_String_StringInput {
   key: String
   value: String
+}
+
+input DateTimeParameterInput {
+  "ISO-8601"
+  instant: DateTime
 }
 
 input PricingRuleDeleteRequestInput {
