@@ -228,7 +228,7 @@
             <plugin>
                 <groupId>org.jooq</groupId>
                 <artifactId>jooq-codegen-maven</artifactId>
-                <version>3.21.5</version>
+                <version>3.21.6</version>
                 <executions>
                     <execution>
                         <id>my-id</id>
