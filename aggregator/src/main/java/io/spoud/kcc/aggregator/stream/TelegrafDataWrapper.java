@@ -3,7 +3,6 @@ package io.spoud.kcc.aggregator.stream;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.Metric;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
-import io.spoud.kcc.aggregator.repository.ContextDataRepository;
 import io.spoud.kcc.data.EntityType;
 import org.apache.commons.lang3.math.NumberUtils;
 import java.time.Instant;

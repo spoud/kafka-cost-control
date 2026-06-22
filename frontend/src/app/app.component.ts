@@ -21,7 +21,7 @@ import {
 import { CanvasRenderer } from 'echarts/renderers';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
 import { MatListItem, MatNavList } from '@angular/material/list';
-import { Link, menuLinks, menuLinksLoggedIn } from './app.routes';
+import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { NgOptimizedImage } from '@angular/common';
 
@@ -71,12 +71,12 @@ export class AppComponent {
     private readonly systemDark = signal<boolean>(window.matchMedia(this.DARK_MEDIA_QUERY).matches);
 
     isAuthenticated: Signal<boolean>;
-    navLinksSignal: Signal<Link[]> = computed(() => {
-        const list: Link[] = [...menuLinks];
+    navLinksSignal: Signal<NavLink[]> = computed(() => {
+        const list: NavLink[] = [...menuLinks];
         if (this.isAuthenticated()) {
             list.push(...menuLinksLoggedIn);
         }
-        return list;
+        return list.sort((a, b) => a.sortOrder - b.sortOrder);
     });
     themeMode = signal<ThemeMode>(this.loadThemeMode());
 
