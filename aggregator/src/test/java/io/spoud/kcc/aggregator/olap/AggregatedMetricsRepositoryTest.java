@@ -8,8 +8,6 @@ import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.aggregator.stream.TestConfigProperties;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.data.EntityType;
-import lombok.Builder;
-import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,13 +23,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class AggregatedMetricsRepositoryTest {
 
+    private static final OlapConfigProperties testOlapConfig = FakeOlapConfig.builder().build();
     AggregatedMetricsRepository repo;
     OlapInfra olapInfra;
 
     @BeforeEach
     void setUp() {
-        MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()));
-        olapInfra = new OlapInfra(testOlapConfig, metricNameRepository);
+        olapInfra = new OlapInfra(testOlapConfig);
+        MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()), olapInfra);
+
         olapInfra.init();
         repo = new AggregatedMetricsRepository(testOlapConfig, olapInfra, metricNameRepository);
     }
@@ -63,7 +63,7 @@ class AggregatedMetricsRepositoryTest {
                 .builder()
                 .databaseSeedDataPath(exportPath)
                 .build();
-        OlapInfra localOlapInfa = new OlapInfra(fakeOlapConfig, new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build())));
+        OlapInfra localOlapInfa = new OlapInfra(fakeOlapConfig);
         var repo = new AggregatedMetricsRepository(fakeOlapConfig,
                 localOlapInfa,
                 null);
@@ -441,67 +441,6 @@ class AggregatedMetricsRepositoryTest {
         }
         assertThat(metricCount).isEqualTo(2);
     }
-
-    @RequiredArgsConstructor
-    @Builder
-    private static class FakeOlapConfig implements OlapConfigProperties {
-        @Builder.Default
-        private final boolean enabled = true;
-        @Builder.Default
-        private final String databaseUrl = "jdbc:duckdb:";
-        @Builder.Default
-        private final int databaseFlushIntervalSeconds = 10;
-        @Builder.Default
-        private final int databaseMaxBufferedRows = 10;
-        @Builder.Default
-        private final String databaseSeedDataPath = null;
-        @Builder.Default
-        private final Optional<Integer> totalMemoryLimitMb = Optional.ofNullable(1024);
-        @Builder.Default
-        private final int databaseMemoryLimitPercent = 50;
-
-        @Override
-        public boolean enabled() {
-            return enabled;
-        }
-
-        @Override
-        public String databaseUrl() {
-            return databaseUrl;
-        }
-
-        @Override
-        public int databaseFlushIntervalSeconds() {
-            return databaseFlushIntervalSeconds;
-        }
-
-        @Override
-        public int databaseMaxBufferedRows() {
-            return databaseMaxBufferedRows;
-        }
-
-        @Override
-        public Optional<Integer> totalMemoryLimitMb() {
-            return totalMemoryLimitMb;
-        }
-
-        @Override
-        public int databaseMemoryLimitPercent() {
-            return databaseMemoryLimitPercent;
-        }
-
-        @Override
-        public Optional<String> databaseSeedDataPath() {
-            return Optional.ofNullable(databaseSeedDataPath);
-        }
-
-        @Override
-        public Optional<Integer> insertSyntheticDays() {
-            return Optional.empty();
-        }
-    }
-
-    private static final OlapConfigProperties testOlapConfig = FakeOlapConfig.builder().build();
 
     private static final Random random = new Random();
 

@@ -1,0 +1,165 @@
+<div class="section-header">
+    <div class="page-title">Cost Overview</div>
+    <div class="page-sub">Distribute provider invoices across applications and stages</div>
+</div>
+
+<form [formGroup]="costs">
+    <div class="card-row top-row">
+        <mat-card appearance="outlined">
+            <mat-card-header>
+                <mat-card-title class="card-title">
+                    <mat-icon>date_range</mat-icon>Date Range
+                </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <mat-form-field class="full-width">
+                    <mat-label>Date range</mat-label>
+                    <mat-date-range-input [rangePicker]="picker">
+                        <input matStartDate placeholder="Start date" formControlName="from" />
+                        <input matEndDate placeholder="End date" formControlName="to" />
+                    </mat-date-range-input>
+                    <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                    <mat-date-range-picker #picker></mat-date-range-picker>
+                </mat-form-field>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card appearance="outlined">
+            <mat-card-header>
+                <mat-card-title class="card-title">
+                    <mat-icon>receipt_long</mat-icon>Provider Invoice
+                </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="form-row">
+                    <mat-form-field>
+                        <mat-label>KAFKA_NETWORK_WRITE</mat-label>
+                        <span matTextPrefix>$&nbsp;</span>
+                        <input
+                            matInput
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            formControlName="kafkaNetworkWrite"
+                        />
+                    </mat-form-field>
+                    <mat-form-field>
+                        <mat-label>KAFKA_NETWORK_READ</mat-label>
+                        <span matTextPrefix>$&nbsp;</span>
+                        <input
+                            matInput
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            formControlName="kafkaNetworkRead"
+                        />
+                    </mat-form-field>
+                    <mat-form-field>
+                        <mat-label>KAFKA_STORAGE</mat-label>
+                        <span matTextPrefix>$&nbsp;</span>
+                        <input
+                            matInput
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            formControlName="kafkaStorage"
+                        />
+                    </mat-form-field>
+                    <mat-form-field>
+                        <mat-label>Total paid</mat-label>
+                        <span matTextPrefix>$&nbsp;</span>
+                        <input matInput type="number" min="0" step="0.01" formControlName="total" />
+                    </mat-form-field>
+                </div>
+                @if (mismatch()) {
+                    <div class="info">
+                        Line items sum to
+                        <strong>${{ inputTotal() | number: '1.2-2' }}</strong> but total paid is
+                        <strong>${{ costs.value.total | number: '1.2-2' }}</strong
+                        >. Difference of
+                        <strong
+                            >${{
+                                inputTotal() - (costs.value.total ?? 0) | abs | number: '1.2-2'
+                            }}</strong
+                        >
+                        will be distributed proportionally.
+                    </div>
+                }
+            </mat-card-content>
+        </mat-card>
+    </div>
+</form>
+
+<div class="card-row middle-row">
+    <mat-card appearance="outlined">
+        <mat-card-header>
+            <mat-card-title class="card-title">
+                <mat-icon>tune</mat-icon>Allocation Rules
+            </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+            <div class="unsupported-notice"><mat-icon>info</mat-icon>Currently unsupported</div>
+            <div class="rules-disabled">
+                <p class="rule-hint">
+                    A higher write weight means producers are charged proportionally more.
+                </p>
+                <div class="rule-row">
+                    <span class="rule-label">Write weight</span>
+                    <mat-slider min="0.1" max="5" step="0.1" discrete class="rule-slider" disabled>
+                        <input matSliderThumb [value]="writeWeight()" />
+                    </mat-slider>
+                    <span class="rule-val">{{ writeWeight() | number: '1.1-1' }}</span>
+                </div>
+                <div class="rule-row">
+                    <span class="rule-label">Read weight</span>
+                    <mat-slider min="0.1" max="5" step="0.1" discrete class="rule-slider" disabled>
+                        <input matSliderThumb [value]="readWeight()" />
+                    </mat-slider>
+                    <span class="rule-val">{{ readWeight() | number: '1.1-1' }}</span>
+                </div>
+                <div class="rule-info">
+                    <strong>Effective ratio:</strong> for every 1 byte produced, consuming
+                    {{ readWeight() / writeWeight() | number: '1.2-2' }}× more weight in cost
+                    allocation.
+                </div>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+        <mat-card-header>
+            <mat-card-title class="card-title">
+                <mat-icon>group_work</mat-icon>Group By
+            </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+            <mat-chip-listbox
+                [value]="groupBy()"
+                (change)="groupBy.set($event.value)"
+                multiple
+                class="group-chips"
+            >
+                @for (key of graphFilterService.contextKeys(); track key) {
+                    <mat-chip-option [value]="key">{{ key }}</mat-chip-option>
+                }
+            </mat-chip-listbox>
+            @if (graphFilterService.contextKeys().length === 0) {
+                <span class="rule-hint">Loading context keys…</span>
+            }
+        </mat-card-content>
+    </mat-card>
+</div>
+
+@if (hasResults()) {
+    <mat-card appearance="outlined" class="results-card">
+        <mat-card-header>
+            <mat-card-title class="card-title">
+                <mat-icon>insights</mat-icon>Cost Distribution
+            </mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="results-content">
+            <app-cost-table [inputData]="tableData()" [lastRequest]="lastRequest()" />
+            <app-sankey [inputData]="data()" [lastRequest]="lastRequest()" />
+        </mat-card-content>
+    </mat-card>
+}

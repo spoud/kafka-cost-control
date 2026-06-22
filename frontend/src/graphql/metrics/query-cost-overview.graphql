@@ -1,0 +1,22 @@
+query costOverview ($request: CostOverviewRequestInput!) {
+    costOverview(request: $request) {
+        metricToDistributionMapList {
+            metric
+            nameToPriceList {
+                name
+                price
+            }
+        }
+    }
+}
+
+query calculateTable ($request: CostOverviewRequestInput!) {
+    calculateTable(request: $request) {
+        entries {
+            initialMetricName
+            context
+            total
+            percentage
+        }
+    }
+}
