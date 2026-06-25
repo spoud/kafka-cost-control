@@ -37,15 +37,22 @@
     "tslib": "^2.8.1",
     "uuid": "^13.0.0"
   },
+  "overrides": {
+    "@ngrx/signals": {
+      "@angular/common": "$@angular/common",
+      "@angular/core": "$@angular/core"
+    }
+  },
   "devDependencies": {
-    "@angular-eslint/builder": "20.6.0",
-    "@angular-eslint/eslint-plugin": "20.6.0",
-    "@angular-eslint/eslint-plugin-template": "20.6.0",
-    "@angular-eslint/schematics": "20.6.0",
-    "@angular-eslint/template-parser": "20.6.0",
+    "@angular-eslint/builder": "22.0.0",
+    "@angular-eslint/eslint-plugin": "22.0.0",
+    "@angular-eslint/eslint-plugin-template": "22.0.0",
+    "@angular-eslint/schematics": "22.0.0",
+    "@angular-eslint/template-parser": "22.0.0",
     "@angular/build": "^22.0.4",
     "@angular/cli": "^22.0.4",
     "@angular/compiler-cli": "^22.0.2",
+    "@eslint/js": "^10.0.1",
     "@graphql-codegen/cli": "^6.1.0",
     "@graphql-codegen/fragment-matcher": "^6.0.0",
     "@graphql-codegen/typescript": "^5.0.6",
@@ -56,9 +63,11 @@
     "@types/jasmine": "~5.1.13",
     "@typescript-eslint/eslint-plugin": "^8.62.0",
     "@typescript-eslint/parser": "^8.62.0",
-    "eslint": "^9.39.1",
+    "angular-eslint": "22.0.0",
+    "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-prettier": "^5.5.6",
+    "typescript-eslint": "^8.62.0",
     "istanbul-lib-instrument": "^6.0.3",
     "jasmine-core": "~5.12.1",
     "karma": "~6.4.4",
@@ -66,7 +75,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "prettier": "^3.6.2",
+    "prettier": "^3.8.4",
     "typescript": "~6.0.3"
   }
 }
