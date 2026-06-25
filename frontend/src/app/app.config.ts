@@ -1,4 +1,8 @@
-import { ApplicationConfig, InjectionToken } from '@angular/core';
+import {
+    ApplicationConfig,
+    InjectionToken,
+    provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
@@ -11,6 +15,7 @@ export const BROWSER_LOCALE = new InjectionToken<string>('BrowserLocale');
 
 export const appConfig: ApplicationConfig = {
     providers: [
+        provideBrowserGlobalErrorListeners(),
         provideRouter(routes),
         provideHttpClient(),
         {
