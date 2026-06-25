@@ -10,6 +10,11 @@ quarkus:
       dir: /tmp/kafka-stream-${quarkus.uuid}
 
 cc:
+  olap:
+    database:
+      # Force in-memory DuckDB so tests never inherit a persisted database
+      # (and its stale metric names) from the main application config.
+      url: "jdbc:duckdb:"
   metrics:
     aggregations:
       confluent_kafka_server_retained_bytes: max
