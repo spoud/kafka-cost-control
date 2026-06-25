@@ -28,7 +28,6 @@ data:
         gzip_types
             text/plain
             text/css
-            text/js
             text/xml
             text/javascript
             application/javascript
@@ -36,7 +35,7 @@ data:
             application/json
             application/xml
             application/rss+xml
-            image/svg+xml/javascript;
+            image/svg+xml;
 
         add_header X-Frame-Options "DENY";
 
