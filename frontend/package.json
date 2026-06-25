@@ -22,7 +22,6 @@
     "@angular/forms": "^22.0.2",
     "@angular/material": "^22.0.2",
     "@angular/platform-browser": "^22.0.2",
-    "@angular/platform-browser-dynamic": "^22.0.2",
     "@angular/router": "^22.0.2",
     "@apollo/client": "^4.0.10",
     "@ngrx/signals": "^21.0.1",
