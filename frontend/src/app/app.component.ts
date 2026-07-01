@@ -22,8 +22,10 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
 import { MatListItem, MatNavList } from '@angular/material/list';
 import { Link, menuLinks, menuLinksLoggedIn } from './app.routes';
-import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { NgOptimizedImage } from '@angular/common';
+
+type ThemeMode = 'light' | 'system' | 'dark';
 
 echarts.use([
     LineChart,
@@ -55,7 +57,7 @@ echarts.use([
         MatNavList,
         MatListItem,
         RouterOutlet,
-        MatSlideToggle,
+        MatButtonToggleModule,
         NgOptimizedImage,
     ],
     providers: [provideEchartsCore({ echarts })],
@@ -64,7 +66,9 @@ export class AppComponent {
     private _dialog = inject(MatDialog);
     private _authService = inject(BasicAuthServiceService);
     private document = inject(DOCUMENT);
-    private readonly DARK_MODE_KEY = 'dark-mode';
+    private readonly THEME_MODE_KEY = 'theme-mode';
+    private readonly DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
+    private readonly systemDark = signal<boolean>(window.matchMedia(this.DARK_MEDIA_QUERY).matches);
 
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<Link[]> = computed(() => {
@@ -74,17 +78,18 @@ export class AppComponent {
         }
         return list;
     });
-    darkModeEnabled = signal<boolean>(localStorage.getItem(this.DARK_MODE_KEY) === 'true');
+    themeMode = signal<ThemeMode>(this.loadThemeMode());
 
     constructor() {
         this.isAuthenticated = this._authService.authenticated();
+
+        const prefersColorSchemeDark = window.matchMedia(this.DARK_MEDIA_QUERY);
+        prefersColorSchemeDark.addEventListener('change', e => this.systemDark.set(e.matches));
+
         effect(() => {
-            // set the class based on the current theme
-            if (this.darkModeEnabled()) {
-                this.document.body.classList.add('dark');
-            } else {
-                this.document.body.classList.remove('dark');
-            }
+            const mode = this.themeMode();
+            const isDark = mode === 'dark' || (mode === 'system' && this.systemDark());
+            this.document.body.classList.toggle('dark', isDark);
         });
     }
 
@@ -100,9 +105,14 @@ export class AppComponent {
         });
     }
 
-    toggleDarkMode() {
-        const newValue = !this.darkModeEnabled();
-        this.darkModeEnabled.set(newValue);
-        localStorage.setItem(this.DARK_MODE_KEY, newValue.toString());
+    setThemeMode(mode: ThemeMode): void {
+        this.themeMode.set(mode);
+        localStorage.setItem(this.THEME_MODE_KEY, mode);
+    }
+
+    private loadThemeMode(): ThemeMode {
+        const stored = localStorage.getItem(this.THEME_MODE_KEY);
+        if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+        return 'system';
     }
 }

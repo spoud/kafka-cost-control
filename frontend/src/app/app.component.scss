@@ -15,3 +15,17 @@ mat-tab-nav-panel {
     vertical-align: middle;
     color: var(--mat-sys-on-surface-variant);
 }
+
+.theme-toggle {
+    height: 36px;
+
+    .mat-button-toggle {
+        color: var(--mat-sys-on-primary-container);
+        background: transparent;
+    }
+
+    .mat-button-toggle-checked {
+        background: var(--mat-sys-primary-container);
+        color: var(--mat-sys-on-primary-container);
+    }
+}
