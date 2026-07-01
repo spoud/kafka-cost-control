@@ -18,6 +18,7 @@ import org.apache.kafka.streams.errors.InvalidStateStoreException;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.QueryableStoreTypes;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
+import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
@@ -37,7 +38,7 @@ import java.util.stream.Stream;
  * to compile it everytime.
  */
 @ApplicationScoped
-public class ContextDataRepository {
+public class ContextDataStreamRepository {
     private static final Duration CACHE_DURATION = Duration.ofSeconds(10);
 
     private final Emitter<Record<String, ContextData>> contextEmitter;
@@ -45,7 +46,7 @@ public class ContextDataRepository {
     private List<CachedContextData> cachedContextData;
     private Instant lastUpdate = null;
 
-    public ContextDataRepository(
+    public ContextDataStreamRepository(
             @Channel("context-data-out") Emitter<Record<String, ContextData>> contextEmitter,
             KafkaStreams kafkaStreams
     ) {

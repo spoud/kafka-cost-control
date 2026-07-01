@@ -23,10 +23,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ContextDataRepositoryTest {
+class ContextDataStreamRepositoryTest {
 
     @Mock
     Emitter<Record<String, ContextData>> contextEmitter;
@@ -35,15 +34,15 @@ class ContextDataRepositoryTest {
 
     @Spy
     @InjectMocks
-    ContextDataRepository contextDataRepository;
+    ContextDataStreamRepository contextDataStreamRepository;
 
     @Test
     void testContext_noCachedContextData_resultConsistsOfEmptyArrays() {
         // given
-        doReturn(Collections.emptyList()).when(contextDataRepository).getCachedContextData();
+        doReturn(Collections.emptyList()).when(contextDataStreamRepository).getCachedContextData();
 
         // when
-        List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
+        List<ContextTestResponse> matchedContextData = contextDataStreamRepository.testContext("test-topic-name");
 
         // then
         assertThat(matchedContextData)
@@ -70,17 +69,17 @@ class ContextDataRepositoryTest {
                 EntityType.PRINCIPAL, "^test.*", Map.of("key6", "value"));
         doReturn(
                 List.of(
-                        new ContextDataRepository.CachedContextData("valid", valid),
-                        new ContextDataRepository.CachedContextData("validFromYesterday", validFromYesterday),
-                        new ContextDataRepository.CachedContextData(UUID.randomUUID().toString(), noLongerValid),
-                        new ContextDataRepository.CachedContextData(UUID.randomUUID().toString(), notYetValid),
-                        new ContextDataRepository.CachedContextData(UUID.randomUUID().toString(), regexDoesNotMatch),
-                        new ContextDataRepository.CachedContextData("validPrincipal", principalContext)
+                        new ContextDataStreamRepository.CachedContextData("valid", valid),
+                        new ContextDataStreamRepository.CachedContextData("validFromYesterday", validFromYesterday),
+                        new ContextDataStreamRepository.CachedContextData(UUID.randomUUID().toString(), noLongerValid),
+                        new ContextDataStreamRepository.CachedContextData(UUID.randomUUID().toString(), notYetValid),
+                        new ContextDataStreamRepository.CachedContextData(UUID.randomUUID().toString(), regexDoesNotMatch),
+                        new ContextDataStreamRepository.CachedContextData("validPrincipal", principalContext)
                 )
-        ).when(contextDataRepository).getCachedContextData();
+        ).when(contextDataStreamRepository).getCachedContextData();
 
         // when
-        List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
+        List<ContextTestResponse> matchedContextData = contextDataStreamRepository.testContext("test-topic-name");
 
         // then
         assertThat(matchedContextData)
@@ -101,13 +100,13 @@ class ContextDataRepositoryTest {
 
         doReturn(
                 List.of(
-                        new ContextDataRepository.CachedContextData("valid", valid),
-                        new ContextDataRepository.CachedContextData("validFromYesterday", validFromYesterday)
+                        new ContextDataStreamRepository.CachedContextData("valid", valid),
+                        new ContextDataStreamRepository.CachedContextData("validFromYesterday", validFromYesterday)
                 )
-        ).when(contextDataRepository).getCachedContextData();
+        ).when(contextDataStreamRepository).getCachedContextData();
 
         // when
-        List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
+        List<ContextTestResponse> matchedContextData = contextDataStreamRepository.testContext("test-topic-name");
 
         // then
         assertThat(matchedContextData)
@@ -127,12 +126,12 @@ class ContextDataRepositoryTest {
 
         doReturn(
                 List.of(
-                        new ContextDataRepository.CachedContextData("valid", valid)
+                        new ContextDataStreamRepository.CachedContextData("valid", valid)
                 )
-        ).when(contextDataRepository).getCachedContextData();
+        ).when(contextDataStreamRepository).getCachedContextData();
 
         // when
-        List<ContextTestResponse> matchedContextData = contextDataRepository.testContext("test-topic-name");
+        List<ContextTestResponse> matchedContextData = contextDataStreamRepository.testContext("test-topic-name");
 
         // then
         assertThat(matchedContextData)
