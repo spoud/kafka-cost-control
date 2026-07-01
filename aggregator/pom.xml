@@ -14,7 +14,7 @@
         <skipITs>false</skipITs>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.29.4</quarkus.platform.version>
+        <quarkus.platform.version>3.37.0</quarkus.platform.version>
 
         <sonar.organization>spoud</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -25,8 +25,8 @@
         <maven.compiler.release>21</maven.compiler.release>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
-        <kafka.version>4.0.0</kafka.version>
-        <confluent.platform.version>8.2.1</confluent.platform.version>
+        <kafka.version>4.2.1</kafka.version>
+        <confluent.platform.version>8.3.0</confluent.platform.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.duckdb</groupId>
             <artifactId>duckdb_jdbc</artifactId>
-            <version>1.5.3.0</version>
+            <version>1.5.4.0</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -139,7 +139,7 @@
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
-            <version>3.21.4</version>
+            <version>3.21.6</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -228,7 +228,7 @@
             <plugin>
                 <groupId>org.jooq</groupId>
                 <artifactId>jooq-codegen-maven</artifactId>
-                <version>3.21.4</version>
+                <version>3.21.6</version>
                 <executions>
                     <execution>
                         <id>my-id</id>

@@ -68,17 +68,6 @@ export class BarChartComponent {
             tooltip: {
                 trigger: 'axis',
             },
-            dataZoom: [
-                {
-                    type: 'inside',
-                    start: 0,
-                    end: 100,
-                },
-                {
-                    start: 0,
-                    end: 100,
-                },
-            ],
             xAxis: {
                 type: 'time',
             },
@@ -121,7 +110,9 @@ export class BarChartComponent {
                     },
                 };
             }),
-            legend: {},
+            legend: {
+                type: 'scroll',
+            },
         };
     });
 
