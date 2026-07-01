@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
 import { MatButton } from '@angular/material/button';
@@ -46,17 +46,17 @@ export class ContextDataTestComponent {
     private _snackBar = inject(MatSnackBar);
 
     testString?: string;
-    pending = false;
+    pending = signal(false);
 
-    previousInput?: string;
-    matchedTopicsContext?: Array<Entry_String_String>;
-    matchedPrincipalContext?: Array<Entry_String_String>;
+    previousInput = signal<string | undefined>(undefined);
+    matchedTopicsContext = signal<Array<Entry_String_String> | undefined>(undefined);
+    matchedPrincipalContext = signal<Array<Entry_String_String> | undefined>(undefined);
 
     testContext() {
         if (!this.testString) {
             return;
         }
-        this.pending = true;
+        this.pending.set(true);
         this.contextTester
             .fetch({ variables: { testString: this.testString } })
             .subscribe({
@@ -74,26 +74,28 @@ export class ContextDataTestComponent {
                     this._snackBar.open(`Could not test contexts. ${err.message}`, 'close'),
             })
             .add(() => {
-                this.pending = false;
+                this.pending.set(false);
             });
     }
 
     private unwrap(data: TestContextQuery) {
-        this.matchedTopicsContext = [];
-        this.matchedPrincipalContext = [];
-        this.previousInput = this.testString;
+        const topics: Array<Entry_String_String> = [];
+        const principals: Array<Entry_String_String> = [];
+        this.previousInput.set(this.testString);
         data.contextTest.forEach(context => {
             if (context.entityType === EntityType.Topic) {
-                this.matchedTopicsContext?.push(...context.context);
+                topics.push(...context.context);
             } else if (context.entityType === EntityType.Principal) {
-                this.matchedPrincipalContext?.push(...context.context);
+                principals.push(...context.context);
             }
         });
+        this.matchedTopicsContext.set(topics);
+        this.matchedPrincipalContext.set(principals);
     }
 
     reset() {
-        this.matchedTopicsContext = undefined;
-        this.matchedPrincipalContext = undefined;
-        this.previousInput = undefined;
+        this.matchedTopicsContext.set(undefined);
+        this.matchedPrincipalContext.set(undefined);
+        this.previousInput.set(undefined);
     }
 }

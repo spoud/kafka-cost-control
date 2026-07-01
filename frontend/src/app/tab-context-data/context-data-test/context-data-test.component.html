@@ -5,37 +5,43 @@
             <mat-label>Name of Topic / Principal</mat-label>
             <input name="testString" [(ngModel)]="testString" matInput />
         </mat-form-field>
-        <button mat-flat-button color="primary" class="mr-1" [disabled]="!testString || pending">
+        <button mat-flat-button color="primary" class="mr-1" [disabled]="!testString || pending()">
             Test
         </button>
         <button mat-flat-button type="reset">Reset</button>
     </form>
-    @if (matchedTopicsContext || matchedPrincipalContext) {
+    @if (matchedTopicsContext() || matchedPrincipalContext()) {
         <mat-tab-group>
-            <mat-tab label="Topics ({{ matchedTopicsContext?.length }})">
+            <mat-tab label="Topics ({{ matchedTopicsContext()?.length }})">
                 <div class="mt-2">
-                    @if (matchedTopicsContext && matchedTopicsContext.length > 0) {
-                        The following contexts exist for topic <strong>{{ previousInput }}</strong
-                        >:
-                        <app-key-value-list [entries]="matchedTopicsContext" />
-                    } @else {
-                        <em
-                            >No contexts for topic <strong>{{ previousInput }}</strong></em
-                        >
+                    @if (matchedTopicsContext(); as topics) {
+                        @if (topics.length > 0) {
+                            The following contexts exist for topic
+                            <strong>{{ previousInput() }}</strong
+                            >:
+                            <app-key-value-list [entries]="topics" />
+                        } @else {
+                            <em
+                                >No contexts for topic <strong>{{ previousInput() }}</strong></em
+                            >
+                        }
                     }
                 </div>
             </mat-tab>
-            <mat-tab label="Principals ({{ matchedPrincipalContext?.length }})">
+            <mat-tab label="Principals ({{ matchedPrincipalContext()?.length }})">
                 <div class="mt-2">
-                    @if (matchedPrincipalContext && matchedPrincipalContext.length > 0) {
-                        The following contexts match for principal
-                        <strong>{{ previousInput }}</strong
-                        >:
-                        <app-key-value-list [entries]="matchedPrincipalContext" />
-                    } @else {
-                        <em
-                            >No contexts for principal <strong>{{ previousInput }}</strong></em
-                        >
+                    @if (matchedPrincipalContext(); as principals) {
+                        @if (principals.length > 0) {
+                            The following contexts match for principal
+                            <strong>{{ previousInput() }}</strong
+                            >:
+                            <app-key-value-list [entries]="principals" />
+                        } @else {
+                            <em
+                                >No contexts for principal
+                                <strong>{{ previousInput() }}</strong></em
+                            >
+                        }
                     }
                 </div>
             </mat-tab>
