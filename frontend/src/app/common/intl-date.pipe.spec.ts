@@ -1,10 +1,22 @@
+import { LOCALE_ID } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { IntlDatePipe } from './intl-date.pipe';
-import { IntlDateService } from '../services/intl-date.service';
-
-const service = new IntlDateService('de-CH', 'en-US');
-const pipe = new IntlDatePipe(service);
+import { BROWSER_LOCALE } from '../app.config';
 
 describe('IntlDatePipe', () => {
+    let pipe: IntlDatePipe;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                IntlDatePipe,
+                { provide: BROWSER_LOCALE, useValue: 'de-CH' },
+                { provide: LOCALE_ID, useValue: 'en-US' },
+            ],
+        });
+        pipe = TestBed.inject(IntlDatePipe);
+    });
+
     it('create an instance', () => {
         expect(pipe).toBeTruthy();
     });
