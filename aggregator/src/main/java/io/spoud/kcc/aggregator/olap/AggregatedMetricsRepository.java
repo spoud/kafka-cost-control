@@ -328,7 +328,7 @@ public class AggregatedMetricsRepository {
                             ));
 
                     List<Field<String>> contextKeys = request.contextKeysToGroupBy().stream()
-                            .map(key -> DSL.field("context->>'$." + key + "'", String.class).as(key))
+                            .map(key -> DSL.field("context->>{0}", String.class, DSL.val(key)).as(key))
                             .toList();
                     List<Field<?>> combined = new ArrayList<>(contextKeys);
                     combined.add(a.INITIAL_METRIC_NAME);
@@ -388,6 +388,12 @@ public class AggregatedMetricsRepository {
                 return;
             }
             double totalForMetric = getTotalForMetric(request.from(), request.to(), metricName);
+            if (totalForMetric == 0) {
+                // this is surprising and unexpected since we have a total price (costs) associated with this metric but nothing in our metrics
+                Log.warnf("No aggregated data for metric %s in range %s–%s, skipping cost distribution", metricName, request.from(), request.to());
+                return;
+            }
+
             List<AggregatedTotal> totalGroupedByContext = getTotalGroupedByContext(request.from(), request.to(), request.contextKeysToGroupBy(), metricName);
 
             List<AggregatedTotal> inPercentage = totalGroupedByContext.stream()
@@ -429,8 +435,8 @@ public class AggregatedMetricsRepository {
     private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName) {
         List<AggregatedTotal> aggregatedTotals = new ArrayList<>();
         return olapInfra.getDSLContext().map((dslContext) -> {
-            List<Field<Object>> contextKeys = contextKeysToGroupBy.stream()
-                    .map(key -> DSL.field("context->>'$." + key + "'").as(key))
+            List<Field<String>> contextKeys = contextKeysToGroupBy.stream()
+                    .map(key -> DSL.field("context->>{0}", String.class, DSL.val(key)).as(key))
                     .toList();
 
             AggregatedData a = AGGREGATED_DATA.as("a");
@@ -453,11 +459,11 @@ public class AggregatedMetricsRepository {
                     } else {
                         values.add(value.toString());
                     }
-                    aggregatedTotals.add(new AggregatedTotal(
-                            values,
-                            record.get(sum(a.VALUE)).doubleValue()
-                    ));
                 }
+                aggregatedTotals.add(new AggregatedTotal(
+                        values,
+                        record.get(sum(a.VALUE)).doubleValue()
+                ));
             });
             return aggregatedTotals;
         }).orElse(Collections.emptyList());

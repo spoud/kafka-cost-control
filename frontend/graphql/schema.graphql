@@ -85,7 +85,7 @@ type Query {
   calculateTable(request: CostOverviewRequestInput): TableResponse!
   costOverview(request: CostOverviewRequestInput): CostOverviewResponse!
   contextData: [ContextDataEntity!]!
-  contextTest(testString: String): [ContextTestResponse!]!
+  contextTest(testString: String!): [ContextTestResponse!]!
   currentUser: String!
   existingContextKeys: [String!]!
   history(
