@@ -18,6 +18,7 @@
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <confluent.platform.version>8.1.1</confluent.platform.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <dependencyManagement>
@@ -138,6 +139,7 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+            <version>${testcontainers.version}</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -159,6 +161,7 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>kafka</artifactId>
             <scope>test</scope>
+            <version>${testcontainers.version}</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
