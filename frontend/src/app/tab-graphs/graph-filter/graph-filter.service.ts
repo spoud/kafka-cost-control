@@ -41,8 +41,8 @@ export class GraphFilterService {
                     return undefined;
                 }
                 return {
-                    from: _filter.from,
-                    to: _filter.to || new Date(),
+                    from: { instant: _filter.from },
+                    to: { instant: _filter.to || new Date() },
                     metricNames: _filter.metricName || [],
                     groupByContextKeys: _filter.groupByContext || [],
                 };

@@ -18,12 +18,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.utils.Bytes;
+import org.apache.kafka.streams.AutoOffsetReset;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.state.KeyValueStore;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -57,13 +59,14 @@ public class MetricEnricher {
         builder.globalTable(
                 configProperties.topicContextData(),
                 Consumed.with(Serdes.String(), serdes.getContextDataSerde()).withName("context-data"),
-                Materialized.as(CONTEXT_DATA_TABLE_NAME));
+                Materialized.<String, ContextData, KeyValueStore<Bytes, byte[]>>as(CONTEXT_DATA_TABLE_NAME)
+                        .withCachingDisabled());
 
         KTable<String, PricingRule> pricingRulesTable = builder.table(
                 configProperties.topicPricingRules(),
                 Consumed.with(Serdes.String(), serdes.getPricingRuleSerde())
                         .withName("pricing-rules")
-                        .withOffsetResetPolicy(Topology.AutoOffsetReset.EARLIEST),
+                        .withOffsetResetPolicy(AutoOffsetReset.earliest()),
                 Materialized.as(PRICING_DATA_TABLE_NAME));
 
         KStream<String, RawTelegrafData> telegrafDataStream = builder.stream(
