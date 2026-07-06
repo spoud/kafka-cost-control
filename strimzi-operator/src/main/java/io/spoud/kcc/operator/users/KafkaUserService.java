@@ -84,10 +84,6 @@ public class KafkaUserService {
     }
 
     private List<AclOperation> getOperations(AclRule rule) {
-        if (rule.getOperations() == null) {
-            return Optional.ofNullable(rule.getOperation())
-                    .stream().toList();
-        }
-        return rule.getOperations();
+        return Optional.ofNullable(rule.getOperations()).orElse(List.of());
     }
 }
