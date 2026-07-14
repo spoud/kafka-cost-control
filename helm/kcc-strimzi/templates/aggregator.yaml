@@ -84,6 +84,22 @@ spec:
               value: {{ .Values.aggregator.appId }}
             - name: KAFKA_SCHEMA_REGISTRY_URL
               value: {{ .Values.schemaRegistry.url }}
+            {{- if .Values.schemaRegistry.basicAuthCredentials }}
+            - name: SCHEMA_REGISTRY_BASIC_AUTH_CREDENTIALS_SOURCE
+              value: "USER_INFO"
+            - name: SCHEMA_REGISTRY_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.schemaRegistry.basicAuthCredentials.secretName }}
+                  key: {{ .Values.schemaRegistry.basicAuthCredentials.usernameKey }}
+            - name: SCHEMA_REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.schemaRegistry.basicAuthCredentials.secretName }}
+                  key: {{ .Values.schemaRegistry.basicAuthCredentials.passwordKey }}
+            - name: SCHEMA_REGISTRY_USER_INFO
+              value: "{{ required "schemaRegistry.basicAuthCredentials.usernameKey is required when basicAuthCredentials is set" .Values.schemaRegistry.basicAuthCredentials.usernameKey }}:{{ required "schemaRegistry.basicAuthCredentials.passwordKey is required when basicAuthCredentials is set" .Values.schemaRegistry.basicAuthCredentials.passwordKey }}"
+            {{- end }}
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.strimzi.bootstrapServer }}
             - name: CC_TOPICS_PRICING_RULES

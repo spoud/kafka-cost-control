@@ -222,6 +222,22 @@ spec:
     connectContainer:
       env:
         {{- .Values.connect.env | toYaml | nindent 8 }}
+        {{- if .Values.schemaRegistry.basicAuthCredentials }}
+        - name: SCHEMA_REGISTRY_BASIC_AUTH_CREDENTIALS_SOURCE
+          value: "USER_INFO"
+        - name: SCHEMA_REGISTRY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.schemaRegistry.basicAuthCredentials.secretName }}
+              key: {{ .Values.schemaRegistry.basicAuthCredentials.usernameKey }}
+        - name: SCHEMA_REGISTRY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.schemaRegistry.basicAuthCredentials.secretName }}
+              key: {{ .Values.schemaRegistry.basicAuthCredentials.passwordKey }}
+        - name: SCHEMA_REGISTRY_USER_INFO
+          value: "{{ required "schemaRegistry.basicAuthCredentials.usernameKey is required when basicAuthCredentials is set" .Values.schemaRegistry.basicAuthCredentials.usernameKey }}:{{ required "schemaRegistry.basicAuthCredentials.passwordKey is required when basicAuthCredentials is set" .Values.schemaRegistry.basicAuthCredentials.passwordKey }}"
+        {{- end }}
     pod:
       metadata:
         labels:
@@ -291,7 +307,7 @@ spec:
     "value.converter": "io.confluent.connect.avro.AvroConverter",
     "value.converter.schema.registry.url": "{{ .Values.schemaRegistry.url }}",
     "value.converter.basic.auth.credentials.source": "USER_INFO",
-    "value.converter.basic.auth.user.info": "schema-registry-user:schema-registry-password",
+    "value.converter.basic.auth.user.info": "${env:SCHEMA_REGISTRY_USER_INFO}",
     "transforms": "flatten",
     "transforms.flatten.type": "org.apache.kafka.connect.transforms.Flatten$Value",
     "transforms.flatten.delimiter": "_"

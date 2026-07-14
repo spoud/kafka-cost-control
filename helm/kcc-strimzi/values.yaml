@@ -111,6 +111,19 @@ strimzi:
 # kubectl expose deploy schema-registry
 schemaRegistry:
   url: http://schema-registry:8080/apis/ccompat/v7
+  # Schema registry authentication (basic auth).
+  # If you have a secret with the credentials, uncomment and set the following:
+  # basicAuthCredentials:
+  #   secretName: my-secret
+  #   usernameKey: username
+  #   passwordKey: password
+  # This will add the following environment variables to all components that use schema registry:
+  #   SCHEMA_REGISTRY_USERNAME  (from secret)
+  #   SCHEMA_REGISTRY_PASSWORD  (from secret)
+  #   SCHEMA_REGISTRY_BASIC_AUTH_CREDENTIALS_SOURCE (value: "USER_INFO")
+  #   SCHEMA_REGISTRY_USER_INFO (value: "<username>:<password>")
+  # The connector config will also be updated to use these credentials.
+  basicAuthCredentials: { }
 
 aggregator:
   enabled: true
