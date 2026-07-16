@@ -26,7 +26,7 @@
     "@apollo/client": "^4.0.10",
     "@ngrx/signals": "^21.0.1",
     "apollo-angular": "^14.1.0",
-    "echarts": "^6.0.0",
+    "echarts": "^6.1.0",
     "file-saver-es": "^2.0.5",
     "graphql": "^16.12.0",
     "jspdf": "^4.2.1",
