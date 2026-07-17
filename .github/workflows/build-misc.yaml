@@ -1,0 +1,38 @@
+name: Build misc
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      # Only paths with no corresponding module build to hook into. Every
+      # build-<module>.yaml is self-referencing (triggers on its own file),
+      # so it is deliberately NOT listed here — a blanket '.github/**' would
+      # double-fire alongside those and let this trivial job mask a real
+      # build failure under the same "build" check name.
+      - '.github/dependabot.yml'
+      - '.github/workflows/dependabot-auto-merge.yaml'
+      - '.github/workflows/ghpages-helm-release-publish.yaml'
+      - '.github/workflows/build-misc.yaml'
+      - 'helm/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Validate workflow/dependabot YAML syntax
+        run: |
+          files=(
+            .github/dependabot.yml
+            .github/workflows/dependabot-auto-merge.yaml
+            .github/workflows/ghpages-helm-release-publish.yaml
+            .github/workflows/build-misc.yaml
+          )
+          for f in "${files[@]}"; do
+            ruby -ryaml -e "YAML.load_file(ARGV[0])" "$f"
+            echo "OK: $f"
+          done
+
+      - name: Lint Helm chart
+        run: helm lint helm/kcc-strimzi
