@@ -13,6 +13,10 @@ updates:
     directory: "/aggregator"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "maven"
+    directory: "/kafka-scraper"
+    schedule:
+      interval: "weekly"
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
@@ -26,3 +30,31 @@ updates:
           - "major"
           - "minor"
           - "patch"
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/confluent-agent"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/kafka-connect"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/aggregator/src/main/docker"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/strimzi-operator/src/main/docker"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/kafka-scraper/src/main/docker"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

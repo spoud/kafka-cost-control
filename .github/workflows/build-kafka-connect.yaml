@@ -6,13 +6,38 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
     paths: ['kafka-connect/**']
+  pull_request:
+    branches: [ master ]
+    paths: ['kafka-connect/**', '.github/workflows/build-kafka-connect.yaml']
 
 jobs:
+  # PR-time validation only: builds both images without logging in to Docker
+  # Hub or pushing anywhere, so it needs no secrets and is safe to run on
+  # every PR. The build_confluent/build_strimzi jobs below are unchanged and
+  # remain the push-event-only deploy path.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Build confluent image (no push)
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: kafka-connect/
+          push: false
+
+      - name: Build strimzi image (no push)
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: kafka-connect/
+          push: false
+          file: kafka-connect/Dockerfile.strimzi
+
   build_confluent:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Write release version
         if: startsWith(github.ref, 'refs/tags/')
@@ -22,14 +47,14 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push latest
         if: github.ref == 'refs/heads/master'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: kafka-connect/
           push: true
@@ -37,7 +62,7 @@ jobs:
 
       - name: Build and push tag
         if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: kafka-connect/
           push: true
@@ -47,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Write release version
         if: startsWith(github.ref, 'refs/tags/')
@@ -57,14 +82,14 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push latest
         if: github.ref == 'refs/heads/master'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: kafka-connect/
           push: true
@@ -73,7 +98,7 @@ jobs:
 
       - name: Build and push tag
         if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: kafka-connect/
           push: true
