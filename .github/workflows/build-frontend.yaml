@@ -7,7 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
   pull_request:
     branches: [ master ]
-    paths: [ 'frontend/**' ]
+    paths: [ 'frontend/**', '.github/workflows/build-frontend.yaml' ]
 
 jobs:
   build:

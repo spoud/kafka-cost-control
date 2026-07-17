@@ -7,7 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
   pull_request:
     branches: [ master ]
-    paths: ['strimzi-operator/**']
+    paths: ['strimzi-operator/**', '.github/workflows/build-operator.yaml']
 
 jobs:
   build:
