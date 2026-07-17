@@ -21,7 +21,7 @@ RUN 'curl' '-f' '-L' '--create-dirs' '--output' '/tmp/kafka-connect-avro-convert
       && 'mvn' 'dependency:copy-dependencies' '-s' '/tmp/e789a0fa.xml' '-DoutputDirectory=/tmp/artifacts/kafka-connect-avro-converter/e789a0fa' '-f' '/tmp/kafka-connect-avro-converter/e789a0fa/pom.xml' \
       && 'curl' '-f' '-L' '--create-dirs' '--output' '/tmp/artifacts/kafka-connect-avro-converter/e789a0fa/kafka-connect-avro-converter-7.8.0.jar' 'https://packages.confluent.io/maven/io/confluent/kafka-connect-avro-converter/7.8.0/kafka-connect-avro-converter-7.8.0.jar'
 
-FROM quay.io/strimzi/kafka:0.44.0-kafka-3.8.0
+FROM quay.io/strimzi/kafka:1.1.0-kafka-4.3.0
 
 USER root:root
 
