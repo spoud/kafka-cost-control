@@ -6,8 +6,33 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
     paths: ['kafka-connect/**']
+  pull_request:
+    branches: [ master ]
+    paths: ['kafka-connect/**', '.github/workflows/build-kafka-connect.yaml']
 
 jobs:
+  # PR-time validation only: builds both images without logging in to Docker
+  # Hub or pushing anywhere, so it needs no secrets and is safe to run on
+  # every PR. The build_confluent/build_strimzi jobs below are unchanged and
+  # remain the push-event-only deploy path.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Build confluent image (no push)
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: kafka-connect/
+          push: false
+
+      - name: Build strimzi image (no push)
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: kafka-connect/
+          push: false
+          file: kafka-connect/Dockerfile.strimzi
+
   build_confluent:
     runs-on: ubuntu-latest
 
