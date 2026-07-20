@@ -27,6 +27,7 @@ docker compose up             # local Kafka (KRaft) + Schema Registry
 ```bash
 cd frontend
 npm install
+npm run generate
 npm start                     # dev server (talks to the aggregator's GraphQL API)
 ```
 
