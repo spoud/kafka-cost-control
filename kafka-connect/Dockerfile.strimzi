@@ -10,7 +10,7 @@
 ##############################
 ##############################
 
-FROM quay.io/strimzi/maven-builder:0.44.0 AS downloadArtifacts
+FROM quay.io/strimzi/maven-builder:1.1.0 AS downloadArtifacts
 RUN 'curl' '-f' '-L' '--create-dirs' '--output' '/tmp/kafka-connect-jdbc/4b8745f2/pom.xml' 'https://repo1.maven.org/maven2/org/postgresql/postgresql/42.4.4/postgresql-42.4.4.pom' \
       && 'echo' '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"><profiles><profile><id>download</id><repositories><repository><id>custom-repo</id><url>https://repo1.maven.org/maven2/</url></repository></repositories></profile></profiles><activeProfiles><activeProfile>download</activeProfile></activeProfiles></settings>' > '/tmp/4b8745f2.xml' \
       && 'mvn' 'dependency:copy-dependencies' '-s' '/tmp/4b8745f2.xml' '-DoutputDirectory=/tmp/artifacts/kafka-connect-jdbc/4b8745f2' '-f' '/tmp/kafka-connect-jdbc/4b8745f2/pom.xml' \
