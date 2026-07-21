@@ -3,10 +3,11 @@ package io.spoud.kcc.aggregator.olap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.quarkus.logging.Log;
-import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.io.IOUtils;
+import org.jooq.DSLContext;
+import org.jooq.impl.DSL;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -30,13 +31,11 @@ import java.util.UUID;
 public class OlapInfra {
 
     private final OlapConfigProperties olapConfig;
-    private final MetricNameRepository metricNameRepository;
 
     private Connection connection;
 
-    public OlapInfra(OlapConfigProperties olapConfig, MetricNameRepository metricNameRepository) {
+    public OlapInfra(OlapConfigProperties olapConfig) {
         this.olapConfig = olapConfig;
-        this.metricNameRepository = metricNameRepository;
     }
 
     @PostConstruct
@@ -74,6 +73,10 @@ public class OlapInfra {
         }
     }
 
+    public Optional<DSLContext> getDSLContext() {
+        return getConnection().map(DSL::using);
+    }
+
     public Optional<Connection> getConnection() {
         if (!olapConfig.enabled()) {
             return Optional.empty();
@@ -108,7 +111,6 @@ public class OlapInfra {
         try {
             olapConfig.databaseSeedDataPath().ifPresent(this::importSeedData);
             olapConfig.insertSyntheticDays().ifPresent(this::insertSyntheticDays);
-            addExistingMetrics();
         } catch (Exception e) {
             Log.warn("Failed to load seed data", e);
         }
@@ -197,19 +199,5 @@ public class OlapInfra {
         } catch (SQLException e) {
             Log.error("Failed to load data", e);
         }
-    }
-
-    private void addExistingMetrics() {
-        getConnection().ifPresent(conn -> {
-            try (PreparedStatement statement = conn.prepareStatement("SELECT DISTINCT initial_metric_name FROM aggregated_data");
-                 ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    String metricName = resultSet.getString("initial_metric_name");
-                    metricNameRepository.addMetricName(metricName, Instant.now());
-                }
-            } catch (SQLException e) {
-                Log.error("Failed to add metrics", e);
-            }
-        });
     }
 }

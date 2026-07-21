@@ -86,3 +86,8 @@ docs/.asciidoctor
 .env-scraper
 
 docker-compose.override.yaml
+
+# devenv
+devenv.lock
+devenv.nix
+devenv.yaml
