@@ -33,7 +33,7 @@
     "ngx-echarts": "^22.0.0",
     "rxjs": "~7.8.2",
     "tslib": "^2.8.1",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.1"
   },
   "overrides": {
     "@ngrx/signals": {
@@ -46,16 +46,16 @@
     "@angular/cli": "^22.0.7",
     "@angular/compiler-cli": "^22.0.7",
     "@eslint/js": "^10.0.1",
-    "@graphql-codegen/cli": "^6.1.0",
+    "@graphql-codegen/cli": "^7.2.0",
     "@graphql-codegen/fragment-matcher": "^7.1.0",
     "@graphql-codegen/typescript": "^5.0.6",
-    "@graphql-codegen/typescript-apollo-angular": "^4.0.1",
+    "@graphql-codegen/typescript-apollo-angular": "^5.0.1",
     "@graphql-codegen/typescript-apollo-client-helpers": "^3.0.1",
     "@graphql-codegen/typescript-operations": "^5.0.5",
     "@types/file-saver-es": "^2.0.3",
     "@types/jasmine": "~6.0.0",
     "angular-eslint": "22.1.0",
-    "eslint": "^10.5.0",
+    "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
     "istanbul-lib-instrument": "^6.0.3",
