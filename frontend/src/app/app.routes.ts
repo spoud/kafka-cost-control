@@ -42,6 +42,13 @@ export const routes: Routes = [
             import('./tab-others/others/others.component').then(m => m.OthersComponent),
     },
     {
+        path: 'unauthorized',
+        loadComponent: () =>
+            import('./common/unauthorized/unauthorized.component').then(
+                m => m.UnauthorizedComponent
+            ),
+    },
+    {
         path: '**',
         redirectTo: '/home',
     },
