@@ -60,12 +60,6 @@ export interface NavLink extends Link {
 
 export const homeLinks: HomeLink[] = [
     {
-        path: '/costs',
-        label: 'Cost Control',
-        icon: 'attach_money',
-        helptext: 'Control and distribute costs',
-    },
-    {
         path: '/graphs',
         label: 'Graphs',
         icon: 'bar_chart',
@@ -82,6 +76,15 @@ export const homeLinks: HomeLink[] = [
         label: 'Context Data',
         icon: 'label',
         helptext: 'View, add and change context data to enrich metrics',
+    },
+];
+
+export const homeLinksLoggedIn: HomeLink[] = [
+    {
+        path: '/costs',
+        label: 'Cost Overview',
+        icon: 'attach_money',
+        helptext: 'Control and distribute costs',
     },
 ];
 

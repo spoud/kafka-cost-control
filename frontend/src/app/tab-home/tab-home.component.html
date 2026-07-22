@@ -1,5 +1,5 @@
 <mat-grid-list cols="2" rowHeight="2:1">
-    @for (link of homeLinks; track link.path) {
+    @for (link of links(); track link.path) {
         <mat-grid-tile>
             <a class="tile" [routerLink]="link.path">
                 @if (link.icon) {
