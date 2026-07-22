@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { loggedInGuard } from './auth/logged-in.guard';
 
 export const routes: Routes = [
     {
@@ -31,12 +32,21 @@ export const routes: Routes = [
     },
     {
         path: 'costs',
+        canActivate: [loggedInGuard],
         loadComponent: () => import('./costs/cost.component').then(m => m.CostComponent),
     },
     {
         path: 'others',
+        canActivate: [loggedInGuard],
         loadComponent: () =>
             import('./tab-others/others/others.component').then(m => m.OthersComponent),
+    },
+    {
+        path: 'unauthorized',
+        loadComponent: () =>
+            import('./common/unauthorized/unauthorized.component').then(
+                m => m.UnauthorizedComponent
+            ),
     },
     {
         path: '**',
@@ -60,12 +70,6 @@ export interface NavLink extends Link {
 
 export const homeLinks: HomeLink[] = [
     {
-        path: '/costs',
-        label: 'Cost Control',
-        icon: 'attach_money',
-        helptext: 'Control and distribute costs',
-    },
-    {
         path: '/graphs',
         label: 'Graphs',
         icon: 'bar_chart',
@@ -82,6 +86,15 @@ export const homeLinks: HomeLink[] = [
         label: 'Context Data',
         icon: 'label',
         helptext: 'View, add and change context data to enrich metrics',
+    },
+];
+
+export const homeLinksLoggedIn: HomeLink[] = [
+    {
+        path: '/costs',
+        label: 'Cost Overview',
+        icon: 'attach_money',
+        helptext: 'Control and distribute costs',
     },
 ];
 

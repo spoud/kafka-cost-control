@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject, Signal } from '@angular/core';
 import { MatGridList, MatGridTile } from '@angular/material/grid-list';
 import { MatIcon } from '@angular/material/icon';
-import { homeLinks } from '../app.routes';
+import { HomeLink, homeLinks, homeLinksLoggedIn } from '../app.routes';
 import { RouterLink } from '@angular/router';
+import { BasicAuthServiceService } from '../auth/basic-auth-service.service';
 
 @Component({
     selector: 'app-tab-home',
@@ -11,5 +12,10 @@ import { RouterLink } from '@angular/router';
     styleUrl: './tab-home.component.scss',
 })
 export class TabHomeComponent {
-    protected readonly homeLinks = homeLinks;
+    private _authService = inject(BasicAuthServiceService);
+    private isAuthenticated = this._authService.authenticated();
+
+    protected readonly links: Signal<HomeLink[]> = computed(() =>
+        this.isAuthenticated() ? [...homeLinks, ...homeLinksLoggedIn] : homeLinks
+    );
 }
