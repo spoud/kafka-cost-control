@@ -1,4 +1,25 @@
 apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 20Gi
+        deleteClaim: false
+        kraftMetadata: shared
+---
+
+apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
   annotations:
@@ -32,14 +53,14 @@ spec:
       port: 9093
       tls: true
       type: internal
-    metadataVersion: 3.9-IV0
+    metadataVersion: 4.0-IV3
     metricsConfig:
       type: jmxPrometheusExporter
       valueFrom:
         configMapKeyRef:
           key: kafka-metrics-config.yml
           name: kafka-metrics
-    version: 3.9.0
+    version: 4.0.0
 ---
 apiVersion: v1
 data:
