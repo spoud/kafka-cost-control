@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { loggedInGuard } from './auth/logged-in.guard';
 
 export const routes: Routes = [
     {
@@ -31,10 +32,12 @@ export const routes: Routes = [
     },
     {
         path: 'costs',
+        canActivate: [loggedInGuard],
         loadComponent: () => import('./costs/cost.component').then(m => m.CostComponent),
     },
     {
         path: 'others',
+        canActivate: [loggedInGuard],
         loadComponent: () =>
             import('./tab-others/others/others.component').then(m => m.OthersComponent),
     },
