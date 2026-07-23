@@ -397,14 +397,8 @@ public class MetricEnricher {
 
         String rosterKey = Optional.ofNullable(configProperties.weightedSplitRosterContextKey())
                 .map(m -> m.get(totalMetric)).orElse("readers");
-        if (rosterKey == null) {
-            rosterKey = "readers";
-        }
         ImputationMode mode = Optional.ofNullable(configProperties.weightedSplitImputation())
                 .map(m -> m.get(totalMetric)).orElse(ImputationMode.MEAN_REPORTER);
-        if (mode == null) {
-            mode = ImputationMode.MEAN_REPORTER;
-        }
         final String fallback = configProperties.splitMetricAmongPrincipalsFallbackPrincipal();
 
         // Roster of authorized consumers, from the topic context (ACL-derived readers/writers).

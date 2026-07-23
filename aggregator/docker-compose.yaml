@@ -1,9 +1,14 @@
 services:
   kcc:
     image: spoud/kafka-cost-control:latest
+    profiles:
+      - kcc
     build:
       context: .
       dockerfile: src/main/docker/Dockerfile.jvm
+    environment:
+      # Override with CC_AGGREGATION_WINDOW_SIZE=PT1H to mirror production.
+      CC_AGGREGATION_WINDOW_SIZE: ${CC_AGGREGATION_WINDOW_SIZE:-PT1M}
 #  kcc-native:
 #    image: ghcr.io/spoud/kafka-cost-control/aggregator:native
 #    build:
@@ -24,7 +29,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_JMX_PORT: 9101
-      KAFKA_JMX_HOSTNAME: localhost
+      # 'broker' (not localhost) so the data-gen jmx-exporter can reach JMX over RMI in-network on :9101.
+      KAFKA_JMX_HOSTNAME: broker
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
       KAFKA_LISTENERS: 'PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
@@ -45,3 +51,108 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  # Kafka UI. Disabled by default; enable with `docker compose --profile console up`.
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v3.2.2
+    profiles:
+      - console
+    depends_on:
+      - schema-registry
+      - broker
+    restart: on-failure:5
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    ports:
+      - "8090:8080"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      KAFKA_BROKERS: broker:29092
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["broker:29092"]
+        schemaRegistry:
+          enabled: true
+          urls: ["http://schema-registry:8081"]
+
+  # ===========================================================================================================
+  # Local dummy-data / end-to-end stack. Opt-in via the `data-gen` profile:
+  #   COMPOSE_PROFILES=data-gen         docker compose up   # infra + real scrape path + traffic (run quarkus:dev)
+  #   COMPOSE_PROFILES=data-gen,console docker compose up   # + Kafka UI
+  # Real path: synth traffic -> broker JMX -> jmx-exporter (Prometheus) -> telegraf (JSON) -> raw topic.
+  # See dev/README.md.
+  # ===========================================================================================================
+
+  # Exposes the broker's per-topic JMX MBeans as Prometheus, renamed to the metric names KCC expects.
+  # bitnami/jmx-exporter runs the standalone httpserver; args are <port> <config>.
+  jmx-exporter:
+    image: bitnami/jmx-exporter:latest
+    profiles:
+      - data-gen
+    depends_on:
+      - broker
+    restart: on-failure
+    command: ["5556", "/opt/config.yaml"]
+    volumes:
+      - ./dev/jmx-exporter/config.yaml:/opt/config.yaml:ro
+
+  # Scrapes the exporter and publishes Telegraf-JSON records to metrics-raw-telegraf-env.
+  telegraf:
+    image: telegraf:1.32
+    profiles:
+      - data-gen
+    depends_on:
+      - jmx-exporter
+      - broker
+    restart: on-failure
+    volumes:
+      - ./dev/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  # Real produce/consume traffic (visible in redpanda-console), several consumer groups per topic.
+  synth-retail-fulfilment:
+    image: ghcr.io/spoud/kafka-synth-client:v1.0.1
+    profiles:
+      - data-gen
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      SYNTH_CLIENT_TOPIC: spoud.retail.orders
+      KAFKA_GROUP_ID: fulfilment-svc
+      SYNTH_CLIENT_MESSAGES_MESSAGES_PER_SECOND: "75"
+
+  synth-retail-fraud:
+    image: ghcr.io/spoud/kafka-synth-client:v1.0.1
+    profiles:
+      - data-gen
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      SYNTH_CLIENT_TOPIC: spoud.retail.orders
+      KAFKA_GROUP_ID: fraud-detection
+      SYNTH_CLIENT_MESSAGES_MESSAGES_PER_SECOND: "8"
+
+  synth-marketing-dashboard:
+    image: ghcr.io/spoud/kafka-synth-client:v1.0.1
+    profiles:
+      - data-gen
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      SYNTH_CLIENT_TOPIC: spoud.marketing.clickstream
+      KAFKA_GROUP_ID: dashboard-svc
+      SYNTH_CLIENT_MESSAGES_MESSAGES_PER_SECOND: "120"
+
+  synth-travel-notification:
+    image: ghcr.io/spoud/kafka-synth-client:v1.0.1
+    profiles:
+      - data-gen
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      SYNTH_CLIENT_TOPIC: spoud.travel.bookings
+      KAFKA_GROUP_ID: notification-svc
+      SYNTH_CLIENT_MESSAGES_MESSAGES_PER_SECOND: "30"

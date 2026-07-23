@@ -1,46 +1,74 @@
 [
   {
-    "id": "0e49079d-65f7-46a7-be7e-ada4faf51025",
+    "id": "d648bdfa-047f-49bf-a218-5eeedb5c4897",
     "entityType": "TOPIC",
-    "comment": "Simply look for a topic ending with a suffix and apply some context to it",
-    "regex": ".*logistics",
+    "comment": "Naming convention spoud.<business-unit>.<service>. Extract the business unit and service from the topic name and use the business unit as the cost unit.",
+    "regex": "^spoud\\.([a-z0-9-]+)\\.([a-z0-9-]+)$",
     "context": [
-      {
-        "key": "cost-unit",
-        "value": "spoud"
-      },
-      {
-        "key": "domain",
-        "value": "logistics"
-      },
-      {
-        "key": "app",
-        "value": "agoora"
-      }
+      { "key": "domain", "value": "spoud" },
+      { "key": "business-unit", "value": "$1" },
+      { "key": "service", "value": "$2" },
+      { "key": "cost-unit", "value": "$1" }
     ]
   },
   {
-    "id": "323b603d-5b5f-48d2-84fc-4e784e942289",
+    "id": "a3ad682c-5792-47b5-aea5-6a8a9dc267d0",
     "entityType": "TOPIC",
-    "comment": "Extract context from the topic name. This is useful if you enforce a strong naming convention.",
-    "regex": "^([a-z0-9-_]+)\\.([a-z0-9-_]+)\\.([a-z0-9-_]+)\\.([a-z0-9-_]+)$",
+    "comment": "Roster for spoud.retail.orders. dr-replica is authorized to read but never reports usage, so it demonstrates the weighted-split MEAN_REPORTER imputation.",
+    "regex": "^spoud\\.retail\\.orders$",
     "context": [
-      {
-        "key": "stage",
-        "value": "$1"
-      },
-      {
-        "key": "env",
-        "value": "$2"
-      },
-      {
-        "key": "subject",
-        "value": "$3"
-      },
-      {
-        "key": "version",
-        "value": "$4"
-      }
+      { "key": "writers", "value": "checkout-svc,mobile-checkout" },
+      { "key": "readers", "value": "fulfilment-svc,fraud-detection,dr-replica" }
+    ]
+  },
+  {
+    "id": "04ffaae5-43c5-4ac1-9deb-ac8933e8787d",
+    "entityType": "TOPIC",
+    "comment": "Roster for spoud.marketing.clickstream.",
+    "regex": "^spoud\\.marketing\\.clickstream$",
+    "context": [
+      { "key": "writers", "value": "web-tracker,mobile-tracker" },
+      { "key": "readers", "value": "dashboard-svc,ml-feature-svc,adhoc-notebook" }
+    ]
+  },
+  {
+    "id": "b946bf02-1bd2-4e59-af96-77d9cf72e6e4",
+    "entityType": "TOPIC",
+    "comment": "Roster for spoud.travel.bookings.",
+    "regex": "^spoud\\.travel\\.bookings$",
+    "context": [
+      { "key": "writers", "value": "booking-api" },
+      { "key": "readers", "value": "notification-svc,billing-svc,audit-svc" }
+    ]
+  },
+  {
+    "id": "7aff960a-406f-4e78-a588-531d0542a210",
+    "entityType": "PRINCIPAL",
+    "comment": "Attribute the retail producers/consumers to the retail cost unit.",
+    "regex": "^(checkout-svc|mobile-checkout|fulfilment-svc|fraud-detection|dr-replica)$",
+    "context": [
+      { "key": "business-unit", "value": "retail" },
+      { "key": "cost-unit", "value": "retail" }
+    ]
+  },
+  {
+    "id": "7ca3f280-7940-4969-8fc8-d4d347b8bcc0",
+    "entityType": "PRINCIPAL",
+    "comment": "Attribute the marketing producers/consumers to the marketing cost unit.",
+    "regex": "^(web-tracker|mobile-tracker|dashboard-svc|ml-feature-svc|adhoc-notebook)$",
+    "context": [
+      { "key": "business-unit", "value": "marketing" },
+      { "key": "cost-unit", "value": "marketing" }
+    ]
+  },
+  {
+    "id": "68134183-71db-4d2a-8d85-53da8bccd0c8",
+    "entityType": "PRINCIPAL",
+    "comment": "Attribute the travel producers/consumers to the travel cost unit.",
+    "regex": "^(booking-api|notification-svc|billing-svc|audit-svc)$",
+    "context": [
+      { "key": "business-unit", "value": "travel" },
+      { "key": "cost-unit", "value": "travel" }
     ]
   }
 ]
