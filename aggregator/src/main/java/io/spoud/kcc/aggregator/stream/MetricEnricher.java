@@ -13,6 +13,11 @@ import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
 import io.spoud.kcc.aggregator.repository.GaugeRepository;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
+import io.spoud.kcc.aggregator.stream.weighting.ConsumptionWeightSplitter;
+import io.spoud.kcc.aggregator.stream.weighting.ImputationMode;
+import io.spoud.kcc.aggregator.stream.weighting.TopicWeightAccumulator;
+import io.spoud.kcc.aggregator.stream.weighting.WeightInput;
+import io.spoud.kcc.aggregator.stream.weighting.WeightTier;
 import io.spoud.kcc.data.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
@@ -25,11 +30,19 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.WindowStore;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @ApplicationScoped
@@ -47,6 +60,14 @@ public class MetricEnricher {
     private final GaugeRepository gaugeRepository;
     private final MetricReducer metricReducer;
     private final AggregatedMetricsRepository aggregatedMetricsRepository;
+    // Initialized inline so it is excluded from the @RequiredArgsConstructor (it is stateless).
+    private final ConsumptionWeightSplitter weightSplitter = new ConsumptionWeightSplitter();
+
+    public static final String WEIGHT_TOPIC_TAG = "topic";
+    public static final String WEIGHT_PRINCIPAL_TAG = "principal_id";
+    public static final String WEIGHT_TIER_TAG = "tier";
+    // '|' is not a legal Kafka topic-name or telegraf metric-name character, so it is a safe compound-key separator.
+    private static final String ACC_KEY_SEPARATOR = "|";
 
     @Produces
     public Topology metricEnricherTopology() {
@@ -76,7 +97,17 @@ public class MetricEnricher {
         // TODO: principal count per project/cost center
         // TODO: consumer count per project/cost center
 
-        telegrafDataStream
+        final Map<String, String> weightedTotalToWeightMetric = Optional
+                .ofNullable(configProperties.weightedSplitTotalToWeightMetric())
+                .orElse(Collections.emptyMap());
+        final boolean weightedSplitEnabled = !weightedTotalToWeightMetric.isEmpty();
+        // Metrics handled by the weighted-split branch must be kept out of the normal (even-split) path.
+        final Set<String> weightedMetrics = weightedSplitEnabled
+                ? Stream.concat(weightedTotalToWeightMetric.keySet().stream(), weightedTotalToWeightMetric.values().stream())
+                        .collect(Collectors.toSet())
+                : Collections.emptySet();
+
+        KStream<String, AggregatedData> enriched = telegrafDataStream
                 .peek(
                         (key, value) -> metricRepository.addMetricName(value.name(), value.timestamp()),
                         Named.as("populate-metric-names-list"))
@@ -85,7 +116,15 @@ public class MetricEnricher {
                 .mapValues(this::addContextToRawData, Named.as("add-context")) // map to raw telegraf data
                 .filter(
                         (key, value) -> (value != null && value.getEntityType() != null && value.getName() != null),
-                        Named.as("filter-null"))
+                        Named.as("filter-null"));
+
+        // Normal path: everything not routed through the weighted split, using the legacy even split.
+        KStream<String, AggregatedData> normalSource = weightedSplitEnabled
+                ? enriched.filter((key, value) -> !weightedMetrics.contains(value.getInitialMetricName()),
+                        Named.as("exclude-weighted-metrics"))
+                : enriched;
+
+        KStream<String, AggregatedDataWindowed> windowed = normalSource
                 .flatMapValues(this::splitTopicMetricToPrincipalMetrics, Named.as("map-topic-metric-to-principal-metric"))
                 .selectKey(
                         (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName() + "_" + value.getContext().hashCode(),
@@ -98,7 +137,16 @@ public class MetricEnricher {
                 .windowedBy(tumblingWindow)
                 .reduce(metricReducer, Named.as("sum-aggregated-value-by-window"))
                 .toStream(Named.as("convert-window-to-stream"))
-                .map(MetricEnricher::mapToWindowedAggregate, Named.as("map-to-windowed-aggregated-data"))
+                .map(MetricEnricher::mapToWindowedAggregate, Named.as("map-to-windowed-aggregated-data"));
+
+        // Weighted path: distribute the authoritative topic total among consumers proportionally to measured usage.
+        if (weightedSplitEnabled) {
+            windowed = windowed.merge(
+                    buildWeightedSplitStream(enriched, tumblingWindow, weightedTotalToWeightMetric),
+                    Named.as("merge-weighted-split"));
+        }
+
+        windowed
                 .leftJoin(pricingRulesTable, this::addPriceToWindowedMetric, Joined.as("join-pricing-rule"))
                 .selectKey((key, value) -> new AggregatedDataKey(
                         value.getStartTime(),
@@ -261,5 +309,147 @@ public class MetricEnricher {
         newContext.put("topic", metric.getName());
         return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName,
                 metric.getInitialMetricName(), metric.getValue(), metric.getCost(), metric.getTags(), newContext);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Weighted (fair) split. Unlike the even split above, this distributes an authoritative per-topic total
+    // (e.g. sent_bytes) among the topic's consumers proportionally to their measured usage. Because the weights
+    // are only known after aggregating a window, this necessarily runs *after* windowing, keyed by topic.
+    // ---------------------------------------------------------------------------------------------------------
+
+    /**
+     * Builds the weighted-split sub-topology: co-groups the authoritative topic-total records and the
+     * per-(topic, principal) weight records by (topic, total-metric) within the tumbling window, then emits one
+     * windowed PRINCIPAL record per consumer with its fair share of the total. The output is keyed by the total
+     * metric name so it can be merged straight into the main stream just before the pricing join.
+     */
+    private KStream<String, AggregatedDataWindowed> buildWeightedSplitStream(
+            KStream<String, AggregatedData> enriched,
+            TimeWindows window,
+            Map<String, String> totalToWeight) {
+
+        final Set<String> totalMetrics = totalToWeight.keySet();
+        // weight metric name -> total metric name (if a weight metric feeds several totals, the last one wins).
+        final Map<String, String> weightToTotal = new HashMap<>();
+        totalToWeight.forEach((total, weight) -> weightToTotal.put(weight, total));
+
+        return enriched
+                .filter((key, value) -> value.getInitialMetricName() != null
+                                && (totalMetrics.contains(value.getInitialMetricName())
+                                || weightToTotal.containsKey(value.getInitialMetricName())),
+                        Named.as("weighted-filter-relevant"))
+                .flatMap((key, value) -> toWeightInputs(value, totalMetrics, weightToTotal),
+                        Named.as("weighted-to-input"))
+                .groupByKey(Grouped.with("weighted-group-by-topic", Serdes.String(), serdes.getWeightInputSerde()))
+                .windowedBy(window)
+                .aggregate(
+                        TopicWeightAccumulator::new,
+                        (key, input, acc) -> acc.add(input),
+                        Named.as("weighted-aggregate"),
+                        Materialized.<String, TopicWeightAccumulator, WindowStore<Bytes, byte[]>>as("weighted-split-store")
+                                .withKeySerde(Serdes.String())
+                                .withValueSerde(serdes.getTopicWeightAccumulatorSerde()))
+                .toStream(Named.as("weighted-to-stream"))
+                .flatMap(this::splitAccumulator, Named.as("weighted-split-emit"));
+    }
+
+    /** Route one enriched record to the weighted-split aggregation, keyed by (topic, total-metric). */
+    private List<KeyValue<String, WeightInput>> toWeightInputs(
+            AggregatedData value, Set<String> totalMetrics, Map<String, String> weightToTotal) {
+        final String metric = value.getInitialMetricName();
+        if (metric == null) {
+            return Collections.emptyList();
+        }
+        if (totalMetrics.contains(metric)) {
+            // Authoritative topic total: the topic name is the entity name (entityType TOPIC).
+            if (value.getEntityType() != EntityType.TOPIC || value.getName() == null) {
+                return Collections.emptyList();
+            }
+            return List.of(KeyValue.pair(accKey(value.getName(), metric), WeightInput.forTotal(value.getValue())));
+        }
+        final String totalMetric = weightToTotal.get(metric);
+        if (totalMetric == null) {
+            return Collections.emptyList();
+        }
+        final Map<String, String> tags = value.getTags() == null ? Collections.emptyMap() : value.getTags();
+        final String topic = tags.get(WEIGHT_TOPIC_TAG);
+        final String principal = tags.get(WEIGHT_PRINCIPAL_TAG);
+        if (topic == null || topic.isBlank() || principal == null || principal.isBlank()) {
+            Log.debugv("Dropping weight metric \"{0}\" without topic/principal tags", metric);
+            return Collections.emptyList();
+        }
+        final WeightTier tier = WeightTier.fromString(tags.get(WEIGHT_TIER_TAG), WeightTier.T2_OFFSET_PROGRESS);
+        return List.of(KeyValue.pair(accKey(topic, totalMetric), WeightInput.forWeight(principal, value.getValue(), tier)));
+    }
+
+    /** Apply the weighting rule to one windowed (topic, total-metric) accumulator, emitting per-principal shares. */
+    private List<KeyValue<String, AggregatedDataWindowed>> splitAccumulator(
+            Windowed<String> windowedKey, TopicWeightAccumulator acc) {
+        final String compoundKey = windowedKey.key();
+        final int idx = compoundKey.indexOf(ACC_KEY_SEPARATOR);
+        if (idx < 0) {
+            return Collections.emptyList();
+        }
+        final String topic = compoundKey.substring(0, idx);
+        final String totalMetric = compoundKey.substring(idx + ACC_KEY_SEPARATOR.length());
+        final Instant start = windowedKey.window().startTime();
+        final Instant end = windowedKey.window().endTime();
+
+        String rosterKey = Optional.ofNullable(configProperties.weightedSplitRosterContextKey())
+                .map(m -> m.get(totalMetric)).orElse("readers");
+        if (rosterKey == null) {
+            rosterKey = "readers";
+        }
+        ImputationMode mode = Optional.ofNullable(configProperties.weightedSplitImputation())
+                .map(m -> m.get(totalMetric)).orElse(ImputationMode.MEAN_REPORTER);
+        if (mode == null) {
+            mode = ImputationMode.MEAN_REPORTER;
+        }
+        final String fallback = configProperties.splitMetricAmongPrincipalsFallbackPrincipal();
+
+        // Roster of authorized consumers, from the topic context (ACL-derived readers/writers).
+        final Map<String, String> topicContext = contextDataStreamRepository.getContextDataForName(EntityType.TOPIC, topic, end);
+        final List<String> roster = Optional.ofNullable(topicContext.get(rosterKey))
+                .map(s -> Arrays.stream(s.split(","))
+                        .map(String::trim)
+                        .filter(x -> !x.isEmpty())
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+
+        final Map<String, ConsumptionWeightSplitter.Weight> reported = new HashMap<>();
+        acc.weights.forEach((principal, entry) ->
+                reported.put(principal, new ConsumptionWeightSplitter.Weight(entry.bytes, entry.tier)));
+
+        final ConsumptionWeightSplitter.Result result = weightSplitter.split(acc.total, reported, roster, mode, fallback);
+
+        try {
+            gaugeRepository.updateGauge("kcc_weighted_split_coverage",
+                    Tags.of("topic", topic, "metric", totalMetric), result.coverage(), start);
+        } catch (Exception e) {
+            Log.warnv(e, "Unable to update coverage gauge for topic {0}", topic);
+        }
+
+        final List<KeyValue<String, AggregatedDataWindowed>> out = new ArrayList<>();
+        result.allocations().forEach((principal, splitValue) -> {
+            final Map<String, String> ctx = new HashMap<>(
+                    contextDataStreamRepository.getContextDataForName(EntityType.PRINCIPAL, principal, end));
+            ctx.put("topic", topic);
+            out.add(KeyValue.pair(totalMetric, AggregatedDataWindowed.newBuilder()
+                    .setStartTime(start)
+                    .setEndTime(end)
+                    .setEntityType(EntityType.PRINCIPAL)
+                    .setName(principal)
+                    .setInitialMetricName(totalMetric)
+                    .setValue(splitValue)
+                    .setCost(null)
+                    .setTags(Collections.emptyMap())
+                    .setContext(ctx)
+                    .build()));
+        });
+        return out;
+    }
+
+    private static String accKey(String topic, String totalMetric) {
+        return topic + ACC_KEY_SEPARATOR + totalMetric;
     }
 }

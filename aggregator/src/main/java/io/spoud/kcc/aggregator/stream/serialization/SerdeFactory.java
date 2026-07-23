@@ -3,6 +3,8 @@ package io.spoud.kcc.aggregator.stream.serialization;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 import io.smallrye.common.annotation.Identifier;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.stream.weighting.TopicWeightAccumulator;
+import io.spoud.kcc.aggregator.stream.weighting.WeightInput;
 import io.spoud.kcc.data.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -53,6 +55,14 @@ public class SerdeFactory {
 
     public Serde<RawTelegrafData> getRawTelegrafSerde() {
         return new JSONSerde<>(RawTelegrafData.class);
+    }
+
+    public Serde<WeightInput> getWeightInputSerde() {
+        return new JSONSerde<>(WeightInput.class);
+    }
+
+    public Serde<TopicWeightAccumulator> getTopicWeightAccumulatorSerde() {
+        return new JSONSerde<>(TopicWeightAccumulator.class);
     }
 
 }

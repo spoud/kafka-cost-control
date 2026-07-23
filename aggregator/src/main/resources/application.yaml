@@ -17,6 +17,24 @@ cc:
   metrics:
     aggregations:
       confluent_kafka_server_retained_bytes: max
+      # The consumption-weight signal is summed within a window like any throughput metric.
+      kcc_consumption_weight: sum
+#    transformations:
+#      # Weighted (fair) split: distribute an authoritative per-topic total among the topic's consumers
+#      # proportionally to their measured usage instead of splitting it evenly. See docs/weighted-cost-split.md.
+#      # Maps the total metric -> the per-(topic, principal) weight metric that drives the distribution.
+#      weightedSplit:
+#        confluent_kafka_server_sent_bytes: kcc_consumption_weight       # consumer egress, weighted per reader
+#        confluent_kafka_server_received_bytes: kcc_consumption_weight   # producer ingress, weighted per writer
+#      config:
+#        weightedSplit:
+#          # Context key holding the ACL-derived roster of authorized consumers, per total metric.
+#          rosterContextKey:
+#            confluent_kafka_server_sent_bytes: readers
+#            confluent_kafka_server_received_bytes: writers
+#          # How authorized-but-non-reporting consumers are treated: MEAN_REPORTER (default) | ZERO | FALLBACK_PRINCIPAL
+#          imputation:
+#            confluent_kafka_server_sent_bytes: MEAN_REPORTER
   topics:
     pricing-rules: pricing-rules
     context-data: context-data

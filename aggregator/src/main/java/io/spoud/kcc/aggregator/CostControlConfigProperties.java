@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
+import io.spoud.kcc.aggregator.stream.weighting.ImputationMode;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Duration;
@@ -77,6 +78,39 @@ public interface CostControlConfigProperties {
     @WithName("metrics.transformations.config.splitMetricAmongPrincipals.fallbackPrincipal")
     @WithDefault("unknown")
     String splitMetricAmongPrincipalsFallbackPrincipal();
+
+    /**
+     * Weighted (fair) split configuration. Maps an authoritative per-topic "total" metric (e.g.
+     * {@code confluent_kafka_server_sent_bytes}) to the name of the per-(topic, principal) "weight" metric that
+     * should be used to distribute it (e.g. {@code kcc_consumption_weight}).
+     * <p>
+     * When a total metric appears here, it is <b>no longer</b> emitted as a topic-level cost, nor is it split
+     * evenly via {@link #splitTopicMetricAmongPrincipals()} (weighted split takes precedence). Instead, its
+     * windowed total is divided among the topic's consumers proportionally to their measured weight, with the
+     * residual for non-reporting consumers handled per {@link #weightedSplitImputation()}.
+     * <p>
+     * The weight metric is a pure weighting signal: it is consumed by the weighting engine and never priced or
+     * emitted as its own cost line. It is expected to carry {@code topic} and {@code principal_id} tags and an
+     * optional {@code tier} tag (see {@code WeightTier}).
+     */
+    @WithName("metrics.transformations.weightedSplit")
+    Map<String, String> weightedSplitTotalToWeightMetric();
+
+    /**
+     * Per total-metric context key that holds the comma-separated roster of authorized consumers (e.g.
+     * {@code readers} for consumer traffic, {@code writers} for producer traffic). The roster is used to find
+     * non-reporting consumers so they are billed too during the telemetry-adoption transition. Defaults to
+     * {@code readers} when not specified for a metric.
+     */
+    @WithName("metrics.transformations.config.weightedSplit.rosterContextKey")
+    Map<String, String> weightedSplitRosterContextKey();
+
+    /**
+     * Per total-metric policy for how to treat authorized-but-non-reporting consumers. Defaults to
+     * {@link ImputationMode#MEAN_REPORTER} when not specified for a metric.
+     */
+    @WithName("metrics.transformations.config.weightedSplit.imputation")
+    Map<String, ImputationMode> weightedSplitImputation();
 
     @WithName("basePath")
     Optional<String> basePath();

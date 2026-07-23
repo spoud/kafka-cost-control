@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.stream;
 
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
+import io.spoud.kcc.aggregator.stream.weighting.ImputationMode;
 import lombok.Builder;
 
 import java.time.Duration;
@@ -22,6 +23,12 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private Map<String, String> splitValueAmongListMembers;
     private Map<String, MissingKeyHandling> splitMetricAmongPrincipalsMissingKeyHandling;
     private String splitMetricAmongPrincipalsFallbackPrincipal;
+    @Builder.Default
+    private Map<String, String> weightedSplitTotalToWeightMetric = Map.of();
+    @Builder.Default
+    private Map<String, String> weightedSplitRosterContextKey = Map.of();
+    @Builder.Default
+    private Map<String, ImputationMode> weightedSplitImputation = Map.of();
     @Builder.Default
     private Duration aggregationWindowSize = Duration.parse("PT1H");
 
@@ -83,6 +90,21 @@ public class TestConfigProperties implements CostControlConfigProperties {
     @Override
     public String splitMetricAmongPrincipalsFallbackPrincipal() {
         return splitMetricAmongPrincipalsFallbackPrincipal;
+    }
+
+    @Override
+    public Map<String, String> weightedSplitTotalToWeightMetric() {
+        return weightedSplitTotalToWeightMetric;
+    }
+
+    @Override
+    public Map<String, String> weightedSplitRosterContextKey() {
+        return weightedSplitRosterContextKey;
+    }
+
+    @Override
+    public Map<String, ImputationMode> weightedSplitImputation() {
+        return weightedSplitImputation;
     }
 
     @Override
