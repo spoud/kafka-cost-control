@@ -4,12 +4,8 @@ import { KeyValueListComponent } from '../../common/key-value-list/key-value-lis
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import {
-    EntityType,
-    Entry_String_String,
-    TestContextGQL,
-    TestContextQuery,
-} from '../../../generated/graphql/sdk';
+import { TestContextGQL, TestContextQuery } from '../../../generated/graphql/sdk';
+import { EntityType, Entry_String_String } from '../../../generated/graphql/types';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     MatDialogActions,

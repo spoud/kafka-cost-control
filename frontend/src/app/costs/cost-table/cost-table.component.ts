@@ -1,5 +1,6 @@
 import { Component, computed, input, ViewChild, AfterViewInit } from '@angular/core';
-import { CalculateTableQuery, CostOverviewRequestInput } from '../../../generated/graphql/sdk';
+import { CalculateTableQuery } from '../../../generated/graphql/sdk';
+import { CostOverviewRequestInput } from '../../../generated/graphql/types';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatSort, MatSortModule } from '@angular/material/sort';

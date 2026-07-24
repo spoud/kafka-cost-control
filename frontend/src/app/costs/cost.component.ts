@@ -8,13 +8,8 @@ import { MatSlider, MatSliderThumb } from '@angular/material/slider';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatChipListbox, MatChipOption } from '@angular/material/chips';
-import {
-    CalculateTableGQL,
-    CalculateTableQuery,
-    CostOverviewGQL,
-    CostOverviewQuery,
-    CostOverviewRequestInput,
-} from '../../generated/graphql/sdk';
+import { CalculateTableGQL, CalculateTableQuery, CostOverviewGQL, CostOverviewQuery } from '../../generated/graphql/sdk';
+import { CostOverviewRequestInput } from '../../generated/graphql/types';
 import { SankeyComponent } from './sankey/sankey.component';
 import {
     MatDatepickerToggle,
@@ -99,7 +94,7 @@ export class CostComponent {
     });
 
     data = signal<CostOverviewQuery | undefined>(undefined);
-    tableData = signal<CalculateTableQuery>({ calculateTable: {} });
+    tableData = signal<CalculateTableQuery>({ calculateTable: { entries: null } });
     lastRequest = signal<CostOverviewRequestInput | undefined>(undefined);
 
     constructor() {

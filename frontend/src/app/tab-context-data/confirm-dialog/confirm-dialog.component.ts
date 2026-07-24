@@ -8,7 +8,7 @@ import {
 } from '@angular/material/dialog';
 import { MatButton } from '@angular/material/button';
 import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
-import { ContextDataEntity } from '../../../generated/graphql/sdk';
+import { ContextDataEntity } from '../../../generated/graphql/types';
 
 @Component({
     selector: 'app-confirm-dialog',

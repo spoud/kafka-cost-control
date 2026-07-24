@@ -19,14 +19,14 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { SaveContextDataGQL } from '../../../generated/graphql/sdk';
 import {
     ContextDataEntity,
     ContextDataSaveRequestInput,
     EntityType,
     Entry_String_String,
     Entry_String_StringInput,
-    SaveContextDataGQL,
-} from '../../../generated/graphql/sdk';
+} from '../../../generated/graphql/types';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     MatDatepicker,
@@ -95,8 +95,8 @@ export class ContextDataSaveComponent {
         if (data) {
             // edit mode, we have existing data
             this.saveForm = this.formBuilder.group({
-                validFrom: new FormControl(data.element.validFrom),
-                validUntil: new FormControl<Date | null>(data.element.validUntil),
+                validFrom: new FormControl(data.element.validFrom as Date | null),
+                validUntil: new FormControl<Date | null>(data.element.validUntil as Date | null),
                 entityType: new FormControl<EntityType>(
                     data.element.entityType,
                     Validators.required
