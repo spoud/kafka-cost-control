@@ -81,18 +81,9 @@
           }
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              "src/assets"
-            ],
-            "styles": [
-              "src/styles.scss",
-              "src/styles/tokens.scss"
-            ],
-            "scripts": []
+            "buildTarget": "::development"
           }
         },
         "lint": {
