@@ -7,7 +7,7 @@ import { saveAs } from 'file-saver-es';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { Panel } from '../../../tab-reporting/panel.type';
-import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/sdk';
+import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/types';
 
 export type BarOrLine = 'bar' | 'line';
 
@@ -146,7 +146,7 @@ export class BarChartComponent {
         const allTimes: Set<string> = new Set();
         this.metricsData().forEach(metricHistory => {
             metricHistory.times.forEach((time: Maybe<Scalars['DateTime']['output']>) =>
-                allTimes.add(time)
+                allTimes.add(time as string)
             );
         });
         const allTimesSorted: Array<string> = [...allTimes].sort(); // we can sort iso 8601 lexicographically
