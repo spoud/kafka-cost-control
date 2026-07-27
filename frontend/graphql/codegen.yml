@@ -1,9 +1,12 @@
 schema: "./graphql/schema.graphql"
 generates:
-  src/generated/graphql/sdk.ts:
-    documents: "src/graphql/**/*.graphql"
+  src/generated/graphql/types.ts:
     plugins:
       - typescript
+  src/generated/graphql/sdk.ts:
+    documents: "src/graphql/**/*.graphql"
+    config:
+      importSchemaTypesFrom: "src/generated/graphql/types"
+    plugins:
       - typescript-operations
       - typescript-apollo-angular
-

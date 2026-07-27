@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
-import { CostOverviewQuery, CostOverviewRequestInput } from '../../../generated/graphql/sdk';
+import { CostOverviewQuery } from '../../../generated/graphql/sdk';
+import { CostOverviewRequestInput } from '../../../generated/graphql/types';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption } from 'echarts/core';
