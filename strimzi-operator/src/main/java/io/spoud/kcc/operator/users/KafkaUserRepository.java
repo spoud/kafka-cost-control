@@ -32,7 +32,19 @@ public class KafkaUserRepository {
      */
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
+        if ("v1beta2".equals(config.strimziCrdApiVersion())) {
+            return client.resources(KafkaUserV1beta2.class).inNamespace(config.namespace()).list().getItems()
+                    .stream().map(KafkaUserRepository::toKafkaUser).toList();
+        }
         return client.resources(KafkaUser.class).inNamespace(config.namespace()).list().getItems();
+    }
+
+    private static KafkaUser toKafkaUser(KafkaUserV1beta2 legacy) {
+        KafkaUser user = new KafkaUser();
+        user.setMetadata(legacy.getMetadata());
+        user.setSpec(legacy.getSpec());
+        user.setStatus(legacy.getStatus());
+        return user;
     }
 
     @CacheInvalidateAll(cacheName = CACHE_NAME)

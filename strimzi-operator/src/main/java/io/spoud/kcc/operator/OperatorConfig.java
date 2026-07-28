@@ -88,4 +88,13 @@ public interface OperatorConfig {
      */
     @WithName("context-regex-suffix")
     Optional<String> contextRegexSuffix();
+
+    /**
+     * CRD API version to use when reading KafkaUser/KafkaTopic resources (e.g. "v1", "v1beta2").
+     * Older Strimzi Cluster Operator installs may only serve "v1beta2" for these CRDs.
+     */
+    @WithName("strimzi-crd-api-version")
+    @WithDefault("v1")
+    @NotBlank
+    String strimziCrdApiVersion();
 }

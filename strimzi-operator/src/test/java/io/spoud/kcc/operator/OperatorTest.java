@@ -4,7 +4,6 @@ import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
-import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.cache.Cache;
 import io.quarkus.cache.CacheManager;
 import io.quarkus.logging.Log;
@@ -32,7 +31,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.jboss.logmanager.MDC;
 import org.junit.jupiter.api.*;
-import org.mockito.Mockito;
 import static io.spoud.kcc.operator.DefaultTestProfile.PREFIX;
 
 import java.time.Duration;
@@ -144,12 +142,7 @@ class OperatorTest {
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
                 List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
         addKafkaUser(user);
-        delayedAsyncRun(() -> {
-            // implementation detail: `reconcile` simply sets a flag that reconcilation is needed, so we need to call `recalculateContexts` to actually perform it
-            // Under normal conditions, the second call would be triggered by the quarkus scheduler after some time.
-            userReconciler.reconcile(user, Mockito.mock(Context.class));
-            userReconciler.recalculateContexts();
-        });
+        delayedAsyncRun(userReconciler::reconcileNow);
 
         // make sure that only the topic that the user has access to has its context updated
         var records = kafkaCompanion.consumeWithDeserializers(
@@ -185,7 +178,7 @@ class OperatorTest {
     @DisplayName("Test that a KafkaTopic reconciliation produces the expected context for a single topic")
     void testReconcileSingleTopic() throws Exception {
         var topicToReconcile = getTopicInstance(TOPIC_NAME, TOPIC_APP);
-        delayedAsyncRun(() -> topicReconciler.reconcile(topicToReconcile, Mockito.mock(Context.class)));
+        delayedAsyncRun(() -> topicReconciler.reconcileSingleTopic(topicToReconcile));
 
         var record = kafkaCompanion.consumeWithDeserializers(
                         StringDeserializer.class, KafkaAvroDeserializer.class

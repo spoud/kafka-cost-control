@@ -1,9 +1,6 @@
 package io.spoud.kcc.operator.topics;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
-import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.quarkus.logging.Log;
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.data.ContextData;
@@ -17,9 +14,10 @@ import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import java.time.Instant;
+import java.util.List;
 
 @ApplicationScoped
-public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
+public class KafkaTopicReconciler {
     public static final String CONTEXT_CHANNEL = "context-data-out";
 
     private final KubernetesClient client;
@@ -40,7 +38,7 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
         this.contextRepository = contextRepository;
     }
 
-    private void reconcileSingleTopic(KafkaTopic t) {
+    public void reconcileSingleTopic(KafkaTopic t) {
         Log.debugv("Reconciling KafkaTopic {0}", t.getMetadata().getName());
         var context = contextExtractor.getContextOfTopic(t);
         var suffix = config.contextRegexSuffix().orElse("");
@@ -69,17 +67,24 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
      * Recalculate and publish contexts for all Kafka topics.
      */
     public void reconcileAllTopics() {
-        var topicList = client.resources(KafkaTopic.class)
-                .inNamespace(config.namespace())
-                .list()
-                .getItems();
+        var topicList = fetchTopics();
         Log.infov("Reconciling contexts for all {0} KafkaTopics", topicList.size());
         topicList.forEach(this::reconcileSingleTopic);
     }
 
-    @Override
-    public UpdateControl<KafkaTopic> reconcile(KafkaTopic t, Context<KafkaTopic> context) throws Exception {
-        reconcileSingleTopic(t);
-        return UpdateControl.noUpdate();
+    private List<KafkaTopic> fetchTopics() {
+        if ("v1beta2".equals(config.strimziCrdApiVersion())) {
+            return client.resources(KafkaTopicV1beta2.class).inNamespace(config.namespace()).list().getItems()
+                    .stream().map(KafkaTopicReconciler::toKafkaTopic).toList();
+        }
+        return client.resources(KafkaTopic.class).inNamespace(config.namespace()).list().getItems();
+    }
+
+    private static KafkaTopic toKafkaTopic(KafkaTopicV1beta2 legacy) {
+        KafkaTopic topic = new KafkaTopic();
+        topic.setMetadata(legacy.getMetadata());
+        topic.setSpec(legacy.getSpec());
+        topic.setStatus(legacy.getStatus());
+        return topic;
     }
 }

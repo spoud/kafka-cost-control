@@ -162,6 +162,8 @@ spec:
           value: {{ $ctxTopic }}
         - name: CC_STRIMZI_OPERATOR_NAMESPACE
           value: {{ .Release.Namespace }}
+        - name: CC_STRIMZI_OPERATOR_STRIMZI_CRD_API_VERSION
+          value: {{ .Values.strimzi.contextOperator.strimziCrdApiVersion }}
         {{ if eq .Values.strimzi.auth "scram-sha-512" }}
         - name: KAFKA_SASL_MECHANISM
           value: SCRAM-SHA-512
