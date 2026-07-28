@@ -12,6 +12,12 @@ quarkus:
     strimzi:
       group-id: io.strimzi
       artifact-id: api
+  arc:
+    # No reconcilers are registered anymore (see KafkaUserReconciler/KafkaTopicReconciler) -- reconciliation
+    # is poll-driven instead. The operator-sdk's own health check reports DOWN whenever the operator
+    # considers itself "not started" (i.e. no registered controllers), which would otherwise permanently
+    # fail this app's readiness/startup probes.
+    exclude-types: io.quarkiverse.operatorsdk.runtime.OperatorHealthCheck
   # watch only the namespace where kafka resources are deployed
   operator-sdk:
     namespaces: ${cc.strimzi.operator.namespace}
