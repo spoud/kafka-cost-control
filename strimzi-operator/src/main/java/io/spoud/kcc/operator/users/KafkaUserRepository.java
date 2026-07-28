@@ -33,13 +33,13 @@ public class KafkaUserRepository {
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
         if ("v1beta2".equals(config.strimziCrdApiVersion())) {
-            return client.resources(KafkaUserV1beta2.class).inNamespace(config.namespace()).list().getItems()
+            return client.resources(io.spoud.kcc.operator.users.v1beta2.KafkaUser.class).inNamespace(config.namespace()).list().getItems()
                     .stream().map(KafkaUserRepository::toKafkaUser).toList();
         }
         return client.resources(KafkaUser.class).inNamespace(config.namespace()).list().getItems();
     }
 
-    private static KafkaUser toKafkaUser(KafkaUserV1beta2 legacy) {
+    private static KafkaUser toKafkaUser(io.spoud.kcc.operator.users.v1beta2.KafkaUser legacy) {
         KafkaUser user = new KafkaUser();
         user.setMetadata(legacy.getMetadata());
         user.setSpec(legacy.getSpec());

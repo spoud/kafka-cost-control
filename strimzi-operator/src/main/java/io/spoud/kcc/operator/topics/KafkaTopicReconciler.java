@@ -74,13 +74,13 @@ public class KafkaTopicReconciler {
 
     private List<KafkaTopic> fetchTopics() {
         if ("v1beta2".equals(config.strimziCrdApiVersion())) {
-            return client.resources(KafkaTopicV1beta2.class).inNamespace(config.namespace()).list().getItems()
+            return client.resources(io.spoud.kcc.operator.topics.v1beta2.KafkaTopic.class).inNamespace(config.namespace()).list().getItems()
                     .stream().map(KafkaTopicReconciler::toKafkaTopic).toList();
         }
         return client.resources(KafkaTopic.class).inNamespace(config.namespace()).list().getItems();
     }
 
-    private static KafkaTopic toKafkaTopic(KafkaTopicV1beta2 legacy) {
+    private static KafkaTopic toKafkaTopic(io.spoud.kcc.operator.topics.v1beta2.KafkaTopic legacy) {
         KafkaTopic topic = new KafkaTopic();
         topic.setMetadata(legacy.getMetadata());
         topic.setSpec(legacy.getSpec());
