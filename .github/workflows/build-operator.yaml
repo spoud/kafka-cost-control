@@ -12,6 +12,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # v1 (default): full test suite, plain (non-suffixed) image tags.
+          - crd-version: v1
+            tag-suffix: ""
+            maven-goal: verify
+            maven-args: -Pfailsafe
+          # v1beta2: for Strimzi Cluster Operator installs (pre-0.49.0) whose CRDs only serve v1beta2 for
+          # KafkaUser/KafkaTopic. Tests are skipped: OperatorTest's fixtures create resources via the v1
+          # classes directly, a valid combination only for the v1 variant above; V1Beta2CompatTest already
+          # covers the v1beta2 data path and runs as part of every matrix job.
+          - crd-version: v1beta2
+            tag-suffix: "-v1beta2"
+            maven-goal: package
+            maven-args: -DskipTests
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,7 +58,7 @@ jobs:
         working-directory: strimzi-operator/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-        run: mvn -B clean verify -Pfailsafe
+        run: mvn -B clean ${{ matrix.maven-goal }} ${{ matrix.maven-args }} -Dcc.strimzi.crd-version=${{ matrix.crd-version }}
 
       - name: Login to Docker Hub
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
@@ -57,7 +74,7 @@ jobs:
           context: strimzi-operator/
           file: strimzi-operator/src/main/docker/Dockerfile.jvm
           push: true
-          tags: spoud/kafka-cost-control-strimzi-operator:latest
+          tags: spoud/kafka-cost-control-strimzi-operator:latest${{ matrix.tag-suffix }}
 
       - name: Build and push tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -66,4 +83,4 @@ jobs:
           context: strimzi-operator/
           file: strimzi-operator/src/main/docker/Dockerfile.jvm
           push: true
-          tags: spoud/kafka-cost-control-strimzi-operator:${{ env.VERSION }}
+          tags: spoud/kafka-cost-control-strimzi-operator:${{ env.VERSION }}${{ matrix.tag-suffix }}

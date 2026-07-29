@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.cache.CacheInvalidateAll;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.operator.CrdVersion;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,23 +17,37 @@ public class KafkaUserRepository {
 
     private final KubernetesClient client;
     private final OperatorConfig config;
+    private final CrdVersion crdVersion;
 
-    public KafkaUserRepository(KubernetesClient client, OperatorConfig config) {
+    public KafkaUserRepository(KubernetesClient client, OperatorConfig config, CrdVersion crdVersion) {
         this.client = client;
         this.config = config;
+        this.crdVersion = crdVersion;
     }
 
     /**
      * Get all Kafka users in the configured namespace. See {@link OperatorConfig#namespace()} for the namespace
      * that will be used. To avoid unnecessary calls to the Kubernetes API, the result is cached.
      * The cache is supposed to be invalidated whenever a KafkaUser resource is created, updated or deleted.
-     * See {@link KafkaUserReconciler} for the cache invalidation.
+     * See {@link io.spoud.kcc.operator.ContextRecalculationScheduler} for the cache invalidation.
      *
      * @return a collection of KafkaUser resources
      */
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
+        if (crdVersion.isV1Beta2()) {
+            return client.resources(io.spoud.kcc.operator.users.v1beta2.KafkaUser.class).inNamespace(config.namespace()).list().getItems()
+                    .stream().map(KafkaUserRepository::toKafkaUser).toList();
+        }
         return client.resources(KafkaUser.class).inNamespace(config.namespace()).list().getItems();
+    }
+
+    private static KafkaUser toKafkaUser(io.spoud.kcc.operator.users.v1beta2.KafkaUser legacy) {
+        KafkaUser user = new KafkaUser();
+        user.setMetadata(legacy.getMetadata());
+        user.setSpec(legacy.getSpec());
+        user.setStatus(legacy.getStatus());
+        return user;
     }
 
     @CacheInvalidateAll(cacheName = CACHE_NAME)

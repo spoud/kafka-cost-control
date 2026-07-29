@@ -8,7 +8,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 @ApplicationScoped
 public class KafkaUserService {
@@ -83,7 +82,21 @@ public class KafkaUserService {
                 && rule.getType() == type);
     }
 
-    private List<AclOperation> getOperations(AclRule rule) {
-        return Optional.ofNullable(rule.getOperations()).orElse(List.of());
+    List<AclOperation> getOperations(AclRule rule) {
+        List<AclOperation> ops = rule.getOperations();
+        if (ops != null && !ops.isEmpty()) {
+            return ops;
+        }
+        // Fallback for the deprecated singular "operation" field, still used by some existing KafkaUser
+        // resources under the v1beta2 CRD schema. AclRule implements UnknownPropertyPreserving, so Jackson
+        // captures unrecognized fields like this one in additionalProperties instead of discarding them.
+        // AclOperation's JSON representation ("Read", "Describe", ...) doesn't match its enum constant
+        // names (READ, DESCRIBE, ...), so this must go through forValue(), not valueOf().
+        Object legacyOp = rule.getAdditionalProperties().get("operation");
+        if (legacyOp instanceof String s) {
+            AclOperation op = AclOperation.forValue(s);
+            return op != null ? List.of(op) : List.of();
+        }
+        return List.of();
     }
 }

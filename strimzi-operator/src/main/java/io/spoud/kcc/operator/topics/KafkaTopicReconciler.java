@@ -1,15 +1,13 @@
 package io.spoud.kcc.operator.topics;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
-import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.quarkus.logging.Log;
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.EntityType;
 import io.spoud.kcc.operator.ContextExtractor;
 import io.spoud.kcc.operator.ContextRepository;
+import io.spoud.kcc.operator.CrdVersion;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -17,30 +15,41 @@ import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import java.time.Instant;
+import java.util.List;
 
+/**
+ * Holds the actual reconciliation logic, always present regardless of which CRD version this build
+ * targets. Used by {@link io.spoud.kcc.operator.ContextRecalculationScheduler} (the poll-driven safety
+ * net) and by whichever of {@link KafkaTopicReconcilerV1}/{@link KafkaTopicReconcilerV1Beta2} is the
+ * active JOSDK reconciler for this build (see {@code cc.strimzi.crd-version}) -- this class itself is not
+ * a JOSDK reconciler.
+ */
 @ApplicationScoped
-public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
+public class KafkaTopicReconciler {
     public static final String CONTEXT_CHANNEL = "context-data-out";
 
     private final KubernetesClient client;
     private final ContextExtractor contextExtractor;
     private final OperatorConfig config;
+    private final CrdVersion crdVersion;
     private final Emitter<Record<String, ContextData>> contextEmitter;
     private final ContextRepository contextRepository;
 
     public KafkaTopicReconciler(KubernetesClient client,
                                 ContextExtractor contextExtractor,
                                 OperatorConfig config,
+                                CrdVersion crdVersion,
                                 @Channel(CONTEXT_CHANNEL) Emitter<Record<String, ContextData>> contextEmitter,
                                 ContextRepository contextRepository) {
         this.client = client;
         this.config = config;
+        this.crdVersion = crdVersion;
         this.contextExtractor = contextExtractor;
         this.contextEmitter = contextEmitter;
         this.contextRepository = contextRepository;
     }
 
-    private void reconcileSingleTopic(KafkaTopic t) {
+    public void reconcileSingleTopic(KafkaTopic t) {
         Log.debugv("Reconciling KafkaTopic {0}", t.getMetadata().getName());
         var context = contextExtractor.getContextOfTopic(t);
         var suffix = config.contextRegexSuffix().orElse("");
@@ -69,17 +78,24 @@ public class KafkaTopicReconciler implements Reconciler<KafkaTopic> {
      * Recalculate and publish contexts for all Kafka topics.
      */
     public void reconcileAllTopics() {
-        var topicList = client.resources(KafkaTopic.class)
-                .inNamespace(config.namespace())
-                .list()
-                .getItems();
+        var topicList = fetchTopics();
         Log.infov("Reconciling contexts for all {0} KafkaTopics", topicList.size());
         topicList.forEach(this::reconcileSingleTopic);
     }
 
-    @Override
-    public UpdateControl<KafkaTopic> reconcile(KafkaTopic t, Context<KafkaTopic> context) throws Exception {
-        reconcileSingleTopic(t);
-        return UpdateControl.noUpdate();
+    private List<KafkaTopic> fetchTopics() {
+        if (crdVersion.isV1Beta2()) {
+            return client.resources(io.spoud.kcc.operator.topics.v1beta2.KafkaTopic.class).inNamespace(config.namespace()).list().getItems()
+                    .stream().map(KafkaTopicReconciler::toKafkaTopic).toList();
+        }
+        return client.resources(KafkaTopic.class).inNamespace(config.namespace()).list().getItems();
+    }
+
+    static KafkaTopic toKafkaTopic(io.spoud.kcc.operator.topics.v1beta2.KafkaTopic legacy) {
+        KafkaTopic topic = new KafkaTopic();
+        topic.setMetadata(legacy.getMetadata());
+        topic.setSpec(legacy.getSpec());
+        topic.setStatus(legacy.getStatus());
+        return topic;
     }
 }
