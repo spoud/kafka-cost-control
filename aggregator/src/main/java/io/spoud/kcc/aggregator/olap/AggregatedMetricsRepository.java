@@ -161,7 +161,12 @@ public class AggregatedMetricsRepository {
         if (!olapConfig.enabled()) {
             return;
         }
-        rowBuffer.add(row);
+        try {
+            rowBuffer.put(row);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
         if (rowBuffer.size() >= olapConfig.databaseMaxBufferedRows()) {
             CompletableFuture.runAsync(() -> {
                 try {
