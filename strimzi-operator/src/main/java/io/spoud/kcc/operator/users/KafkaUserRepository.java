@@ -4,10 +4,10 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.cache.CacheInvalidateAll;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.operator.CrdVersion;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.Collection;
 
@@ -17,10 +17,9 @@ public class KafkaUserRepository {
 
     private final KubernetesClient client;
     private final OperatorConfig config;
-    private final String crdVersion;
+    private final CrdVersion crdVersion;
 
-    public KafkaUserRepository(KubernetesClient client, OperatorConfig config,
-                                @ConfigProperty(name = "cc.strimzi.crd-version") String crdVersion) {
+    public KafkaUserRepository(KubernetesClient client, OperatorConfig config, CrdVersion crdVersion) {
         this.client = client;
         this.config = config;
         this.crdVersion = crdVersion;
@@ -36,7 +35,7 @@ public class KafkaUserRepository {
      */
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
-        if ("v1beta2".equals(crdVersion)) {
+        if (crdVersion.isV1Beta2()) {
             return client.resources(io.spoud.kcc.operator.users.v1beta2.KafkaUser.class).inNamespace(config.namespace()).list().getItems()
                     .stream().map(KafkaUserRepository::toKafkaUser).toList();
         }

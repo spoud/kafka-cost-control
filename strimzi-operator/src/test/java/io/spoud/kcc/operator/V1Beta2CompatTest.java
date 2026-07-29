@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * "KafkaUserV1beta2"/plural "kafkauserv1beta2s" -- wrong, and only caught by exercising this end-to-end.
  */
 @WithKubernetesTestServer(port = 64445)
-@TestProfile(V1Beta2TestProfile.class)
+@TestProfile(DefaultTestProfile.class)
 @QuarkusTestResource(KafkaCompanionResource.class)
 @QuarkusTest
 class V1Beta2CompatTest {

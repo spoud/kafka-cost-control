@@ -7,10 +7,10 @@ import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.EntityType;
 import io.spoud.kcc.operator.ContextExtractor;
 import io.spoud.kcc.operator.ContextRepository;
+import io.spoud.kcc.operator.CrdVersion;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
@@ -31,14 +31,14 @@ public class KafkaTopicReconciler {
     private final KubernetesClient client;
     private final ContextExtractor contextExtractor;
     private final OperatorConfig config;
-    private final String crdVersion;
+    private final CrdVersion crdVersion;
     private final Emitter<Record<String, ContextData>> contextEmitter;
     private final ContextRepository contextRepository;
 
     public KafkaTopicReconciler(KubernetesClient client,
                                 ContextExtractor contextExtractor,
                                 OperatorConfig config,
-                                @ConfigProperty(name = "cc.strimzi.crd-version") String crdVersion,
+                                CrdVersion crdVersion,
                                 @Channel(CONTEXT_CHANNEL) Emitter<Record<String, ContextData>> contextEmitter,
                                 ContextRepository contextRepository) {
         this.client = client;
@@ -84,7 +84,7 @@ public class KafkaTopicReconciler {
     }
 
     private List<KafkaTopic> fetchTopics() {
-        if ("v1beta2".equals(crdVersion)) {
+        if (crdVersion.isV1Beta2()) {
             return client.resources(io.spoud.kcc.operator.topics.v1beta2.KafkaTopic.class).inNamespace(config.namespace()).list().getItems()
                     .stream().map(KafkaTopicReconciler::toKafkaTopic).toList();
         }
