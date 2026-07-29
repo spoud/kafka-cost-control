@@ -7,6 +7,7 @@ import io.quarkus.logging.Log;
 import io.spoud.kcc.operator.OperatorConfig;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.Collection;
 
@@ -16,23 +17,26 @@ public class KafkaUserRepository {
 
     private final KubernetesClient client;
     private final OperatorConfig config;
+    private final String crdVersion;
 
-    public KafkaUserRepository(KubernetesClient client, OperatorConfig config) {
+    public KafkaUserRepository(KubernetesClient client, OperatorConfig config,
+                                @ConfigProperty(name = "cc.strimzi.crd-version") String crdVersion) {
         this.client = client;
         this.config = config;
+        this.crdVersion = crdVersion;
     }
 
     /**
      * Get all Kafka users in the configured namespace. See {@link OperatorConfig#namespace()} for the namespace
      * that will be used. To avoid unnecessary calls to the Kubernetes API, the result is cached.
      * The cache is supposed to be invalidated whenever a KafkaUser resource is created, updated or deleted.
-     * See {@link KafkaUserReconciler} for the cache invalidation.
+     * See {@link io.spoud.kcc.operator.ContextRecalculationScheduler} for the cache invalidation.
      *
      * @return a collection of KafkaUser resources
      */
     @CacheResult(cacheName = CACHE_NAME)
     public Collection<KafkaUser> getAllUsers() {
-        if ("v1beta2".equals(config.strimziCrdApiVersion())) {
+        if ("v1beta2".equals(crdVersion)) {
             return client.resources(io.spoud.kcc.operator.users.v1beta2.KafkaUser.class).inNamespace(config.namespace()).list().getItems()
                     .stream().map(KafkaUserRepository::toKafkaUser).toList();
         }

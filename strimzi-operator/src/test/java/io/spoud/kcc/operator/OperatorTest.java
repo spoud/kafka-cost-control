@@ -15,7 +15,6 @@ import io.quarkus.test.kafka.KafkaCompanionResource;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import io.smallrye.reactive.messaging.kafka.companion.KafkaCompanion;
 import io.spoud.kcc.operator.topics.KafkaTopicReconciler;
-import io.spoud.kcc.operator.users.KafkaUserReconciler;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
 import io.strimzi.api.kafka.model.user.KafkaUser;
@@ -63,7 +62,7 @@ class OperatorTest {
     KafkaTopicReconciler topicReconciler;
 
     @Inject
-    KafkaUserReconciler userReconciler;
+    ContextRecalculationScheduler scheduler;
 
     @Inject
     CacheManager cacheManager;
@@ -142,7 +141,7 @@ class OperatorTest {
                 TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
                 List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
         addKafkaUser(user);
-        delayedAsyncRun(userReconciler::reconcileNow);
+        delayedAsyncRun(scheduler::reconcileNow);
 
         // make sure that only the topic that the user has access to has its context updated
         var records = kafkaCompanion.consumeWithDeserializers(

@@ -1,5 +1,11 @@
 cc:
   strimzi:
+    # Which CRD API version this build targets for KafkaUser/KafkaTopic ("v1" or "v1beta2"). Fixed at build
+    # time (see @IfBuildProperty on KafkaUserReconciler/KafkaTopicReconciler and their *V1Beta2 counterparts) --
+    # each image variant only ever registers the matching JOSDK reconciler. Also read at runtime by
+    # KafkaUserRepository/KafkaTopicReconciler for their plain list() calls, so both stay consistent by
+    # construction. Older Strimzi Cluster Operator installs (pre-0.49.0) only serve "v1beta2".
+    crd-version: v1
     operator:
       topics:
         context-data: context-data
@@ -12,12 +18,6 @@ quarkus:
     strimzi:
       group-id: io.strimzi
       artifact-id: api
-  arc:
-    # No reconcilers are registered anymore (see KafkaUserReconciler/KafkaTopicReconciler) -- reconciliation
-    # is poll-driven instead. The operator-sdk's own health check reports DOWN whenever the operator
-    # considers itself "not started" (i.e. no registered controllers), which would otherwise permanently
-    # fail this app's readiness/startup probes.
-    exclude-types: io.quarkiverse.operatorsdk.runtime.OperatorHealthCheck
   # watch only the namespace where kafka resources are deployed
   operator-sdk:
     namespaces: ${cc.strimzi.operator.namespace}

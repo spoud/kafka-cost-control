@@ -14,8 +14,8 @@ public class DefaultTestProfile implements QuarkusTestProfile {
                 Map.entry("cc.strimzi.operator.topics.context-data", "context-data"),
                 Map.entry("cc.strimzi.operator.context-regex-prefix", PREFIX),
                 Map.entry("quarkus.operator-sdk.crd.apply", "true"), // the mock k8s server does not have strimzi CRDs, so we need to apply them
-                // KafkaUserReconciler's background poll now runs unconditionally (see KafkaUserReconciler.reconcileNow()),
-                // so it must be disabled here -- tests trigger reconciliation deterministically via direct calls instead.
+                // Disabled for test determinism -- tests trigger reconciliation deterministically via direct
+                // calls to ContextRecalculationScheduler.reconcileNow() instead of relying on the timer.
                 Map.entry("quarkus.scheduler.enabled", "false"),
                 Map.entry("kafka.linger.ms", "0"),
                 Map.entry("quarkus.log.category.\"io.spoud.kcc\".level", "DEBUG"),

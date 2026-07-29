@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies that {@code strimziCrdApiVersion=v1beta2} actually resolves to the correct CRD group/version/plural
+ * Verifies that {@code cc.strimzi.crd-version=v1beta2} actually resolves to the correct CRD group/version/plural
  * (kafka.strimzi.io/v1beta2, "kafkausers"/"kafkatopics") -- not just that the config switch exists.
  * A prior version of this fix used mirror classes named "KafkaUserV1beta2"/"KafkaTopicV1beta2", which fabric8
  * (lacking a @Kind/@Plural override annotation in this version) misread as resource kind
