@@ -113,7 +113,8 @@ public class MetricEnricher {
                         tags = tags.and(value.getEntityType().name().toLowerCase(), value.getName());
                         gaugeRepository.updateGauge("kcc_" + value.getInitialMetricName(), tags, value.getValue(), value.getStartTime());
                     } catch (Exception e) {
-                        Log.warnv("Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags(), e);
+                        Log.warnv("Error updating gauge for metric {0} and tags {1}: {2}", value.getName(), value.getTags(), e.getMessage());
+                        Log.debugv(e, "Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags());
                     }
                 })
                 .peek((k, v) -> aggregatedMetricsRepository.insertRow(v),
