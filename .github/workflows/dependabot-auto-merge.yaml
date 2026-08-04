@@ -4,6 +4,7 @@ on:
     paths:
       - 'frontend/**'
       - 'aggregator/**'
+      - 'strimzi-operator/**'
 
 permissions:
   contents: write

@@ -10,7 +10,7 @@ on:
     paths: ['strimzi-operator/**', '.github/workflows/build-operator.yaml']
 
 jobs:
-  build:
+  build-matrix:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -84,3 +84,20 @@ jobs:
           file: strimzi-operator/src/main/docker/Dockerfile.jvm
           push: true
           tags: spoud/kafka-cost-control-strimzi-operator:${{ env.VERSION }}${{ matrix.tag-suffix }}
+
+  # Aggregates the matrix legs above into a single check named "build", matching the job id used by every
+  # other build-*.yaml workflow. Branch protection requires a status check literally named "build"; a matrix
+  # job's check name always gets suffixed with its matrix values (e.g. "build-matrix (v1, verify, ...)"), so
+  # without this job no workflow ever posts a plain "build" check for PRs that only touch strimzi-operator/**,
+  # leaving the required check stuck on "Expected" forever regardless of the actual build outcome.
+  build:
+    needs: build-matrix
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check matrix result
+        run: |
+          if [ "${{ needs.build-matrix.result }}" != "success" ]; then
+            echo "build-matrix failed: ${{ needs.build-matrix.result }}"
+            exit 1
+          fi
