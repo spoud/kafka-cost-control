@@ -75,17 +75,3 @@ mat-sidenav {
     align-self: flex-end;
     margin: auto var(--space-3) var(--space-3);
 }
-
-.theme-toggle {
-    height: 36px;
-
-    .mat-button-toggle {
-        color: var(--mat-sys-on-primary-container);
-        background: transparent;
-    }
-
-    .mat-button-toggle-checked {
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
-    }
-}

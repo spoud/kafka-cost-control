@@ -1,8 +1,9 @@
-import { Component, computed, DOCUMENT, effect, inject, signal, Signal } from '@angular/core';
+import { Component, computed, inject, Signal, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
@@ -22,13 +23,11 @@ import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/mat
 import { MatListItem, MatNavList } from '@angular/material/list';
 import { MatDivider } from '@angular/material/divider';
 import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { NgOptimizedImage } from '@angular/common';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
-
-type ThemeMode = 'light' | 'system' | 'dark';
+import { ThemeService } from './services/theme.service';
 
 echarts.use([
     LineChart,
@@ -51,8 +50,10 @@ echarts.use([
         RouterLinkActive,
         MatToolbar,
         MatIcon,
-        MatButton,
         MatIconButton,
+        MatMenu,
+        MatMenuItem,
+        MatMenuTrigger,
         MatTooltip,
         MatSidenavContainer,
         MatSidenavContent,
@@ -61,7 +62,6 @@ echarts.use([
         MatListItem,
         MatDivider,
         RouterOutlet,
-        MatButtonToggleModule,
         NgOptimizedImage,
     ],
     providers: [provideEchartsCore({ echarts })],
@@ -69,18 +69,21 @@ echarts.use([
 export class AppComponent {
     private _dialog = inject(MatDialog);
     private _authService = inject(BasicAuthServiceService);
-    private document = inject(DOCUMENT);
     private _breakpointObserver = inject(BreakpointObserver);
-    private readonly THEME_MODE_KEY = 'theme-mode';
-    private readonly DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
-    private readonly systemDark = signal<boolean>(window.matchMedia(this.DARK_MEDIA_QUERY).matches);
+
+    private readonly SIDENAV_COLLAPSED_KEY = 'sidenav-collapsed';
+
+    constructor() {
+        // eagerly instantiate so the dark/light class effect runs from app start,
+        // even though the theme mode UI now lives on the Settings page
+        inject(ThemeService);
+        this.isAuthenticated = this._authService.authenticated();
+    }
 
     isHandset: Signal<boolean> = toSignal(
         this._breakpointObserver.observe(Breakpoints.Handset).pipe(map(result => result.matches)),
         { initialValue: this._breakpointObserver.isMatched(Breakpoints.Handset) }
     );
-
-    private readonly SIDENAV_COLLAPSED_KEY = 'sidenav-collapsed';
 
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<NavLink[]> = computed(() => {
@@ -96,21 +99,7 @@ export class AppComponent {
     adminNavLinks: Signal<NavLink[]> = computed(() =>
         this.navLinksSignal().filter(link => link.group === 'admin')
     );
-    themeMode = signal<ThemeMode>(this.loadThemeMode());
     collapsed = signal<boolean>(localStorage.getItem(this.SIDENAV_COLLAPSED_KEY) === 'true');
-
-    constructor() {
-        this.isAuthenticated = this._authService.authenticated();
-
-        const prefersColorSchemeDark = window.matchMedia(this.DARK_MEDIA_QUERY);
-        prefersColorSchemeDark.addEventListener('change', e => this.systemDark.set(e.matches));
-
-        effect(() => {
-            const mode = this.themeMode();
-            const isDark = mode === 'dark' || (mode === 'system' && this.systemDark());
-            this.document.body.classList.toggle('dark', isDark);
-        });
-    }
 
     signOut(): void {
         this._authService.signOut();
@@ -124,20 +113,9 @@ export class AppComponent {
         });
     }
 
-    setThemeMode(mode: ThemeMode): void {
-        this.themeMode.set(mode);
-        localStorage.setItem(this.THEME_MODE_KEY, mode);
-    }
-
     toggleCollapsed(): void {
         const next = !this.collapsed();
         this.collapsed.set(next);
         localStorage.setItem(this.SIDENAV_COLLAPSED_KEY, String(next));
-    }
-
-    private loadThemeMode(): ThemeMode {
-        const stored = localStorage.getItem(this.THEME_MODE_KEY);
-        if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-        return 'system';
     }
 }

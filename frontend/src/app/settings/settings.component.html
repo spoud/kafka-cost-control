@@ -1,0 +1,34 @@
+<app-page-header
+    title="Settings"
+    subtitle="Preferences for how the app looks and behaves."
+></app-page-header>
+
+<mat-card appearance="outlined" class="settings-card">
+    <mat-card-header>
+        <mat-card-title class="card-title">
+            <mat-icon>palette</mat-icon>
+            Appearance
+        </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+        <p class="setting-label">Theme</p>
+        <mat-button-toggle-group
+            [value]="themeMode()"
+            (change)="setThemeMode($event.value)"
+            hideSingleSelectionIndicator
+        >
+            <mat-button-toggle value="light">
+                <mat-icon>light_mode</mat-icon>
+                Light
+            </mat-button-toggle>
+            <mat-button-toggle value="system">
+                <mat-icon>brightness_auto</mat-icon>
+                System
+            </mat-button-toggle>
+            <mat-button-toggle value="dark">
+                <mat-icon>dark_mode</mat-icon>
+                Dark
+            </mat-button-toggle>
+        </mat-button-toggle-group>
+    </mat-card-content>
+</mat-card>
