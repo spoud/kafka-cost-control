@@ -1,0 +1,18 @@
+<div class="data-table">
+    @if (loading()) {
+        <app-loading-indicator></app-loading-indicator>
+    }
+    @if (error()) {
+        <div class="data-table-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ error() }}</span>
+        </div>
+    } @else if (empty() && !loading()) {
+        <app-empty-state [message]="emptyMessage()"></app-empty-state>
+    } @else {
+        <div class="data-table-content">
+            <ng-content select="table"></ng-content>
+        </div>
+        <ng-content select="mat-paginator"></ng-content>
+    }
+</div>

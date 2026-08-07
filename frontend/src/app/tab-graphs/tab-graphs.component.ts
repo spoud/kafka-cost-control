@@ -3,7 +3,10 @@ import { GraphFilterComponent } from './graph-filter/graph-filter.component';
 import { GraphPanelComponent } from './graph-panel/graph-panel.component';
 import { GraphFilterService } from './graph-filter/graph-filter.service';
 import { MatIcon } from '@angular/material/icon';
-import { MatDivider } from '@angular/material/divider';
+import { MatAnchor } from '@angular/material/button';
+import { PageHeaderComponent } from '../common/page-header/page-header.component';
+import { FilterBarComponent } from '../common/filter-bar/filter-bar.component';
+import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 
 export interface GraphFilter {
     from: Date;
@@ -14,7 +17,15 @@ export interface GraphFilter {
 
 @Component({
     selector: 'app-tab-graphs',
-    imports: [GraphFilterComponent, GraphPanelComponent, MatIcon, MatDivider],
+    imports: [
+        GraphFilterComponent,
+        GraphPanelComponent,
+        MatIcon,
+        MatAnchor,
+        PageHeaderComponent,
+        FilterBarComponent,
+        EmptyStateComponent,
+    ],
     templateUrl: './tab-graphs.component.html',
     styleUrl: './tab-graphs.component.scss',
 })

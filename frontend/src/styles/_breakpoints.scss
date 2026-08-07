@@ -1,0 +1,16 @@
+// Shared breakpoints so every page's @media query agrees with the app-shell's
+// BreakpointObserver tiers (see app.component.ts: isHandset / isCompact).
+$breakpoint-handset: 599px;
+$breakpoint-compact: 899px;
+
+@mixin handset {
+    @media (max-width: $breakpoint-handset) {
+        @content;
+    }
+}
+
+@mixin compact {
+    @media (max-width: $breakpoint-compact) {
+        @content;
+    }
+}

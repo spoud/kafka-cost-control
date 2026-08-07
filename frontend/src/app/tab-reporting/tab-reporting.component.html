@@ -1,22 +1,32 @@
-<div class="header">
-    <h1 class="title">Report {{ date | intlDate }}</h1>
-    <button mat-raised-button color="secondary" type="button" class="mr-1" (click)="print()">
-        <mat-icon>description</mat-icon>
-        Export as PDF
-    </button>
-    <button mat-fab extended color="primary" type="button" [matMenuTriggerFor]="panelMenu">
-        <mat-icon>add</mat-icon>
-        Add panel
-    </button>
-    <mat-menu #panelMenu="matMenu">
-        @for (panel of panelStore.availablePanels(); track panel.id) {
-            <button mat-menu-item (click)="panelStore.addPanel(panel)">{{ panel.title }}</button>
-        }
-    </mat-menu>
-</div>
+<app-page-header title="Reporting" [subtitle]="'Report ' + (date | intlDate)">
+    <ng-container actions>
+        <button mat-stroked-button color="primary" type="button" (click)="print()">
+            <mat-icon>description</mat-icon>
+            Export as PDF
+        </button>
+        <button mat-flat-button color="primary" type="button" [matMenuTriggerFor]="panelMenu">
+            <mat-icon>add</mat-icon>
+            Add panel
+        </button>
+        <mat-menu #panelMenu="matMenu">
+            @for (panel of panelStore.availablePanels(); track panel.id) {
+                <button mat-menu-item (click)="panelStore.addPanel(panel)">
+                    {{ panel.title }}
+                </button>
+            }
+        </mat-menu>
+    </ng-container>
+</app-page-header>
 
-<div class="panel-wrapper">
-    @for (panel of panelStore.entities(); track panel.id) {
-        <app-panel [panelData]="panel" />
-    }
-</div>
+@if (panelStore.entities().length === 0) {
+    <app-empty-state
+        icon="assignment"
+        message="No panels yet. Add one to start building your report."
+    ></app-empty-state>
+} @else {
+    <div class="panel-wrapper">
+        @for (panel of panelStore.entities(); track panel.id) {
+            <app-panel [panelData]="panel" />
+        }
+    </div>
+}

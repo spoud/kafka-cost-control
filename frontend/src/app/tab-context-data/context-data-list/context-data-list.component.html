@@ -1,65 +1,89 @@
-<div class="flex-container mb-1">
-    <button *appLoggedIn mat-raised-button color="grey" type="button" (click)="openTestDialog()">
-        <mat-icon>search</mat-icon>
-        Test context data
-    </button>
-    <button
-        *appLoggedIn
-        mat-fab
-        extended
-        color="primary"
-        type="button"
-        (click)="openCreateDialog()"
-    >
-        <mat-icon>add</mat-icon>
-        Add context data
-    </button>
-</div>
-<table
-    mat-table
-    [dataSource]="dataSource"
-    (matSortChange)="announceSortChange($event)"
-    matSort
-    class="mat-elevation-z8"
+<app-page-header
+    title="Context Data"
+    subtitle="View, add and change context data to enrich metrics."
 >
-    <ng-container matColumnDef="creationTime">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Creation time</th>
-        <td mat-cell *matCellDef="let element">{{ element.creationTime | intlDate }}</td>
+    <ng-container actions>
+        <button
+            *appLoggedIn
+            mat-stroked-button
+            color="primary"
+            type="button"
+            (click)="openTestDialog()"
+        >
+            <mat-icon>search</mat-icon>
+            Test context data
+        </button>
+        <button
+            *appLoggedIn
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="openCreateDialog()"
+        >
+            <mat-icon>add</mat-icon>
+            Add context data
+        </button>
     </ng-container>
-    <ng-container matColumnDef="validFrom">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Valid from</th>
-        <td mat-cell *matCellDef="let element">{{ element.validFrom | intlDate }}</td>
-    </ng-container>
-    <ng-container matColumnDef="validUntil">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Valid until</th>
-        <td mat-cell *matCellDef="let element">{{ element.validUntil | intlDate }}</td>
-    </ng-container>
-    <ng-container matColumnDef="entityType">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Entity type</th>
-        <td mat-cell *matCellDef="let element">{{ element.entityType }}</td>
-    </ng-container>
-    <ng-container matColumnDef="regex">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Regex</th>
-        <td mat-cell *matCellDef="let element">{{ element.regex }}</td>
-    </ng-container>
-    <ng-container matColumnDef="context">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Context</th>
-        <td mat-cell *matCellDef="let element">
-            <app-key-value-list [entries]="element.context" />
-        </td>
-    </ng-container>
-    <ng-container matColumnDef="buttons">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let element">
-            <button *appLoggedIn mat-icon-button type="button" (click)="edit(element)">
-                <mat-icon>edit</mat-icon>
-            </button>
-            <button *appLoggedIn mat-icon-button type="button" (click)="delete(element)">
-                <mat-icon>delete</mat-icon>
-            </button>
-        </td>
-    </ng-container>
+</app-page-header>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-</table>
+<app-data-table
+    [loading]="loading()"
+    [error]="error()"
+    [empty]="empty()"
+    emptyMessage="No context data found."
+>
+    <table mat-table [dataSource]="dataSource" (matSortChange)="announceSortChange($event)" matSort>
+        <ng-container matColumnDef="creationTime">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Creation time</th>
+            <td mat-cell *matCellDef="let element">{{ element.creationTime | intlDate }}</td>
+        </ng-container>
+        <ng-container matColumnDef="validFrom">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Valid from</th>
+            <td mat-cell *matCellDef="let element">{{ element.validFrom | intlDate }}</td>
+        </ng-container>
+        <ng-container matColumnDef="validUntil">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Valid until</th>
+            <td mat-cell *matCellDef="let element">{{ element.validUntil | intlDate }}</td>
+        </ng-container>
+        <ng-container matColumnDef="entityType">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Entity type</th>
+            <td mat-cell *matCellDef="let element">{{ element.entityType }}</td>
+        </ng-container>
+        <ng-container matColumnDef="regex">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Regex</th>
+            <td mat-cell *matCellDef="let element">{{ element.regex }}</td>
+        </ng-container>
+        <ng-container matColumnDef="context">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Context</th>
+            <td mat-cell *matCellDef="let element">
+                <app-key-value-list [entries]="element.context" />
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="buttons">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let element">
+                <button *appLoggedIn mat-icon-button type="button" (click)="edit(element)">
+                    <mat-icon>edit</mat-icon>
+                </button>
+                <button *appLoggedIn mat-icon-button type="button" (click)="delete(element)">
+                    <mat-icon>delete</mat-icon>
+                </button>
+            </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+    <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+</app-data-table>
+
+<ng-template #deleteConfirmContent let-element>
+    <p><b>Do you really want to permanently delete the context data with:</b></p>
+    <p>
+        Regex: <code>{{ element.regex }}</code>
+    </p>
+    <p>
+        Context:
+        <app-key-value-list [entries]="element.context"></app-key-value-list>
+    </p>
+</ng-template>

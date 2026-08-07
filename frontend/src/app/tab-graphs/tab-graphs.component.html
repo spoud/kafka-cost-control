@@ -1,11 +1,18 @@
-<app-graph-filter (graphFilter)="filter.set($event)" />
+<app-page-header title="Graphs" subtitle="Get insight into your Kafka usage."></app-page-header>
+
+<app-filter-bar>
+    <app-graph-filter (graphFilter)="filter.set($event)" />
+</app-filter-bar>
+
 @if (filter()?.groupByContext && filter()?.metricName) {
-    <a [href]="csvDownloadUrl()">
+    <a mat-stroked-button color="primary" class="mb-6" [href]="csvDownloadUrl()">
         <mat-icon>description</mat-icon>
         Generate CSV report for all metrics for selected context and date range
     </a>
-    <mat-divider />
     <app-graph-panel [metricsData]="historyData.value() || []" />
 } @else {
-    <p class="hint">Please select a context and a metric to view the dashboard.</p>
+    <app-empty-state
+        icon="bar_chart"
+        message="Please select a context and a metric to view the dashboard."
+    ></app-empty-state>
 }

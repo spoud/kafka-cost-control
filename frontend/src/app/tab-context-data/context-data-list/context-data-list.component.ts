@@ -1,19 +1,31 @@
-import { AfterViewInit, Component, inject, OnInit, ViewChild } from '@angular/core';
+import {
+    AfterViewInit,
+    Component,
+    computed,
+    inject,
+    OnInit,
+    signal,
+    TemplateRef,
+    ViewChild,
+} from '@angular/core';
 import { DeleteContextDataGQL, GetContextDatasGQL } from '../../../generated/graphql/sdk';
 import { ContextDataEntity } from '../../../generated/graphql/types';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { KeyValueListComponent } from '../../common/key-value-list/key-value-list.component';
-import { MatButton, MatFabButton, MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ContextDataSaveComponent } from '../context-data-save/context-data-save.component';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LoggedInDirective } from '../../auth/logged-in.directive';
 import { IntlDatePipe } from '../../common/intl-date.pipe';
 import { ContextDataTestComponent } from '../context-data-test/context-data-test.component';
-import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
+import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
+import { PageHeaderComponent } from '../../common/page-header/page-header.component';
+import { DataTableComponent } from '../../common/data-table/data-table.component';
 
 @Component({
     selector: 'app-context-data-list',
@@ -22,13 +34,15 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.compone
     imports: [
         MatTableModule,
         MatSortModule,
+        MatPaginatorModule,
         KeyValueListComponent,
-        MatFabButton,
         MatIcon,
         LoggedInDirective,
         IntlDatePipe,
         MatButton,
         MatIconButton,
+        PageHeaderComponent,
+        DataTableComponent,
     ],
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
@@ -39,9 +53,14 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     private dialog = inject(MatDialog);
 
     @ViewChild(MatSort) sort: MatSort | null = null;
+    @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
+    @ViewChild('deleteConfirmContent') deleteConfirmContent!: TemplateRef<unknown>;
 
-    // public contextDataList: ContextDataEntity[] = [];
     dataSource = new MatTableDataSource<ContextDataEntity>([]);
+
+    loading = signal(true);
+    error = signal<string | null>(null);
+    empty = computed(() => !this.loading() && !this.error() && this.dataSource.data.length === 0);
 
     public displayedColumns: string[] = [
         'creationTime',
@@ -58,22 +77,31 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     }
 
     private loadContextData() {
+        this.loading.set(true);
         this.contextDataService.fetch().subscribe({
             next: value => {
+                this.loading.set(false);
                 if (value.error) {
+                    this.error.set(value.error.message);
                     this._snackBar.open(
                         'Could not load context data. ' + value.error.message,
                         'close'
                     );
                 } else if (value.data) {
+                    this.error.set(null);
                     this.dataSource.data = value.data.contextData;
                 }
+            },
+            error: err => {
+                this.loading.set(false);
+                this.error.set(err.message);
             },
         });
     }
 
     ngAfterViewInit() {
         this.dataSource.sort = this.sort;
+        this.dataSource.paginator = this.paginator;
     }
 
     /** Announce the change in sort state for assistive technology. */
@@ -115,7 +143,14 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
 
     delete(element: ContextDataEntity) {
         const confirmDialogRef = this.dialog.open(ConfirmDialogComponent, {
-            data: { element },
+            data: {
+                title: 'Confirm deletion',
+                contentTemplate: this.deleteConfirmContent,
+                templateContext: { $implicit: element },
+                confirmLabel: 'Yes, delete',
+                cancelLabel: 'No, cancel',
+                destructive: true,
+            },
         });
         confirmDialogRef.afterClosed().subscribe(confirmation => {
             if (confirmation) {

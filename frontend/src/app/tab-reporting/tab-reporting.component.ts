@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { PanelComponent } from './panel/panel.component';
-import { MatButton, MatFabButton } from '@angular/material/button';
+import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { IntlDatePipe } from '../common/intl-date.pipe';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
@@ -10,18 +10,21 @@ import * as echarts from 'echarts/core';
 import { EChartsType } from 'echarts/core';
 import { ResizeOpts } from 'echarts/types/dist/shared';
 import { provideEchartsCore } from 'ngx-echarts';
+import { PageHeaderComponent } from '../common/page-header/page-header.component';
+import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 
 @Component({
     selector: 'app-tab-reporting',
     imports: [
         PanelComponent,
         MatIcon,
-        MatFabButton,
         IntlDatePipe,
         MatMenu,
         MatMenuItem,
         MatMenuTrigger,
         MatButton,
+        PageHeaderComponent,
+        EmptyStateComponent,
     ],
     templateUrl: './tab-reporting.component.html',
     styleUrl: './tab-reporting.component.scss',

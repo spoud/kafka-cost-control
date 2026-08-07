@@ -1,0 +1,29 @@
+.filter-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-6);
+    background: var(--mat-sys-surface-container-low);
+    border-radius: var(--radius-md);
+}
+
+.filter-bar-fields {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    flex: 1 1 auto;
+}
+
+.filter-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+
+    &:empty {
+        display: none;
+    }
+}

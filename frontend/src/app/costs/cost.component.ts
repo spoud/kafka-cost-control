@@ -8,7 +8,12 @@ import { MatSlider, MatSliderThumb } from '@angular/material/slider';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatChipListbox, MatChipOption } from '@angular/material/chips';
-import { CalculateTableGQL, CalculateTableQuery, CostOverviewGQL, CostOverviewQuery } from '../../generated/graphql/sdk';
+import {
+    CalculateTableGQL,
+    CalculateTableQuery,
+    CostOverviewGQL,
+    CostOverviewQuery,
+} from '../../generated/graphql/sdk';
 import { CostOverviewRequestInput } from '../../generated/graphql/types';
 import { SankeyComponent } from './sankey/sankey.component';
 import {
@@ -21,6 +26,7 @@ import {
 import { CostTableComponent } from './cost-table/cost-table.component';
 import { AbsPipe } from '../common/abs.pipe';
 import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.service';
+import { PageHeaderComponent } from '../common/page-header/page-header.component';
 
 @Component({
     imports: [
@@ -48,6 +54,7 @@ import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.serv
         MatDateRangePicker,
         CostTableComponent,
         AbsPipe,
+        PageHeaderComponent,
     ],
     templateUrl: './cost.component.html',
     styleUrl: './cost.component.scss',

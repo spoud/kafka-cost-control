@@ -1,0 +1,31 @@
+@use '@angular/material' as mat;
+@use 'theme-colors' as theme-colors;
+
+// Single source of truth for the app's Material 3 theme. Light is the default;
+// `.dark` (toggled on <body>, see app.component.ts) overrides the same
+// primary/tertiary palettes with dark-scheme tones.
+html {
+    @include mat.theme(
+        (
+            color: (
+                theme-type: light,
+                primary: theme-colors.$primary-palette,
+                tertiary: theme-colors.$tertiary-palette,
+            ),
+            typography: Poppins,
+            density: 0,
+        )
+    );
+}
+
+.dark {
+    @include mat.theme(
+        (
+            color: (
+                theme-type: dark,
+                primary: theme-colors.$primary-palette,
+                tertiary: theme-colors.$tertiary-palette,
+            ),
+        )
+    );
+}

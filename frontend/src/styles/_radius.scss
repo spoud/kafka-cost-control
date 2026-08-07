@@ -1,0 +1,8 @@
+// Elevation & radius conventions: flat cards at rest, soft shadow on hover/focus.
+:root {
+    --radius-sm: 8px;
+    --radius-md: 12px;
+
+    --elevation-resting: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --elevation-raised: 0 4px 12px rgba(0, 0, 0, 0.08);
+}

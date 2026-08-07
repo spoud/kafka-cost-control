@@ -1,19 +1,7 @@
 @use '@angular/material' as mat;
-@use 'styles/theme-colors' as theme-colors;
-
-html {
-    @include mat.theme(
-        (
-            color: (
-                theme-type: light,
-                primary: theme-colors.$primary-palette,
-                tertiary: theme-colors.$tertiary-palette,
-            ),
-            typography: Poppins,
-            density: 0,
-        )
-    );
-}
+@use 'styles/theme';
+@use 'styles/spacing';
+@use 'styles/radius';
 
 html,
 body {
@@ -34,12 +22,25 @@ body {
     color: var(--mat-sys-on-surface);
 }
 
-.mr-1 {
-    margin-right: 1rem;
-}
-
-.mb-1 {
-    margin-bottom: 1rem;
+@each $n in 1, 2, 3, 4, 5, 6, 7, 8, 9 {
+    .mt-#{$n} {
+        margin-top: var(--space-#{$n});
+    }
+    .mb-#{$n} {
+        margin-bottom: var(--space-#{$n});
+    }
+    .mr-#{$n} {
+        margin-right: var(--space-#{$n});
+    }
+    .ml-#{$n} {
+        margin-left: var(--space-#{$n});
+    }
+    .gap-#{$n} {
+        gap: var(--space-#{$n});
+    }
+    .p-#{$n} {
+        padding: var(--space-#{$n});
+    }
 }
 
 @include mat.toolbar-overrides(
