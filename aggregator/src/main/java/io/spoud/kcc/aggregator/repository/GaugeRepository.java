@@ -40,14 +40,15 @@ public class GaugeRepository {
 
     public synchronized void updateGauge(String name, Tags tags, double value, Instant eventTime) {
         updateCurrentTime(eventTime);
-        var tagKeys = tagKeysByGaugeName.computeIfAbsent(name, n -> tagKeys(tags));
-        if (!tagKeys.containsAll(tagKeys(tags))) {
+        var incomingKeys = tagKeys(tags);
+        var tagKeys = tagKeysByGaugeName.computeIfAbsent(name, n -> incomingKeys);
+        if (!tagKeys.containsAll(incomingKeys)) {
             tagKeys = new LinkedHashSet<>(tagKeys);
-            tagKeys.addAll(tagKeys(tags));
+            tagKeys.addAll(incomingKeys);
             tagKeysByGaugeName.put(name, tagKeys);
             widenExistingGauges(name, tagKeys);
         }
-        var paddedTags = padTags(tags, tagKeys);
+        var paddedTags = padTags(tags, incomingKeys, tagKeys);
         var key = new GaugeKey(name, paddedTags);
         gauges.computeIfAbsent(key, g -> registerGauge(name, paddedTags, value, getCurrentTime().plus(gaugeTimeout)))
                 .updateValue(value);
@@ -55,20 +56,32 @@ public class GaugeRepository {
 
     /** Re-registers every existing gauge under {@code name} so all of them share the new, wider tag key set. */
     private void widenExistingGauges(String name, Set<String> tagKeys) {
-        gauges.entrySet().stream()
+        record Widened(GaugeKey oldKey, GaugeInfo info, Tags newTags) {}
+        var toWiden = gauges.entrySet().stream()
                 .filter(entry -> entry.getKey().name().equals(name))
-                .toList()
-                .forEach(entry -> {
-                    var oldKey = entry.getKey();
-                    var newTags = padTags(oldKey.tags(), tagKeys);
-                    if (newTags.equals(oldKey.tags())) {
-                        return;
-                    }
-                    var info = entry.getValue();
-                    meterRegistry.remove(info.getId());
-                    gauges.remove(oldKey);
-                    gauges.put(new GaugeKey(name, newTags), registerGauge(name, newTags, info.getGaugeValue().get(), info.getTimeout()));
-                });
+                .map(entry -> new Widened(entry.getKey(), entry.getValue(),
+                        padTags(entry.getKey().tags(), tagKeys(entry.getKey().tags()), tagKeys)))
+                .filter(w -> !w.newTags().equals(w.oldKey().tags()))
+                .toList();
+        // Prometheus ties a gauge name to a single fixed tag-key shape until every series under it is
+        // removed. Removing and re-registering series one at a time would momentarily leave old- and
+        // new-shape series registered together under the same name and throw, so remove all of them
+        // first (fully draining the name) before registering any of them under the wider shape.
+        toWiden.forEach(w -> {
+            meterRegistry.remove(w.info().getId());
+            gauges.remove(w.oldKey());
+        });
+        toWiden.forEach(w -> {
+            try {
+                var info = w.info();
+                gauges.put(new GaugeKey(name, w.newTags()),
+                        registerGauge(name, w.newTags(), info.getGaugeValue().get(), info.getTimeout()));
+            } catch (Exception e) {
+                // Leave this one unregistered rather than aborting the remaining entries: it self-heals
+                // on the next matching updateGauge() call, which re-registers it via computeIfAbsent().
+                Log.warnv("Failed to re-register widened gauge '{0}' with tags '{1}': {2}", name, w.newTags(), e.getMessage());
+            }
+        });
     }
 
     private GaugeInfo registerGauge(String name, Tags tags, double value, Instant timeout) {
@@ -83,8 +96,7 @@ public class GaugeRepository {
         return keys;
     }
 
-    private static Tags padTags(Tags tags, Set<String> keys) {
-        var existingKeys = tagKeys(tags);
+    private static Tags padTags(Tags tags, Set<String> existingKeys, Set<String> keys) {
         var result = tags;
         for (var key : keys) {
             if (!existingKeys.contains(key)) {
@@ -94,7 +106,7 @@ public class GaugeRepository {
         return result;
     }
 
-    public Map<GaugeKey, Double> getGaugeValues() {
+    public synchronized Map<GaugeKey, Double> getGaugeValues() {
         var result = new ConcurrentHashMap<GaugeKey, Double>();
         gauges.forEach((key, value) -> result.put(key, value.gaugeValue.get()));
         return result;
