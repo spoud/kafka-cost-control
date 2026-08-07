@@ -1,11 +1,23 @@
 <mat-toolbar color="primary">
-    <a routerLink="/home" class="mr-1">
-        <img ngSrc="assets/spoud.svg" width="53" height="54" alt="Kafka Cost Control Logo" />
+    @if (isHandset()) {
+        <button
+            mat-icon-button
+            aria-label="Toggle navigation menu"
+            matTooltip="Menu"
+            (click)="sidenav.toggle()"
+        >
+            <mat-icon>menu</mat-icon>
+        </button>
+    }
+    <a routerLink="/costs" class="logo-link mr-4">
+        <img ngSrc="assets/spoud.svg" width="36" height="36" alt="Kafka Cost Control Logo" />
     </a>
-    <span>COST CONTROL</span>
+    @if (!isHandset()) {
+        <span>COST CONTROL</span>
+    }
     <span class="spacer"></span>
     <mat-button-toggle-group
-        class="theme-toggle mr-1"
+        class="theme-toggle mr-4"
         [value]="themeMode()"
         (change)="setThemeMode($event.value)"
         hideSingleSelectionIndicator
@@ -46,7 +58,13 @@
 </mat-toolbar>
 
 <mat-sidenav-container>
-    <mat-sidenav [fixedInViewport]="true" [fixedTopGap]="64" mode="side" opened>
+    <mat-sidenav
+        #sidenav
+        [fixedInViewport]="true"
+        [fixedTopGap]="64"
+        [mode]="isHandset() ? 'over' : 'side'"
+        [opened]="!isHandset()"
+    >
         <mat-nav-list>
             @for (link of navLinksSignal(); track link) {
                 <a
@@ -55,6 +73,7 @@
                     routerLinkActive
                     #rla="routerLinkActive"
                     [activated]="rla.isActive"
+                    (click)="isHandset() && sidenav.close()"
                 >
                     @if (link.icon) {
                         <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
@@ -65,8 +84,6 @@
         </mat-nav-list>
     </mat-sidenav>
     <mat-sidenav-content>
-        <mat-tab-nav-panel #tabPanel>
-            <router-outlet></router-outlet>
-        </mat-tab-nav-panel>
+        <router-outlet></router-outlet>
     </mat-sidenav-content>
 </mat-sidenav-container>

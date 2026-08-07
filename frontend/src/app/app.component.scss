@@ -1,14 +1,28 @@
+@use '../styles/breakpoints' as breakpoints;
+
 nav {
     background: white;
 }
 
-mat-tab-nav-panel {
-    padding: 32px 64px;
-    display: block;
+mat-sidenav-content {
+    padding: var(--space-7) var(--space-9);
+
+    @include breakpoints.compact {
+        padding: var(--space-5) var(--space-6);
+    }
+
+    @include breakpoints.handset {
+        padding: var(--space-4);
+    }
 }
 
 .spacer {
     flex: 1 1 auto;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
 }
 
 .nav-icon {
