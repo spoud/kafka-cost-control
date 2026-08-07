@@ -25,9 +25,55 @@ mat-sidenav-content {
     align-items: center;
 }
 
+mat-sidenav {
+    width: 240px;
+    transition: width 0.15s ease-in-out;
+
+    &.collapsed {
+        width: 72px;
+
+        .nav-group-label {
+            display: none;
+        }
+
+        a[mat-list-item] {
+            justify-content: center;
+        }
+    }
+}
+
+.sidenav-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    mat-nav-list {
+        flex: 0 0 auto;
+    }
+}
+
 .nav-icon {
     vertical-align: middle;
     color: var(--mat-sys-on-surface-variant);
+}
+
+.nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-group-label {
+    padding: var(--space-3) var(--space-4) var(--space-1);
+    font: var(--mat-sys-label-small);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.collapse-toggle {
+    align-self: flex-end;
+    margin: auto var(--space-3) var(--space-3);
 }
 
 .theme-toggle {

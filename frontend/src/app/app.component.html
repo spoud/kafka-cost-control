@@ -64,24 +64,71 @@
         [fixedTopGap]="64"
         [mode]="isHandset() ? 'over' : 'side'"
         [opened]="!isHandset()"
+        [class.collapsed]="collapsed() && !isHandset()"
     >
-        <mat-nav-list>
-            @for (link of navLinksSignal(); track link) {
-                <a
-                    mat-list-item
-                    [routerLink]="link.path"
-                    routerLinkActive
-                    #rla="routerLinkActive"
-                    [activated]="rla.isActive"
-                    (click)="isHandset() && sidenav.close()"
-                >
-                    @if (link.icon) {
-                        <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+        <div class="sidenav-content-wrapper">
+            <mat-nav-list>
+                @for (link of primaryNavLinks(); track link) {
+                    <a
+                        mat-list-item
+                        [routerLink]="link.path"
+                        routerLinkActive
+                        #rla="routerLinkActive"
+                        [activated]="rla.isActive"
+                        [matTooltip]="collapsed() && !isHandset() ? link.label : ''"
+                        matTooltipPosition="right"
+                        (click)="isHandset() && sidenav.close()"
+                    >
+                        @if (link.icon) {
+                            <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+                        }
+                        @if (!collapsed() || isHandset()) {
+                            <span class="nav-label">{{ link.label }}</span>
+                        }
+                    </a>
+                }
+            </mat-nav-list>
+
+            @if (adminNavLinks().length > 0) {
+                <mat-divider></mat-divider>
+                @if (!collapsed() || isHandset()) {
+                    <div class="nav-group-label">Admin</div>
+                }
+                <mat-nav-list>
+                    @for (link of adminNavLinks(); track link) {
+                        <a
+                            mat-list-item
+                            [routerLink]="link.path"
+                            routerLinkActive
+                            #rla="routerLinkActive"
+                            [activated]="rla.isActive"
+                            [matTooltip]="collapsed() && !isHandset() ? link.label : ''"
+                            matTooltipPosition="right"
+                            (click)="isHandset() && sidenav.close()"
+                        >
+                            @if (link.icon) {
+                                <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+                            }
+                            @if (!collapsed() || isHandset()) {
+                                <span class="nav-label">{{ link.label }}</span>
+                            }
+                        </a>
                     }
-                    {{ link.label }}
-                </a>
+                </mat-nav-list>
             }
-        </mat-nav-list>
+
+            @if (!isHandset()) {
+                <button
+                    mat-icon-button
+                    class="collapse-toggle"
+                    aria-label="Toggle sidebar width"
+                    [matTooltip]="collapsed() ? 'Expand menu' : 'Collapse menu'"
+                    (click)="toggleCollapsed()"
+                >
+                    <mat-icon>{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+                </button>
+            }
+        </div>
     </mat-sidenav>
     <mat-sidenav-content>
         <router-outlet></router-outlet>

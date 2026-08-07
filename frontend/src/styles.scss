@@ -53,6 +53,5 @@ body {
 @include mat.sidenav-overrides(
     (
         container-divider-color: var(--mat-sys-primary),
-        container-width: 290px,
     )
 );

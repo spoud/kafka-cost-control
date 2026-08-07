@@ -61,18 +61,33 @@ export interface Link {
     icon?: string;
 }
 
+export type NavGroup = 'primary' | 'admin';
+
 export interface NavLink extends Link {
     sortOrder: number;
+    group: NavGroup;
 }
 
 export const menuLinks: NavLink[] = [
-    { sortOrder: 1, path: '/graphs', label: 'Graphs', icon: 'bar_chart' },
-    { sortOrder: 2, path: '/reporting', label: 'Reporting', icon: 'assignment' },
-    { sortOrder: 3, path: '/context-data', label: 'Context Data', icon: 'label' },
-    { sortOrder: 4, path: '/pricing-rules', label: 'Pricing Rules', icon: 'price_check' },
+    { sortOrder: 1, path: '/graphs', label: 'Graphs', icon: 'bar_chart', group: 'primary' },
+    { sortOrder: 2, path: '/reporting', label: 'Reporting', icon: 'assignment', group: 'primary' },
+    { sortOrder: 3, path: '/context-data', label: 'Context Data', icon: 'label', group: 'admin' },
+    {
+        sortOrder: 4,
+        path: '/pricing-rules',
+        label: 'Pricing Rules',
+        icon: 'price_check',
+        group: 'admin',
+    },
 ];
 
 export const menuLinksLoggedIn: NavLink[] = [
-    { sortOrder: 0, path: '/costs', label: 'Cost Overview', icon: 'attach_money' },
-    { sortOrder: 99, path: '/others', label: 'Others', icon: 'build' },
+    {
+        sortOrder: 0,
+        path: '/costs',
+        label: 'Cost Overview',
+        icon: 'attach_money',
+        group: 'primary',
+    },
+    { sortOrder: 5, path: '/others', label: 'Others', icon: 'build', group: 'admin' },
 ];
