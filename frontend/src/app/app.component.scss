@@ -1,9 +1,5 @@
 @use '../styles/breakpoints' as breakpoints;
 
-nav {
-    background: white;
-}
-
 mat-sidenav-content {
     // MatDrawerContainer's own margin-left recalculation (even with [autosize]) only
     // reruns on Angular's own change-detection triggers, and our sidenav width change

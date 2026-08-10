@@ -2,8 +2,12 @@
 @use 'theme-colors' as theme-colors;
 
 // Single source of truth for the app's Material 3 theme. Light is the default;
-// `.dark` (toggled on <body>, see app.component.ts) overrides the same
-// primary/tertiary palettes with dark-scheme tones.
+// `.dark` (toggled on <html>, see theme.service.ts) overrides the same
+// primary/tertiary palettes with dark-scheme tones. Must stay on <html>, not
+// <body>: mat.*-overrides() mixins below emit their rules scoped to `html`,
+// and CSS custom properties resolve var() references against the declaring
+// element's own cascade — so a `.dark` class anywhere other than `html` would
+// leave those overrides permanently resolved to the light-mode tokens.
 html {
     @include mat.theme(
         (

@@ -1,4 +1,4 @@
-import { DOCUMENT, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, DOCUMENT, effect, inject, Injectable, signal } from '@angular/core';
 
 export type ThemeMode = 'light' | 'system' | 'dark';
 
@@ -13,14 +13,17 @@ export class ThemeService {
 
     themeMode = signal<ThemeMode>(this.loadThemeMode());
 
+    readonly isDark = computed(() => {
+        const mode = this.themeMode();
+        return mode === 'dark' || (mode === 'system' && this.systemDark());
+    });
+
     constructor() {
         const prefersColorSchemeDark = window.matchMedia(this.DARK_MEDIA_QUERY);
         prefersColorSchemeDark.addEventListener('change', e => this.systemDark.set(e.matches));
 
         effect(() => {
-            const mode = this.themeMode();
-            const isDark = mode === 'dark' || (mode === 'system' && this.systemDark());
-            this.document.body.classList.toggle('dark', isDark);
+            this.document.documentElement.classList.toggle('dark', this.isDark());
         });
     }
 
