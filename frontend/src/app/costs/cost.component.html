@@ -1,7 +1,38 @@
 <app-page-header
     title="Cost Overview"
     subtitle="Distribute provider invoices across applications and stages."
-></app-page-header>
+>
+    <ng-container actions>
+        @if (savedConfigs().length > 0) {
+            <mat-form-field class="saved-configs-select">
+                <mat-label>Load saved</mat-label>
+                <mat-select (selectionChange)="loadConfig($event.value)">
+                    <mat-select-trigger>{{ selectedConfigName() }}</mat-select-trigger>
+                    @for (config of savedConfigs(); track config.id) {
+                        <mat-option [value]="config.id">
+                            <div class="config-option-row">
+                                <span>{{ config.name }}</span>
+                                <button
+                                    mat-icon-button
+                                    type="button"
+                                    class="delete-config-button"
+                                    aria-label="Delete saved configuration"
+                                    (click)="deleteConfig(config.id, $event)"
+                                >
+                                    <mat-icon>delete</mat-icon>
+                                </button>
+                            </div>
+                        </mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
+        }
+        <button mat-stroked-button color="primary" type="button" (click)="openSaveDialog()">
+            <mat-icon>save</mat-icon>
+            Save
+        </button>
+    </ng-container>
+</app-page-header>
 
 <form [formGroup]="costs">
     <div class="card-row top-row">

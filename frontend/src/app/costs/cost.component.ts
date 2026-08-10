@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, filter, merge, startWith } from 'rxjs';
@@ -8,6 +8,9 @@ import { MatSlider, MatSliderThumb } from '@angular/material/slider';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatChipListbox, MatChipOption } from '@angular/material/chips';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSelectModule } from '@angular/material/select';
 import {
     CalculateTableGQL,
     CalculateTableQuery,
@@ -31,6 +34,8 @@ import {
     DateRange,
     DateRangeQuickSelectComponent,
 } from '../common/date-range-quick-select/date-range-quick-select.component';
+import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
+import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
 
 @Component({
     imports: [
@@ -50,6 +55,9 @@ import {
         MatIcon,
         MatChipListbox,
         MatChipOption,
+        MatButton,
+        MatIconButton,
+        MatSelectModule,
         SankeyComponent,
         MatDateRangeInput,
         MatStartDate,
@@ -68,24 +76,31 @@ export class CostComponent {
     private calcCostOverview = inject(CostOverviewGQL);
     private calcTable = inject(CalculateTableGQL);
     private fb = inject(FormBuilder);
+    private _store = inject(CostOverviewStore);
+    private _dialog = inject(MatDialog);
     graphFilterService = inject(GraphFilterService);
 
     currentDate = new Date();
     startOfLastMonth = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
     endOfLastMonth = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 0);
 
+    private restored = this._store.current();
+
     costs = this.fb.group({
-        from: [this.startOfLastMonth],
-        to: [this.endOfLastMonth],
-        kafkaStorage: [0 as number | null],
-        kafkaNetworkRead: [0 as number | null],
-        kafkaNetworkWrite: [0 as number | null],
-        total: [0 as number | null],
+        from: [this.restored?.from ?? this.startOfLastMonth],
+        to: [this.restored?.to ?? this.endOfLastMonth],
+        kafkaStorage: [this.restored?.kafkaStorage ?? (0 as number | null)],
+        kafkaNetworkRead: [this.restored?.kafkaNetworkRead ?? (0 as number | null)],
+        kafkaNetworkWrite: [this.restored?.kafkaNetworkWrite ?? (0 as number | null)],
+        total: [this.restored?.total ?? (0 as number | null)],
     });
 
     writeWeight = signal(1.0);
     readWeight = signal(2.4);
-    groupBy = signal<string[]>([]);
+    groupBy = signal<string[]>(this.restored?.groupBy ?? []);
+
+    savedConfigs = this._store.entities;
+    selectedConfigName = signal<string | null>(null);
 
     private costsValue = toSignal(this.costs.valueChanges.pipe(startWith(this.costs.value)));
 
@@ -105,6 +120,19 @@ export class CostComponent {
         return selected.length > 0 ? selected : this.graphFilterService.contextKeys();
     });
 
+    currentFormValues = computed<CostOverviewFormValues>(() => {
+        const v = this.costsValue();
+        return {
+            from: v?.from ?? this.startOfLastMonth,
+            to: v?.to ?? this.endOfLastMonth,
+            kafkaStorage: v?.kafkaStorage ?? null,
+            kafkaNetworkRead: v?.kafkaNetworkRead ?? null,
+            kafkaNetworkWrite: v?.kafkaNetworkWrite ?? null,
+            total: v?.total ?? null,
+            groupBy: this.groupBy(),
+        };
+    });
+
     data = signal<CostOverviewQuery | undefined>(undefined);
     tableData = signal<CalculateTableQuery>({ calculateTable: { entries: null } });
     lastRequest = signal<CostOverviewRequestInput | undefined>(undefined);
@@ -117,6 +145,15 @@ export class CostComponent {
                 takeUntilDestroyed()
             )
             .subscribe(() => this.calculate());
+
+        effect(() => {
+            this._store.setCurrent(this.currentFormValues());
+        });
+
+        // restore previous results immediately if we brought back a usable configuration
+        if ((this.restored?.total ?? 0) > 0) {
+            this.calculate();
+        }
     }
 
     hasResults = computed(
@@ -125,6 +162,37 @@ export class CostComponent {
 
     applyDateRange(range: DateRange): void {
         this.costs.patchValue({ from: range.from, to: range.to });
+    }
+
+    openSaveDialog(): void {
+        const dialogRef = this._dialog.open(SaveConfigDialogComponent);
+        dialogRef.afterClosed().subscribe((name: string | undefined) => {
+            if (name) {
+                this._store.saveConfig(name, this.currentFormValues());
+            }
+        });
+    }
+
+    loadConfig(id: string): void {
+        const config = this.savedConfigs().find(c => c.id === id);
+        if (!config) {
+            return;
+        }
+        this.selectedConfigName.set(config.name);
+        this.costs.patchValue({
+            from: config.from,
+            to: config.to,
+            kafkaStorage: config.kafkaStorage,
+            kafkaNetworkRead: config.kafkaNetworkRead,
+            kafkaNetworkWrite: config.kafkaNetworkWrite,
+            total: config.total,
+        });
+        this.groupBy.set(config.groupBy);
+    }
+
+    deleteConfig(id: string, event: Event): void {
+        event.stopPropagation();
+        this._store.deleteConfig(id);
     }
 
     calculate() {
