@@ -1,5 +1,11 @@
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { addEntities, addEntity, removeEntity, withEntities } from '@ngrx/signals/entities';
+import {
+    addEntities,
+    addEntity,
+    removeEntity,
+    updateEntity,
+    withEntities,
+} from '@ngrx/signals/entities';
 import { effect } from '@angular/core';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -64,8 +70,13 @@ export const CostOverviewStore = signalStore(
         setCurrent(values: CostOverviewFormValues): void {
             patchState(store, { current: values });
         },
-        saveConfig(name: string, values: CostOverviewFormValues): void {
-            patchState(store, addEntity({ ...values, id: uuidv4(), name }));
+        saveConfig(name: string, values: CostOverviewFormValues): string {
+            const id = uuidv4();
+            patchState(store, addEntity({ ...values, id, name }));
+            return id;
+        },
+        updateConfig(id: string, values: CostOverviewFormValues): void {
+            patchState(store, updateEntity({ id, changes: values }));
         },
         deleteConfig(id: string): void {
             patchState(store, removeEntity(id));

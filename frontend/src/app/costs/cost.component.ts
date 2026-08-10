@@ -100,7 +100,10 @@ export class CostComponent {
     groupBy = signal<string[]>(this.restored?.groupBy ?? []);
 
     savedConfigs = this._store.entities;
-    selectedConfigName = signal<string | null>(null);
+    selectedConfigId = signal<string | null>(null);
+    selectedConfigName = computed(
+        () => this.savedConfigs().find(c => c.id === this.selectedConfigId())?.name ?? null
+    );
 
     private costsValue = toSignal(this.costs.valueChanges.pipe(startWith(this.costs.value)));
 
@@ -168,9 +171,18 @@ export class CostComponent {
         const dialogRef = this._dialog.open(SaveConfigDialogComponent);
         dialogRef.afterClosed().subscribe((name: string | undefined) => {
             if (name) {
-                this._store.saveConfig(name, this.currentFormValues());
+                const id = this._store.saveConfig(name, this.currentFormValues());
+                this.selectedConfigId.set(id);
             }
         });
+    }
+
+    updateSelectedConfig(): void {
+        const id = this.selectedConfigId();
+        if (!id) {
+            return;
+        }
+        this._store.updateConfig(id, this.currentFormValues());
     }
 
     loadConfig(id: string): void {
@@ -178,7 +190,7 @@ export class CostComponent {
         if (!config) {
             return;
         }
-        this.selectedConfigName.set(config.name);
+        this.selectedConfigId.set(id);
         this.costs.patchValue({
             from: config.from,
             to: config.to,
@@ -193,6 +205,9 @@ export class CostComponent {
     deleteConfig(id: string, event: Event): void {
         event.stopPropagation();
         this._store.deleteConfig(id);
+        if (this.selectedConfigId() === id) {
+            this.selectedConfigId.set(null);
+        }
     }
 
     calculate() {

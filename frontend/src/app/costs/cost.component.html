@@ -4,7 +4,7 @@
 >
     <ng-container actions>
         @if (savedConfigs().length > 0) {
-            <mat-form-field class="saved-configs-select">
+            <mat-form-field class="saved-configs-select" subscriptSizing="dynamic">
                 <mat-label>Load saved</mat-label>
                 <mat-select (selectionChange)="loadConfig($event.value)">
                     <mat-select-trigger>{{ selectedConfigName() }}</mat-select-trigger>
@@ -27,10 +27,21 @@
                 </mat-select>
             </mat-form-field>
         }
-        <button mat-stroked-button color="primary" type="button" (click)="openSaveDialog()">
-            <mat-icon>save</mat-icon>
-            Save
-        </button>
+        @if (selectedConfigId()) {
+            <button mat-stroked-button color="primary" type="button" (click)="openSaveDialog()">
+                <mat-icon>save</mat-icon>
+                Save as new
+            </button>
+            <button mat-flat-button color="primary" type="button" (click)="updateSelectedConfig()">
+                <mat-icon>save</mat-icon>
+                Update "{{ selectedConfigName() }}"
+            </button>
+        } @else {
+            <button mat-flat-button color="primary" type="button" (click)="openSaveDialog()">
+                <mat-icon>save</mat-icon>
+                Save
+            </button>
+        }
     </ng-container>
 </app-page-header>
 
