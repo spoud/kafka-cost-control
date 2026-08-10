@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption, EChartsType } from 'echarts/core';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
@@ -6,6 +6,7 @@ import { saveAs } from 'file-saver-es';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MetricHistory } from '../../../../generated/graphql/types';
+import { ThemeService } from '../../../services/theme.service';
 
 @Component({
     selector: 'app-pie-chart',
@@ -15,6 +16,8 @@ import { MetricHistory } from '../../../../generated/graphql/types';
     providers: [provideEchartsCore({ echarts })],
 })
 export class PieChartComponent {
+    protected readonly themeService = inject(ThemeService);
+
     chartInit = output<EChartsType>();
 
     metricsData = input.required<MetricHistory[]>();
@@ -37,6 +40,11 @@ export class PieChartComponent {
         return {
             tooltip: {
                 trigger: 'item',
+            },
+            legend: {
+                textStyle: {
+                    color: this.themeService.isDark() ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.87)',
+                },
             },
             dataset: {
                 source: this.pieChartDataSet(),

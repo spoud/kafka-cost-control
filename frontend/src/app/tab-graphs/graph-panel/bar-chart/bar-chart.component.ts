@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
@@ -8,6 +8,7 @@ import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { Panel } from '../../../tab-reporting/panel.type';
 import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/types';
+import { ThemeService } from '../../../services/theme.service';
 
 export type BarOrLine = 'bar' | 'line';
 
@@ -19,6 +20,8 @@ export type BarOrLine = 'bar' | 'line';
     providers: [provideEchartsCore({ echarts })],
 })
 export class BarChartComponent {
+    protected readonly themeService = inject(ThemeService);
+
     chartInit = output<EChartsType>();
 
     normalized = signal(false);
@@ -67,6 +70,8 @@ export class BarChartComponent {
         return {
             tooltip: {
                 trigger: 'axis',
+                confine: true,
+                appendTo: 'body',
             },
             xAxis: {
                 type: 'time',
@@ -112,6 +117,9 @@ export class BarChartComponent {
             }),
             legend: {
                 type: 'scroll',
+                textStyle: {
+                    color: this.themeService.isDark() ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.87)',
+                },
             },
         };
     });

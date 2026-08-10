@@ -13,4 +13,9 @@
     </button>
 </div>
 
-<div echarts [options]="options()" [theme]="'default'" (chartInit)="onChartInit($event)"></div>
+<div
+    echarts
+    [options]="options()"
+    [theme]="themeService.isDark() ? 'dark' : 'default'"
+    (chartInit)="onChartInit($event)"
+></div>
