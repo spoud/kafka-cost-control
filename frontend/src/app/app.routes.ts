@@ -3,7 +3,7 @@ import { loggedInGuard } from './auth/logged-in.guard';
 
 export const routes: Routes = [
     {
-        path: 'graphs',
+        path: 'explore',
         loadComponent: () =>
             import('./tab-graphs/tab-graphs.component').then(m => m.TabGraphsComponent),
     },
@@ -73,7 +73,7 @@ export interface NavLink extends Link {
 }
 
 export const menuLinks: NavLink[] = [
-    { sortOrder: 1, path: '/graphs', label: 'Graphs', icon: 'bar_chart', group: 'primary' },
+    { sortOrder: 1, path: '/explore', label: 'Explore', icon: 'explore', group: 'primary' },
     { sortOrder: 2, path: '/reporting', label: 'Reporting', icon: 'assignment', group: 'primary' },
     { sortOrder: 3, path: '/context-data', label: 'Context Data', icon: 'label', group: 'admin' },
     {

@@ -5,6 +5,17 @@ nav {
 }
 
 mat-sidenav-content {
+    // MatDrawerContainer's own margin-left recalculation (even with [autosize]) only
+    // reruns on Angular's own change-detection triggers, and our sidenav width change
+    // animates via CSS — so its inline style goes stale until *something else* forces
+    // another Angular tick. Drive the margin ourselves instead, in lockstep with the
+    // widths set on mat-sidenav below, so it never depends on that recalculation at all.
+    margin-left: 240px !important;
+    // Instant, not animated: Material's own .mat-drawer-transition class also puts a
+    // (much longer) transition on this property, and the two competing transitions
+    // combined with this app's frequent change-detection ticks meant the value could
+    // get stuck mid-animation indefinitely. Correctness beats a nice-to-have animation.
+    transition: none !important;
     padding: var(--space-7) var(--space-9);
 
     @include breakpoints.compact {
@@ -16,6 +27,14 @@ mat-sidenav-content {
     }
 }
 
+mat-sidenav-container.sidenav-collapsed mat-sidenav-content {
+    margin-left: 72px !important;
+}
+
+mat-sidenav-container.is-handset mat-sidenav-content {
+    margin-left: 0 !important;
+}
+
 .spacer {
     flex: 1 1 auto;
 }
@@ -25,9 +44,17 @@ mat-sidenav-content {
     align-items: center;
 }
 
+.sign-in-button {
+    color: var(--mat-sys-on-primary);
+    border-color: var(--mat-sys-on-primary);
+}
+
 mat-sidenav {
     width: 240px;
-    transition: width 0.15s ease-in-out;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    transition: none !important;
 
     &.collapsed {
         width: 72px;

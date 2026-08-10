@@ -2,7 +2,7 @@ import { Component, computed, inject, Signal, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -51,6 +51,7 @@ echarts.use([
         MatToolbar,
         MatIcon,
         MatIconButton,
+        MatButton,
         MatMenu,
         MatMenuItem,
         MatMenuTrigger,

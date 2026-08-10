@@ -24,7 +24,7 @@ export class UnauthorizedComponent {
         // Once the user signs in, continue to the page they originally requested
         effect(() => {
             if (this.isAuthenticated()) {
-                const returnUrl = this._route.snapshot.queryParamMap.get('returnUrl') ?? '/home';
+                const returnUrl = this._route.snapshot.queryParamMap.get('returnUrl') ?? '/costs';
                 void this._router.navigateByUrl(returnUrl);
             }
         });

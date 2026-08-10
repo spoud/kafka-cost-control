@@ -16,34 +16,40 @@
         <span>COST CONTROL</span>
     }
     <span class="spacer"></span>
-    <button
-        mat-icon-button
-        aria-label="Account menu"
-        matTooltip="Account"
-        [matMenuTriggerFor]="userMenu"
-    >
-        <mat-icon>account_circle</mat-icon>
-    </button>
-    <mat-menu #userMenu="matMenu">
-        <a mat-menu-item routerLink="/settings">
-            <mat-icon>settings</mat-icon>
-            <span>Settings</span>
-        </a>
-        @if (isAuthenticated()) {
+    @if (isAuthenticated()) {
+        <button
+            mat-icon-button
+            aria-label="Account menu"
+            matTooltip="Account"
+            [matMenuTriggerFor]="userMenu"
+        >
+            <mat-icon>account_circle</mat-icon>
+        </button>
+        <mat-menu #userMenu="matMenu">
+            <a mat-menu-item routerLink="/settings">
+                <mat-icon>settings</mat-icon>
+                <span>Settings</span>
+            </a>
             <button mat-menu-item (click)="signOut()">
                 <mat-icon>logout</mat-icon>
                 <span>Sign out</span>
             </button>
-        } @else {
-            <button mat-menu-item (click)="signIn()">
-                <mat-icon>login</mat-icon>
-                <span>Sign in</span>
-            </button>
-        }
-    </mat-menu>
+        </mat-menu>
+    } @else {
+        <button mat-icon-button routerLink="/settings" aria-label="Settings" matTooltip="Settings">
+            <mat-icon>settings</mat-icon>
+        </button>
+        <button mat-stroked-button class="sign-in-button" (click)="signIn()">
+            <mat-icon>login</mat-icon>
+            Sign in
+        </button>
+    }
 </mat-toolbar>
 
-<mat-sidenav-container>
+<mat-sidenav-container
+    [class.sidenav-collapsed]="collapsed() && !isHandset()"
+    [class.is-handset]="isHandset()"
+>
     <mat-sidenav
         #sidenav
         [fixedInViewport]="true"
