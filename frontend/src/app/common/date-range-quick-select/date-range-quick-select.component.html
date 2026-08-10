@@ -1,0 +1,7 @@
+<div class="date-range-quick-select">
+    @for (preset of presets; track preset.label) {
+        <button mat-stroked-button type="button" (click)="apply(preset)">
+            {{ preset.label }}
+        </button>
+    }
+</div>

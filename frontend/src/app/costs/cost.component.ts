@@ -27,6 +27,10 @@ import { CostTableComponent } from './cost-table/cost-table.component';
 import { AbsPipe } from '../common/abs.pipe';
 import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.service';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
+import {
+    DateRange,
+    DateRangeQuickSelectComponent,
+} from '../common/date-range-quick-select/date-range-quick-select.component';
 
 @Component({
     imports: [
@@ -55,6 +59,7 @@ import { PageHeaderComponent } from '../common/page-header/page-header.component
         CostTableComponent,
         AbsPipe,
         PageHeaderComponent,
+        DateRangeQuickSelectComponent,
     ],
     templateUrl: './cost.component.html',
     styleUrl: './cost.component.scss',
@@ -117,6 +122,10 @@ export class CostComponent {
     hasResults = computed(
         () => !!this.data() || (this.tableData()?.calculateTable.entries?.length ?? 0) > 0
     );
+
+    applyDateRange(range: DateRange): void {
+        this.costs.patchValue({ from: range.from, to: range.to });
+    }
 
     calculate() {
         const request: CostOverviewRequestInput = {

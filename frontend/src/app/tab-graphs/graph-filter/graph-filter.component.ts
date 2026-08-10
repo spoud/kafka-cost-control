@@ -7,10 +7,20 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSelectModule } from '@angular/material/select';
 import { GraphFilterService } from './graph-filter.service';
+import {
+    DateRange,
+    DateRangeQuickSelectComponent,
+} from '../../common/date-range-quick-select/date-range-quick-select.component';
 
 @Component({
     selector: 'app-graph-filter',
-    imports: [ReactiveFormsModule, MatFormFieldModule, MatDatepickerModule, MatSelectModule],
+    imports: [
+        ReactiveFormsModule,
+        MatFormFieldModule,
+        MatDatepickerModule,
+        MatSelectModule,
+        DateRangeQuickSelectComponent,
+    ],
     templateUrl: './graph-filter.component.html',
     styleUrl: './graph-filter.component.scss',
 })
@@ -51,6 +61,19 @@ export class GraphFilterComponent {
             effectRef.destroy();
         });
 
+        // default metric name / group-by context to the first available option once
+        // they've loaded, so the dashboard isn't empty waiting on a manual selection
+        effect(() => {
+            const metricNames = this.graphFilterService.metricNames();
+            const contextKeys = this.graphFilterService.contextKeys();
+            if (!this.form.value.metricName && metricNames.length > 0) {
+                this.form.patchValue({ metricName: metricNames[0].metricName });
+            }
+            if (!this.form.value.groupByContext && contextKeys.length > 0) {
+                this.form.patchValue({ groupByContext: contextKeys[0] });
+            }
+        });
+
         const values = toSignal(this.form.valueChanges.pipe(debounceTime(300)), {
             initialValue: this.form.value,
         });
@@ -60,5 +83,9 @@ export class GraphFilterComponent {
                 this.graphFilter.emit(filter);
             }
         });
+    }
+
+    applyDateRange(range: DateRange): void {
+        this.form.patchValue({ from: range.from, to: range.to });
     }
 }
