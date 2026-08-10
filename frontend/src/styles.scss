@@ -45,8 +45,8 @@ body {
 
 @include mat.toolbar-overrides(
     (
-        container-background-color: var(--mat-sys-primary),
-        container-text-color: var(--mat-sys-on-primary),
+        container-background-color: #0a4159,
+        container-text-color: #ffffff,
     )
 );
 
