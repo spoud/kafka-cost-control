@@ -1,10 +1,11 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { CostOverviewQuery } from '../../../generated/graphql/sdk';
 import { CostOverviewRequestInput } from '../../../generated/graphql/types';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption } from 'echarts/core';
 import { SankeyChart } from 'echarts/charts';
+import { ThemeService } from '../../services/theme.service';
 
 echarts.use([SankeyChart]);
 
@@ -15,6 +16,8 @@ echarts.use([SankeyChart]);
     styleUrl: './sankey.component.scss',
 })
 export class SankeyComponent {
+    protected readonly themeService = inject(ThemeService);
+
     inputData = input.required<CostOverviewQuery | undefined>();
     lastRequest = input.required<CostOverviewRequestInput | undefined>();
 
@@ -86,6 +89,9 @@ export class SankeyComponent {
                     focus: 'trajectory',
                 },
                 layout: 'none',
+                label: {
+                    color: this.themeService.isDark() ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.87)',
+                },
                 data: data,
                 links: links,
             },

@@ -4,6 +4,6 @@
         style="height: 1000px"
         echarts
         [options]="sankeyOptions()"
-        [theme]="'default'"
+        [theme]="themeService.isDark() ? 'dark' : 'default'"
     ></div>
 }
