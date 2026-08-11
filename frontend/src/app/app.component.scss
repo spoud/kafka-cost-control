@@ -31,18 +31,9 @@ mat-sidenav-container.is-handset mat-sidenav-content {
     margin-left: 0 !important;
 }
 
-.spacer {
-    flex: 1 1 auto;
-}
-
 .logo-link {
     display: flex;
     align-items: center;
-}
-
-.sign-in-button {
-    color: var(--mat-sys-on-primary);
-    border-color: var(--mat-sys-on-primary);
 }
 
 mat-sidenav {
@@ -59,10 +50,33 @@ mat-sidenav {
             display: none;
         }
 
-        a[mat-list-item] {
+        .brand,
+        a[mat-list-item],
+        button[mat-list-item] {
             justify-content: center;
+            padding-inline: 0;
+
+            // Material's own leading-icon slot keeps its normal (asymmetric) inline padding
+            // even once the label next to it is removed, so centering the row itself isn't
+            // enough — the icon still sits off-center. Neutralize that padding here so the
+            // icon is the only thing left to center.
+            ::ng-deep .mdc-list-item__content {
+                padding-inline: 0;
+            }
         }
     }
+}
+
+// Unlike a[mat-list-item], button[mat-list-item] (used for the "Sign in" action, which has
+// no route to link to) inherits the native <button> border/background — strip it back down
+// to look identical to the anchor-based rows around it.
+button[mat-list-item] {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .sidenav-content-wrapper {
@@ -75,8 +89,17 @@ mat-sidenav {
     }
 }
 
+// Every list item (nav links + account/settings/sign-in rows) projects its icon via
+// matListItemIcon and its label via matListItemTitle, but nothing in Material's own
+// defaults guarantees those two end up vertically centered with a consistent gap between
+// them — enforce both explicitly, once, for every row in the sidebar.
+::ng-deep mat-sidenav .mdc-list-item__content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
 .nav-icon {
-    vertical-align: middle;
     color: var(--mat-sys-on-surface-variant);
 }
 
@@ -94,7 +117,37 @@ mat-sidenav {
     color: var(--mat-sys-on-surface-variant);
 }
 
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    color: var(--mat-sys-on-surface);
+    text-decoration: none;
+    flex: 0 0 auto;
+}
+
+.brand-logo {
+    flex: 0 0 auto;
+}
+
+.brand-title {
+    font: var(--mat-sys-title-small);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidenav-spacer {
+    flex: 1 1 auto;
+}
+
+.account-nav-list {
+    flex: 0 0 auto;
+}
+
 .collapse-toggle {
     align-self: flex-end;
-    margin: auto var(--space-3) var(--space-3);
+    margin: var(--space-2) var(--space-3);
 }

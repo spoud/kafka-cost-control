@@ -2,7 +2,7 @@ import { Component, computed, inject, Signal, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -20,7 +20,7 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
-import { MatListItem, MatNavList } from '@angular/material/list';
+import { MatListItem, MatListItemIcon, MatListItemTitle, MatNavList } from '@angular/material/list';
 import { MatDivider } from '@angular/material/divider';
 import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
 import { NgOptimizedImage } from '@angular/common';
@@ -51,7 +51,6 @@ echarts.use([
         MatToolbar,
         MatIcon,
         MatIconButton,
-        MatButton,
         MatMenu,
         MatMenuItem,
         MatMenuTrigger,
@@ -61,6 +60,8 @@ echarts.use([
         MatSidenav,
         MatNavList,
         MatListItem,
+        MatListItemIcon,
+        MatListItemTitle,
         MatDivider,
         RouterOutlet,
         NgOptimizedImage,

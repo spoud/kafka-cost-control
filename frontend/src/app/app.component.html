@@ -1,5 +1,5 @@
-<mat-toolbar color="primary">
-    @if (isHandset()) {
+@if (isHandset()) {
+    <mat-toolbar color="primary">
         <button
             mat-icon-button
             aria-label="Toggle navigation menu"
@@ -8,43 +8,12 @@
         >
             <mat-icon>menu</mat-icon>
         </button>
-    }
-    <a routerLink="/costs" class="logo-link mr-4">
-        <img ngSrc="assets/spoud.svg" width="36" height="36" alt="Kafka Cost Control Logo" />
-    </a>
-    @if (!isHandset()) {
+        <a routerLink="/costs" class="logo-link mr-4">
+            <img ngSrc="assets/spoud.svg" width="36" height="36" alt="Kafka Cost Control Logo" />
+        </a>
         <span>COST CONTROL</span>
-    }
-    <span class="spacer"></span>
-    @if (isAuthenticated()) {
-        <button
-            mat-icon-button
-            aria-label="Account menu"
-            matTooltip="Account"
-            [matMenuTriggerFor]="userMenu"
-        >
-            <mat-icon>account_circle</mat-icon>
-        </button>
-        <mat-menu #userMenu="matMenu">
-            <a mat-menu-item routerLink="/settings">
-                <mat-icon>settings</mat-icon>
-                <span>Settings</span>
-            </a>
-            <button mat-menu-item (click)="signOut()">
-                <mat-icon>logout</mat-icon>
-                <span>Sign out</span>
-            </button>
-        </mat-menu>
-    } @else {
-        <button mat-icon-button routerLink="/settings" aria-label="Settings" matTooltip="Settings">
-            <mat-icon>settings</mat-icon>
-        </button>
-        <button mat-stroked-button class="sign-in-button" (click)="signIn()">
-            <mat-icon>login</mat-icon>
-            Sign in
-        </button>
-    }
-</mat-toolbar>
+    </mat-toolbar>
+}
 
 <mat-sidenav-container
     [class.sidenav-collapsed]="collapsed() && !isHandset()"
@@ -53,12 +22,31 @@
     <mat-sidenav
         #sidenav
         [fixedInViewport]="true"
-        [fixedTopGap]="64"
+        [fixedTopGap]="isHandset() ? 64 : 0"
         [mode]="isHandset() ? 'over' : 'side'"
         [opened]="!isHandset()"
         [class.collapsed]="collapsed() && !isHandset()"
     >
         <div class="sidenav-content-wrapper">
+            <a
+                routerLink="/costs"
+                class="brand"
+                [matTooltip]="collapsed() && !isHandset() ? 'Cost Control' : ''"
+                matTooltipPosition="right"
+                (click)="isHandset() && sidenav.close()"
+            >
+                <img
+                    ngSrc="assets/spoud.svg"
+                    width="32"
+                    height="32"
+                    alt="Kafka Cost Control Logo"
+                    class="brand-logo"
+                />
+                @if (!collapsed() || isHandset()) {
+                    <span class="brand-title">COST CONTROL</span>
+                }
+            </a>
+
             <mat-nav-list>
                 @for (link of primaryNavLinks(); track link) {
                     <a
@@ -72,10 +60,10 @@
                         (click)="isHandset() && sidenav.close()"
                     >
                         @if (link.icon) {
-                            <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+                            <mat-icon matListItemIcon class="nav-icon">{{ link.icon }}</mat-icon>
                         }
                         @if (!collapsed() || isHandset()) {
-                            <span class="nav-label">{{ link.label }}</span>
+                            <span matListItemTitle class="nav-label">{{ link.label }}</span>
                         }
                     </a>
                 }
@@ -99,15 +87,71 @@
                             (click)="isHandset() && sidenav.close()"
                         >
                             @if (link.icon) {
-                                <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+                                <mat-icon matListItemIcon class="nav-icon">{{
+                                    link.icon
+                                }}</mat-icon>
                             }
                             @if (!collapsed() || isHandset()) {
-                                <span class="nav-label">{{ link.label }}</span>
+                                <span matListItemTitle class="nav-label">{{ link.label }}</span>
                             }
                         </a>
                     }
                 </mat-nav-list>
             }
+
+            <div class="sidenav-spacer"></div>
+
+            <mat-divider></mat-divider>
+
+            <mat-nav-list class="account-nav-list">
+                @if (isAuthenticated()) {
+                    <a
+                        mat-list-item
+                        [matMenuTriggerFor]="userMenu"
+                        [matTooltip]="collapsed() && !isHandset() ? 'Account' : ''"
+                        matTooltipPosition="right"
+                    >
+                        <mat-icon matListItemIcon class="nav-icon">account_circle</mat-icon>
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">Account</span>
+                        }
+                    </a>
+                    <mat-menu #userMenu="matMenu">
+                        <a mat-menu-item routerLink="/settings">
+                            <mat-icon>settings</mat-icon>
+                            <span>Settings</span>
+                        </a>
+                        <button mat-menu-item (click)="signOut()">
+                            <mat-icon>logout</mat-icon>
+                            <span>Sign out</span>
+                        </button>
+                    </mat-menu>
+                } @else {
+                    <a
+                        mat-list-item
+                        routerLink="/settings"
+                        [matTooltip]="collapsed() && !isHandset() ? 'Settings' : ''"
+                        matTooltipPosition="right"
+                        (click)="isHandset() && sidenav.close()"
+                    >
+                        <mat-icon matListItemIcon class="nav-icon">settings</mat-icon>
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">Settings</span>
+                        }
+                    </a>
+                    <button
+                        mat-list-item
+                        [matTooltip]="collapsed() && !isHandset() ? 'Sign in' : ''"
+                        matTooltipPosition="right"
+                        (click)="signIn()"
+                    >
+                        <mat-icon matListItemIcon class="nav-icon">login</mat-icon>
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">Sign in</span>
+                        }
+                    </button>
+                }
+            </mat-nav-list>
 
             @if (!isHandset()) {
                 <button
