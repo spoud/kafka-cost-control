@@ -1,6 +1,12 @@
 <div class="date-range-quick-select">
     @for (preset of presets; track preset.label) {
-        <button mat-stroked-button type="button" (click)="apply(preset)">
+        <button
+            mat-stroked-button
+            type="button"
+            class="preset-button"
+            [class.selected]="isSelected(preset)"
+            (click)="apply(preset)"
+        >
             {{ preset.label }}
         </button>
     }

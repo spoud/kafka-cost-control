@@ -1,4 +1,4 @@
-import { Component, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 
 export interface DateRange {
@@ -27,6 +27,14 @@ function daysAgo(days: number): Date {
     return startOfDay(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 }
 
+function isSameDay(a: Date, b: Date): boolean {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
 @Component({
     selector: 'app-date-range-quick-select',
     imports: [MatButton],
@@ -35,6 +43,10 @@ function daysAgo(days: number): Date {
 })
 export class DateRangeQuickSelectComponent {
     rangeSelected = output<DateRange>();
+
+    // The currently applied range, if any — used only to highlight whichever preset (if any)
+    // it matches, so the row reflects what's actually selected instead of always looking inert.
+    selectedRange = input<DateRange | null>(null);
 
     presets: DateRangePreset[] = [
         {
@@ -46,12 +58,16 @@ export class DateRangeQuickSelectComponent {
             range: () => ({ from: daysAgo(7), to: endOfDay(new Date()) }),
         },
         {
+            label: 'Last 30 days',
+            range: () => ({ from: daysAgo(30), to: endOfDay(new Date()) }),
+        },
+        {
             label: 'This month',
             range: () => {
                 const now = new Date();
                 return {
                     from: new Date(now.getFullYear(), now.getMonth(), 1),
-                    to: endOfDay(now),
+                    to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
                 };
             },
         },
@@ -76,5 +92,14 @@ export class DateRangeQuickSelectComponent {
 
     apply(preset: DateRangePreset): void {
         this.rangeSelected.emit(preset.range());
+    }
+
+    isSelected(preset: DateRangePreset): boolean {
+        const current = this.selectedRange();
+        if (!current) {
+            return false;
+        }
+        const presetRange = preset.range();
+        return isSameDay(current.from, presetRange.from) && isSameDay(current.to, presetRange.to);
     }
 }

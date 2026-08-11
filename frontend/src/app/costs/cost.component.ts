@@ -106,6 +106,11 @@ export class CostComponent {
 
     private costsValue = toSignal(this.costs.valueChanges.pipe(startWith(this.costs.value)));
 
+    selectedDateRange = computed<DateRange | null>(() => {
+        const v = this.costsValue();
+        return v?.from && v?.to ? { from: v.from, to: v.to } : null;
+    });
+
     inputTotal = computed(() => {
         const v = this.costsValue();
         return (v?.kafkaStorage ?? 0) + (v?.kafkaNetworkRead ?? 0) + (v?.kafkaNetworkWrite ?? 0);

@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output } from '@angular/core';
+import { Component, computed, effect, inject, input, output, Signal } from '@angular/core';
 import { GraphFilter } from '../tab-graphs.component';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -32,6 +32,7 @@ export class GraphFilterComponent {
     graphFilter = output<GraphFilter>();
 
     form: FormGroup;
+    selectedDateRange: Signal<DateRange | null>;
 
     constructor() {
         const formBuilder = inject(FormBuilder);
@@ -77,6 +78,9 @@ export class GraphFilterComponent {
         const values = toSignal(this.form.valueChanges.pipe(debounceTime(300)), {
             initialValue: this.form.value,
         });
+        this.selectedDateRange = computed(() =>
+            values().from && values().to ? { from: values().from, to: values().to } : null
+        );
         effect(() => {
             const filter = values();
             if (filter.metricName && filter.groupByContext) {
