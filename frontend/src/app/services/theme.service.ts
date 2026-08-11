@@ -1,4 +1,5 @@
 import { computed, DOCUMENT, effect, inject, Injectable, signal } from '@angular/core';
+import { CHART_THEME_DARK, CHART_THEME_LIGHT, registerChartThemes } from './chart-theme';
 
 export type ThemeMode = 'light' | 'system' | 'dark';
 
@@ -18,7 +19,14 @@ export class ThemeService {
         return mode === 'dark' || (mode === 'system' && this.systemDark());
     });
 
+    // Name of the registered ECharts theme (see chart-theme.ts) matching the current mode, so
+    // chart components can bind `[theme]="themeService.chartTheme()"` instead of each picking
+    // their own colors based on isDark().
+    readonly chartTheme = computed(() => (this.isDark() ? CHART_THEME_DARK : CHART_THEME_LIGHT));
+
     constructor() {
+        registerChartThemes();
+
         const prefersColorSchemeDark = window.matchMedia(this.DARK_MEDIA_QUERY);
         prefersColorSchemeDark.addEventListener('change', e => this.systemDark.set(e.matches));
 

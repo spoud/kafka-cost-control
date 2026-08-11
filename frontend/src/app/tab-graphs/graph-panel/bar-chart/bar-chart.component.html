@@ -16,6 +16,6 @@
 <div
     echarts
     [options]="options()"
-    [theme]="themeService.isDark() ? 'dark' : 'default'"
+    [theme]="themeService.chartTheme()"
     (chartInit)="onChartInit($event)"
 ></div>

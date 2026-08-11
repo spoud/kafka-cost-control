@@ -89,9 +89,6 @@ export class SankeyComponent {
                     focus: 'trajectory',
                 },
                 layout: 'none',
-                label: {
-                    color: this.themeService.isDark() ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.87)',
-                },
                 data: data,
                 links: links,
             },

@@ -117,9 +117,6 @@ export class BarChartComponent {
             }),
             legend: {
                 type: 'scroll',
-                textStyle: {
-                    color: this.themeService.isDark() ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.87)',
-                },
             },
         };
     });

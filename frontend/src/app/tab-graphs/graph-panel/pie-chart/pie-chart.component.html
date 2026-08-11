@@ -8,6 +8,6 @@
 <div
     echarts
     [options]="piechartOptions()"
-    [theme]="themeService.isDark() ? 'dark' : 'default'"
+    [theme]="themeService.chartTheme()"
     (chartInit)="onChartInit($event)"
 ></div>

@@ -20,6 +20,11 @@ html {
             density: 0,
         )
     );
+
+    // Brand-colored toolbar background/foreground, kept as tokens (rather than literals in
+    // styles.scss) so it can vary per theme like everything else instead of staying static.
+    --kcc-toolbar-background: #0a4159;
+    --kcc-toolbar-foreground: #ffffff;
 }
 
 .dark {
@@ -32,4 +37,7 @@ html {
             ),
         )
     );
+
+    --kcc-toolbar-background: #1a4b64;
+    --kcc-toolbar-foreground: #ffffff;
 }

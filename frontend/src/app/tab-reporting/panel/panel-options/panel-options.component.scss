@@ -1,8 +1,8 @@
 :host {
     position: absolute;
     z-index: 20;
-    background: whitesmoke;
-    color: black;
+    background: var(--mat-sys-surface-container-high);
+    color: var(--mat-sys-on-surface);
     top: 0;
     left: 0;
     border-radius: inherit;
