@@ -43,10 +43,29 @@ mat-sidenav {
     box-shadow: none;
     transition: none !important;
 
-    // Icons keep the exact same position whether the sidebar is collapsed or not — only the
-    // rail width changes and the label disappears, so nothing icon-related should shift.
     &.collapsed {
         width: 72px;
+
+        .brand {
+            justify-content: center;
+        }
+
+        // Material reserves a fixed 16px trailing gap on every list item (for a label that,
+        // here, no longer exists) without reserving the same on the leading edge, so simply
+        // centering the row still leaves the icon closer to the left than the right. Drop
+        // that reserved gap so the row is symmetric before centering it.
+        a[mat-list-item],
+        button[mat-list-item] {
+            justify-content: center !important;
+            padding-inline: 0 !important;
+
+            // The title slot is empty here but still flex-grows to fill 100% of the row,
+            // leaving no free space for justify-content to center the icon into. Drop it out
+            // of the layout entirely so the icon is the only flex item left to center.
+            ::ng-deep .mdc-list-item__content {
+                display: none;
+            }
+        }
     }
 }
 
