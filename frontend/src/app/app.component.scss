@@ -130,9 +130,20 @@ button[mat-list-item] {
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-4);
-    color: var(--mat-sys-on-surface);
     text-decoration: none;
     flex: 0 0 auto;
+
+    // The logo mark's dots are white — invisible against the light-mode surface behind it, so
+    // give this row the same brand-colored background as the toolbar (where it's always been
+    // legible). Dark mode's surface is already dark enough for it, so that variant below reverts
+    // to the normal (transparent) surface instead of doubling up on brand color.
+    background: var(--kcc-toolbar-background);
+    color: var(--kcc-toolbar-foreground);
+}
+
+:host-context(.dark) .brand {
+    background: transparent;
+    color: var(--mat-sys-on-surface);
 }
 
 .brand-logo {
