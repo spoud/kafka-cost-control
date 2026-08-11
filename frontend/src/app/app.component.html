@@ -190,7 +190,9 @@
                     matTooltipPosition="right"
                     (click)="toggleCollapsed()"
                 >
-                    <mat-icon>{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+                    <mat-icon fontSet="material-symbols-outlined">{{
+                        collapsed() ? 'left_panel_open' : 'left_panel_close'
+                    }}</mat-icon>
                 </button>
             }
         </div>
