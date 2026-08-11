@@ -3,31 +3,7 @@
     subtitle="Distribute provider invoices across applications and stages."
 >
     <ng-container actions>
-        @if (savedConfigs().length > 0) {
-            <mat-form-field class="saved-configs-select" subscriptSizing="dynamic">
-                <mat-label>Load saved</mat-label>
-                <mat-select (selectionChange)="loadConfig($event.value)">
-                    <mat-select-trigger>{{ selectedConfigName() }}</mat-select-trigger>
-                    @for (config of savedConfigs(); track config.id) {
-                        <mat-option [value]="config.id">
-                            <div class="config-option-row">
-                                <span>{{ config.name }}</span>
-                                <button
-                                    mat-icon-button
-                                    type="button"
-                                    class="delete-config-button"
-                                    aria-label="Delete saved configuration"
-                                    (click)="deleteConfig(config.id, $event)"
-                                >
-                                    <mat-icon>delete</mat-icon>
-                                </button>
-                            </div>
-                        </mat-option>
-                    }
-                </mat-select>
-            </mat-form-field>
-        }
-        @if (selectedConfigId()) {
+        @if (selectedConfigId(); as configId) {
             <button mat-stroked-button color="primary" type="button" (click)="openSaveDialog()">
                 <mat-icon>save</mat-icon>
                 Save as new
@@ -36,11 +12,26 @@
                 <mat-icon>save</mat-icon>
                 Update "{{ selectedConfigName() }}"
             </button>
+            <button mat-stroked-button color="warn" type="button" (click)="deleteConfig(configId)">
+                <mat-icon>delete</mat-icon>
+                Delete
+            </button>
         } @else {
             <button mat-flat-button color="primary" type="button" (click)="openSaveDialog()">
                 <mat-icon>save</mat-icon>
                 Save
             </button>
+        }
+        @if (savedConfigs().length > 0) {
+            <mat-form-field class="saved-configs-select" subscriptSizing="dynamic">
+                <mat-label>Load saved</mat-label>
+                <mat-select (selectionChange)="loadConfig($event.value)">
+                    <mat-select-trigger>{{ selectedConfigName() }}</mat-select-trigger>
+                    @for (config of savedConfigs(); track config.id) {
+                        <mat-option [value]="config.id">{{ config.name }}</mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
         }
     </ng-container>
 </app-page-header>

@@ -8,7 +8,7 @@ import { MatSlider, MatSliderThumb } from '@angular/material/slider';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatChipListbox, MatChipOption } from '@angular/material/chips';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import {
@@ -56,7 +56,6 @@ import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dial
         MatChipListbox,
         MatChipOption,
         MatButton,
-        MatIconButton,
         MatSelectModule,
         SankeyComponent,
         MatDateRangeInput,
@@ -202,8 +201,7 @@ export class CostComponent {
         this.groupBy.set(config.groupBy);
     }
 
-    deleteConfig(id: string, event: Event): void {
-        event.stopPropagation();
+    deleteConfig(id: string): void {
         this._store.deleteConfig(id);
         if (this.selectedConfigId() === id) {
             this.selectedConfigId.set(null);

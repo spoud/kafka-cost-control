@@ -8,25 +8,6 @@
     }
 }
 
-.config-option-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-}
-
-.delete-config-button {
-    width: 32px;
-    height: 32px;
-    line-height: 32px;
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
-}
-
 .card-row {
     display: grid;
     gap: var(--space-5);
