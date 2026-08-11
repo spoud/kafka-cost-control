@@ -155,10 +155,10 @@
 
             @if (!isHandset()) {
                 <button
-                    mat-icon-button
                     class="collapse-toggle"
                     aria-label="Toggle sidebar width"
                     [matTooltip]="collapsed() ? 'Expand menu' : 'Collapse menu'"
+                    matTooltipPosition="right"
                     (click)="toggleCollapsed()"
                 >
                     <mat-icon>{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
