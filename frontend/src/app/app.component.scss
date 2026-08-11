@@ -43,27 +43,10 @@ mat-sidenav {
     box-shadow: none;
     transition: none !important;
 
+    // Icons keep the exact same position whether the sidebar is collapsed or not — only the
+    // rail width changes and the label disappears, so nothing icon-related should shift.
     &.collapsed {
         width: 72px;
-
-        .nav-group-label {
-            display: none;
-        }
-
-        .brand,
-        a[mat-list-item],
-        button[mat-list-item] {
-            justify-content: center;
-            padding-inline: 0;
-
-            // Material's own leading-icon slot keeps its normal (asymmetric) inline padding
-            // even once the label next to it is removed, so centering the row itself isn't
-            // enough — the icon still sits off-center. Neutralize that padding here so the
-            // icon is the only thing left to center.
-            ::ng-deep .mdc-list-item__content {
-                padding-inline: 0;
-            }
-        }
     }
 }
 
