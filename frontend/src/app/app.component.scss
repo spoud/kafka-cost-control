@@ -155,6 +155,34 @@ button[mat-list-item] {
     flex: 0 0 auto;
 }
 
+.account-trigger {
+    position: relative;
+}
+
+// A zero-size anchor pinned to the row's own right edge (i.e. the rail's right edge, in both
+// collapsed and expanded widths), so the account menu opens as a flyout beside the sidebar
+// instead of stacking directly on top of the trigger row itself.
+.menu-anchor {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    // Material's own trailing-meta-slot class reserves a 16px margin here by default (meant
+    // to space a visible meta control off from the row's edge) — zero it out so `right: 0`
+    // lands exactly on the row's true right edge instead of 16px short of it.
+    margin: 0 !important;
+}
+
+.menu-theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+
+    span {
+        flex: 1 1 auto;
+    }
+}
+
 // A lower-emphasis control than the nav/account rows above it (it's a sidebar display
 // setting, not a destination), so it's deliberately smaller — but still left-aligned with
 // them at rest, and centered the same way when collapsed, rather than floating on its own.
@@ -168,11 +196,17 @@ button[mat-list-item] {
     background: transparent;
     color: var(--mat-sys-on-surface-variant);
     cursor: pointer;
+    transition: background-color 0.1s ease;
 
     mat-icon {
         width: 18px;
         height: 18px;
         font-size: 18px;
+    }
+
+    &:hover,
+    &:focus-visible {
+        background: var(--mat-sys-surface-container-high);
     }
 }
 

@@ -107,7 +107,11 @@
                 @if (isAuthenticated()) {
                     <a
                         mat-list-item
-                        [matMenuTriggerFor]="userMenu"
+                        class="account-trigger"
+                        tabindex="0"
+                        (click)="accountMenuTrigger.openMenu()"
+                        (keydown.enter)="accountMenuTrigger.openMenu()"
+                        (keydown.space)="accountMenuTrigger.openMenu()"
                         [matTooltip]="collapsed() && !isHandset() ? 'Account' : ''"
                         matTooltipPosition="right"
                     >
@@ -115,30 +119,55 @@
                         @if (!collapsed() || isHandset()) {
                             <span matListItemTitle class="nav-label">Account</span>
                         }
+                        <span
+                            matListItemMeta
+                            class="menu-anchor"
+                            [matMenuTriggerFor]="userMenu"
+                            #accountMenuTrigger="matMenuTrigger"
+                        ></span>
                     </a>
-                    <mat-menu #userMenu="matMenu">
-                        <a mat-menu-item routerLink="/settings">
-                            <mat-icon>settings</mat-icon>
-                            <span>Settings</span>
-                        </a>
+                    <mat-menu #userMenu="matMenu" xPosition="after">
+                        <div class="menu-theme-toggle">
+                            <mat-icon>{{
+                                themeService.isDark() ? 'dark_mode' : 'light_mode'
+                            }}</mat-icon>
+                            <span>Dark mode</span>
+                            <mat-slide-toggle
+                                [checked]="themeService.isDark()"
+                                (change)="
+                                    themeService.setThemeMode($event.checked ? 'dark' : 'light')
+                                "
+                                aria-label="Toggle dark mode"
+                            ></mat-slide-toggle>
+                        </div>
+                        <mat-divider></mat-divider>
                         <button mat-menu-item (click)="signOut()">
                             <mat-icon>logout</mat-icon>
                             <span>Sign out</span>
                         </button>
                     </mat-menu>
                 } @else {
-                    <a
+                    <button
                         mat-list-item
-                        routerLink="/settings"
-                        [matTooltip]="collapsed() && !isHandset() ? 'Settings' : ''"
+                        [matTooltip]="
+                            collapsed() && !isHandset()
+                                ? themeService.isDark()
+                                    ? 'Switch to light mode'
+                                    : 'Switch to dark mode'
+                                : ''
+                        "
                         matTooltipPosition="right"
-                        (click)="isHandset() && sidenav.close()"
+                        (click)="toggleDarkMode()"
                     >
-                        <mat-icon matListItemIcon class="nav-icon">settings</mat-icon>
+                        <mat-icon matListItemIcon class="nav-icon">{{
+                            themeService.isDark() ? 'dark_mode' : 'light_mode'
+                        }}</mat-icon>
                         @if (!collapsed() || isHandset()) {
-                            <span matListItemTitle class="nav-label">Settings</span>
+                            <span matListItemTitle class="nav-label">{{
+                                themeService.isDark() ? 'Dark mode' : 'Light mode'
+                            }}</span>
                         }
-                    </a>
+                    </button>
                     <button
                         mat-list-item
                         [matTooltip]="collapsed() && !isHandset() ? 'Sign in' : ''"

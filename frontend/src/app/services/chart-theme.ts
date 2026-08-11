@@ -8,7 +8,17 @@ export const CHART_THEME_DARK = 'kcc-dark';
 // of every chart component hand-picking colors based on ThemeService.isDark().
 const lightTheme = {
     backgroundColor: 'transparent',
-    color: ['#006877', '#36637d', '#456272', '#1c9eb4', '#6a96b2', '#7795a6', '#004e5a', '#1a4b64', '#2c4b59'],
+    color: [
+        '#006877',
+        '#36637d',
+        '#456272',
+        '#1c9eb4',
+        '#6a96b2',
+        '#7795a6',
+        '#004e5a',
+        '#1a4b64',
+        '#2c4b59',
+    ],
     textStyle: {
         color: '#171c1e',
     },
@@ -43,7 +53,17 @@ const lightTheme = {
 
 const darkTheme = {
     backgroundColor: 'transparent',
-    color: ['#46bacf', '#84b1cd', '#91b0c1', '#1c9eb4', '#6a96b2', '#7795a6', '#67d5ec', '#9fccea', '#accbdd'],
+    color: [
+        '#46bacf',
+        '#84b1cd',
+        '#91b0c1',
+        '#1c9eb4',
+        '#6a96b2',
+        '#7795a6',
+        '#67d5ec',
+        '#9fccea',
+        '#accbdd',
+    ],
     textStyle: {
         color: '#dfe3e5',
     },

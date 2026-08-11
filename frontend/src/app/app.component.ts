@@ -20,8 +20,15 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
-import { MatListItem, MatListItemIcon, MatListItemTitle, MatNavList } from '@angular/material/list';
+import {
+    MatListItem,
+    MatListItemIcon,
+    MatListItemMeta,
+    MatListItemTitle,
+    MatNavList,
+} from '@angular/material/list';
 import { MatDivider } from '@angular/material/divider';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
 import { NgOptimizedImage } from '@angular/common';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
@@ -62,7 +69,9 @@ echarts.use([
         MatListItem,
         MatListItemIcon,
         MatListItemTitle,
+        MatListItemMeta,
         MatDivider,
+        MatSlideToggle,
         RouterOutlet,
         NgOptimizedImage,
     ],
@@ -72,13 +81,11 @@ export class AppComponent {
     private _dialog = inject(MatDialog);
     private _authService = inject(BasicAuthServiceService);
     private _breakpointObserver = inject(BreakpointObserver);
+    protected readonly themeService = inject(ThemeService);
 
     private readonly SIDENAV_COLLAPSED_KEY = 'sidenav-collapsed';
 
     constructor() {
-        // eagerly instantiate so the dark/light class effect runs from app start,
-        // even though the theme mode UI now lives on the Settings page
-        inject(ThemeService);
         this.isAuthenticated = this._authService.authenticated();
     }
 
@@ -105,6 +112,10 @@ export class AppComponent {
 
     signOut(): void {
         this._authService.signOut();
+    }
+
+    toggleDarkMode(): void {
+        this.themeService.setThemeMode(this.themeService.isDark() ? 'light' : 'dark');
     }
 
     signIn(): void {

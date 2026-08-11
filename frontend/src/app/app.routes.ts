@@ -38,10 +38,6 @@ export const routes: Routes = [
             import('./tab-others/others/others.component').then(m => m.OthersComponent),
     },
     {
-        path: 'settings',
-        loadComponent: () => import('./settings/settings.component').then(m => m.SettingsComponent),
-    },
-    {
         path: 'unauthorized',
         loadComponent: () =>
             import('./common/unauthorized/unauthorized.component').then(
