@@ -8,9 +8,10 @@ import { MatSlider, MatSliderThumb } from '@angular/material/slider';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatChipListbox, MatChipOption } from '@angular/material/chips';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
     CalculateTableGQL,
     CalculateTableQuery,
@@ -56,6 +57,7 @@ import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dial
         MatChipListbox,
         MatChipOption,
         MatButton,
+        MatIconButton,
         MatSelectModule,
         SankeyComponent,
         MatDateRangeInput,
@@ -67,6 +69,9 @@ import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dial
         AbsPipe,
         PageHeaderComponent,
         DateRangeQuickSelectComponent,
+        CdkDropList,
+        CdkDrag,
+        CdkDragHandle,
     ],
     templateUrl: './cost.component.html',
     styleUrl: './cost.component.scss',
@@ -122,10 +127,12 @@ export class CostComponent {
         return total > 0 && Math.abs(this.inputTotal() - total) > 0.01;
     });
 
-    contextKeysToGroupBy = computed<string[]>(() => {
-        const selected = this.groupBy();
-        return selected.length > 0 ? selected : this.graphFilterService.contextKeys();
-    });
+    contextKeysToGroupBy = computed<string[]>(() => this.groupBy());
+
+    // context keys not yet in the group-by order, offered as "click to add" chips
+    availableContextKeys = computed<string[]>(() =>
+        this.graphFilterService.contextKeys().filter(key => !this.groupBy().includes(key))
+    );
 
     currentFormValues = computed<CostOverviewFormValues>(() => {
         const v = this.costsValue();
@@ -169,6 +176,22 @@ export class CostComponent {
 
     applyDateRange(range: DateRange): void {
         this.costs.patchValue({ from: range.from, to: range.to });
+    }
+
+    addGroupByKey(key: string): void {
+        if (!this.groupBy().includes(key)) {
+            this.groupBy.set([...this.groupBy(), key]);
+        }
+    }
+
+    removeGroupByKey(key: string): void {
+        this.groupBy.set(this.groupBy().filter(k => k !== key));
+    }
+
+    dropGroupByKey(event: CdkDragDrop<string[]>): void {
+        const reordered = [...this.groupBy()];
+        moveItemInArray(reordered, event.previousIndex, event.currentIndex);
+        this.groupBy.set(reordered);
     }
 
     openSaveDialog(): void {

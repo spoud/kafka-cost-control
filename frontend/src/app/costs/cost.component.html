@@ -170,18 +170,44 @@
             </mat-card-title>
         </mat-card-header>
         <mat-card-content>
-            <mat-chip-listbox
-                [value]="groupBy()"
-                (change)="groupBy.set($event.value)"
-                multiple
-                class="group-chips"
-            >
-                @for (key of graphFilterService.contextKeys(); track key) {
-                    <mat-chip-option [value]="key">{{ key }}</mat-chip-option>
-                }
-            </mat-chip-listbox>
+            @if (groupBy().length > 0) {
+                <span class="rule-hint"
+                    >Drag to reorder — the diagram below nests levels in this order.</span
+                >
+                <div
+                    cdkDropList
+                    cdkDropListOrientation="horizontal"
+                    class="group-chips group-chips-ordered"
+                    (cdkDropListDropped)="dropGroupByKey($event)"
+                >
+                    @for (key of groupBy(); track key) {
+                        <div class="group-chip-ordered" cdkDrag>
+                            <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+                            <span>{{ key }}</span>
+                            <button
+                                mat-icon-button
+                                (click)="removeGroupByKey(key)"
+                                [attr.aria-label]="'Remove ' + key"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+            @if (availableContextKeys().length > 0) {
+                <mat-chip-listbox (change)="addGroupByKey($event.value)" class="group-chips">
+                    @for (key of availableContextKeys(); track key) {
+                        <mat-chip-option [value]="key" [selected]="false">{{ key }}</mat-chip-option>
+                    }
+                </mat-chip-listbox>
+            }
             @if (graphFilterService.contextKeys().length === 0) {
                 <span class="rule-hint">Loading context keys…</span>
+            } @else if (groupBy().length > 2) {
+                <span class="rule-hint"
+                    >Tip: picking more than 1–2 keys can make the diagram below hard to read.</span
+                >
             }
         </mat-card-content>
     </mat-card>

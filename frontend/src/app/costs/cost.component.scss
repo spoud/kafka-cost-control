@@ -152,6 +152,39 @@ mat-card-content {
     gap: var(--space-2);
 }
 
+.group-chips-ordered {
+    margin-bottom: var(--space-3);
+}
+
+.group-chip-ordered {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+    border-radius: var(--radius-sm);
+    padding-left: var(--space-2);
+    cursor: default;
+
+    .drag-handle {
+        cursor: grab;
+        color: var(--mat-sys-on-surface-variant);
+    }
+
+    button {
+        transform: scale(0.75);
+    }
+}
+
+.cdk-drag-preview {
+    box-shadow: var(--mat-sys-level3);
+    border-radius: var(--radius-sm);
+}
+
+.cdk-drag-placeholder {
+    opacity: 0.3;
+}
+
 .results-card {
     margin-bottom: var(--space-5);
 }
