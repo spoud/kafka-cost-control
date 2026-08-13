@@ -1,0 +1,24 @@
+<div class="legend-container">
+    <mat-form-field subscriptSizing="dynamic" class="sort-select">
+        <mat-label>Sort legend</mat-label>
+        <mat-select [value]="sort()" (selectionChange)="sortChange.emit($event.value)">
+            <mat-option value="value">Value</mat-option>
+            <mat-option value="name">Name</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <ul class="legend-list">
+        @for (item of items(); track item.name) {
+            <li>
+                <button
+                    type="button"
+                    class="legend-item"
+                    [class.deselected]="!item.selected"
+                    (click)="toggleSeries.emit(item.name)"
+                >
+                    <span class="swatch" [style.background-color]="item.color"></span>
+                    <span class="name">{{ item.name }}</span>
+                </button>
+            </li>
+        }
+    </ul>
+</div>

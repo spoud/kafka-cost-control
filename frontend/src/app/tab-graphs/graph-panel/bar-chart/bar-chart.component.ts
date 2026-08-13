@@ -9,12 +9,18 @@ import { MatIcon } from '@angular/material/icon';
 import { Panel } from '../../../tab-reporting/panel.type';
 import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/types';
 import { ThemeService } from '../../../services/theme.service';
+import { CHART_COLORS_DARK, CHART_COLORS_LIGHT } from '../../../services/chart-theme';
+import {
+    ChartLegendComponent,
+    ChartLegendItem,
+    LegendSort,
+} from '../chart-legend/chart-legend.component';
 
 export type BarOrLine = 'bar' | 'line';
 
 @Component({
     selector: 'app-bar-chart',
-    imports: [MatCheckbox, NgxEchartsDirective, MatButton, MatIcon],
+    imports: [MatCheckbox, NgxEchartsDirective, MatButton, MatIcon, ChartLegendComponent],
     templateUrl: './bar-chart.component.html',
     styleUrls: ['./bar-chart.component.scss'],
     providers: [provideEchartsCore({ echarts })],
@@ -26,11 +32,44 @@ export class BarChartComponent {
 
     normalized = signal(false);
 
+    legendSort = signal<LegendSort>('value');
+
+    deselected = signal<ReadonlySet<string>>(new Set());
+
     metricsData = input.required<MetricHistory[]>();
 
     panelData = input<Panel>();
 
     type = input.required<BarOrLine>();
+
+    // color assignment follows each series' fixed index in metricsData(), never the
+    // sorted/displayed legend order, so toggling the sort never repaints a series' color
+    protected legendItems = computed<ChartLegendItem[]>(() => {
+        const colors = this.themeService.isDark() ? CHART_COLORS_DARK : CHART_COLORS_LIGHT;
+        const deselected = this.deselected();
+        const items = this.metricsData().map((m, i) => ({
+            name: m.name,
+            color: colors[i % colors.length],
+            selected: !deselected.has(m.name),
+            total: m.values.reduce((sum: number, v) => sum + (v ?? 0), 0),
+        }));
+        if (this.legendSort() === 'name') {
+            items.sort((a, b) => a.name.localeCompare(b.name));
+        } else {
+            items.sort((a, b) => b.total - a.total);
+        }
+        return items;
+    });
+
+    protected toggleLegend(name: string) {
+        const next = new Set(this.deselected());
+        if (next.has(name)) {
+            next.delete(name);
+        } else {
+            next.add(name);
+        }
+        this.deselected.set(next);
+    }
 
     options = computed<EChartsCoreOption>(() => {
         /* we create a dataset looking like this:
@@ -67,11 +106,16 @@ export class BarChartComponent {
             datasetSource.push(timeSeries);
         });
 
+        const deselected = this.deselected();
+
         return {
             tooltip: {
                 trigger: 'axis',
                 confine: true,
                 appendTo: 'body',
+            },
+            grid: {
+                containLabel: true,
             },
             xAxis: {
                 type: 'time',
@@ -116,7 +160,10 @@ export class BarChartComponent {
                 };
             }),
             legend: {
-                type: 'scroll',
+                show: false,
+                selected: Object.fromEntries(
+                    this.metricsData().map(m => [m.name, !deselected.has(m.name)])
+                ),
             },
         };
     });

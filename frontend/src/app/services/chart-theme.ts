@@ -3,22 +3,38 @@ import * as echarts from 'echarts/core';
 export const CHART_THEME_LIGHT = 'kcc-light';
 export const CHART_THEME_DARK = 'kcc-dark';
 
-// Tones pulled from the app's generated Material palette (see src/styles/_theme-colors.scss)
-// so ECharts colors stay on-brand and in sync with the rest of the UI in both themes, instead
-// of every chart component hand-picking colors based on ThemeService.isDark().
+// A validated categorical palette (fixed hue order, checked for CVD-safe separation
+// and contrast against these exact chart surfaces) so series are actually distinguishable,
+// instead of every chart component hand-picking colors based on ThemeService.isDark().
+// Slot 1 is the app's brand teal (see src/styles/_theme-colors.scss); slots 2-8 are
+// deliberately different hues rather than more teal/blue-gray tones.
+// Exported so components can build a custom legend that mirrors the same
+// index-based color assignment ECharts uses internally (series/data index -> slot).
+export const CHART_COLORS_LIGHT = [
+    '#109AAF',
+    '#eb6834',
+    '#1baf7a',
+    '#eda100',
+    '#e87ba4',
+    '#008300',
+    '#4a3aa7',
+    '#e34948',
+];
+
+export const CHART_COLORS_DARK = [
+    '#1c9eb4',
+    '#d95926',
+    '#199e70',
+    '#c98500',
+    '#d55181',
+    '#008300',
+    '#9085e9',
+    '#e66767',
+];
+
 const lightTheme = {
     backgroundColor: 'transparent',
-    color: [
-        '#006877',
-        '#36637d',
-        '#456272',
-        '#1c9eb4',
-        '#6a96b2',
-        '#7795a6',
-        '#004e5a',
-        '#1a4b64',
-        '#2c4b59',
-    ],
+    color: CHART_COLORS_LIGHT,
     textStyle: {
         color: '#171c1e',
     },
@@ -53,17 +69,7 @@ const lightTheme = {
 
 const darkTheme = {
     backgroundColor: 'transparent',
-    color: [
-        '#46bacf',
-        '#84b1cd',
-        '#91b0c1',
-        '#1c9eb4',
-        '#6a96b2',
-        '#7795a6',
-        '#67d5ec',
-        '#9fccea',
-        '#accbdd',
-    ],
+    color: CHART_COLORS_DARK,
     textStyle: {
         color: '#dfe3e5',
     },

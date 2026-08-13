@@ -13,9 +13,18 @@
     </button>
 </div>
 
-<div
-    echarts
-    [options]="options()"
-    [theme]="themeService.chartTheme()"
-    (chartInit)="onChartInit($event)"
-></div>
+<div class="chart-row">
+    <div
+        class="chart-canvas"
+        echarts
+        [options]="options()"
+        [theme]="themeService.chartTheme()"
+        (chartInit)="onChartInit($event)"
+    ></div>
+    <app-chart-legend
+        [items]="legendItems()"
+        [sort]="legendSort()"
+        (sortChange)="legendSort.set($event)"
+        (toggleSeries)="toggleLegend($event)"
+    ></app-chart-legend>
+</div>

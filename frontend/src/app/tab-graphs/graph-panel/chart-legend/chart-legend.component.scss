@@ -1,0 +1,66 @@
+:host {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 0;
+    height: 100%;
+}
+
+.legend-container {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: 12rem;
+    height: 100%;
+    min-height: 0;
+    gap: 0.5rem;
+}
+
+.sort-select {
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+.legend-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.25rem 0.25rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    color: var(--mat-sys-on-surface);
+    text-align: left;
+    border-radius: 4px;
+
+    &:hover {
+        background: var(--mat-sys-surface-container-highest);
+    }
+
+    &.deselected {
+        opacity: 0.4;
+    }
+}
+
+.swatch {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
