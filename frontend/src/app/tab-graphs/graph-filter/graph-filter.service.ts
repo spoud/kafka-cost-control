@@ -1,6 +1,10 @@
 import { computed, inject, Injectable, resource, ResourceRef, Signal } from '@angular/core';
 import { firstValueFrom, map } from 'rxjs';
-import { MetricContextKeysGQL, MetricHistoryGQL, MetricNamesGQL } from '../../../generated/graphql/sdk';
+import {
+    MetricContextKeysGQL,
+    MetricHistoryGQL,
+    MetricNamesGQL,
+} from '../../../generated/graphql/sdk';
 import { MetricHistory, MetricNameEntity } from '../../../generated/graphql/types';
 import { GraphFilter } from '../tab-graphs.component';
 

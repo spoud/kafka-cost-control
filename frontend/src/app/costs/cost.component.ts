@@ -11,7 +11,13 @@ import { MatChipListbox, MatChipOption } from '@angular/material/chips';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
-import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+    CdkDrag,
+    CdkDragDrop,
+    CdkDragHandle,
+    CdkDropList,
+    moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import {
     CalculateTableGQL,
     CalculateTableQuery,

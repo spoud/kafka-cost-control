@@ -198,7 +198,9 @@
             @if (availableContextKeys().length > 0) {
                 <mat-chip-listbox (change)="addGroupByKey($event.value)" class="group-chips">
                     @for (key of availableContextKeys(); track key) {
-                        <mat-chip-option [value]="key" [selected]="false">{{ key }}</mat-chip-option>
+                        <mat-chip-option [value]="key" [selected]="false">{{
+                            key
+                        }}</mat-chip-option>
                     }
                 </mat-chip-listbox>
             }
