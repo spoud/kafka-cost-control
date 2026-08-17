@@ -63,6 +63,15 @@
             <groupId>io.quarkiverse.langchain4j</groupId>
             <artifactId>quarkus-langchain4j-anthropic</artifactId>
         </dependency>
+        <!--
+          A second provider, so a deployment can run entirely on a local model with no data
+          leaving the network. Which one is used at runtime is chosen by
+          quarkus.langchain4j.chat-model.provider - see application.yaml.
+        -->
+        <dependency>
+            <groupId>io.quarkiverse.langchain4j</groupId>
+            <artifactId>quarkus-langchain4j-ollama</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-micrometer-registry-prometheus</artifactId>

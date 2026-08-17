@@ -106,11 +106,30 @@ quarkus:
         level: WARN
   container-image:
     build: true
-  # Which LLM the assistant talks to. The provider is decided by the quarkus-langchain4j-*
-  # artifact in pom.xml; swap it for -openai, -ollama, -mistral-ai or -gemini and configure
-  # the matching block here. OpenRouter works through the OpenAI provider by setting
-  # quarkus.langchain4j.openai.base-url=https://openrouter.ai/api/v1
+  # Which LLM the assistant talks to.
+  #
+  # Two providers are on the classpath (see pom.xml), so one must be chosen explicitly:
+  #   anthropic - hosted Claude. Best quality; the question, metric names, context keys and
+  #               (unless cc.ai.private-mode=true) query results leave your network.
+  #   ollama    - a model on your own machine or cluster. Nothing leaves the network at all.
+  #
+  # To add another vendor, put its quarkus-langchain4j-* artifact on the classpath and name it
+  # here: -openai, -mistral-ai, -gemini, -vertex-ai, -watsonx. OpenRouter is reached through the
+  # OpenAI provider with quarkus.langchain4j.openai.base-url=https://openrouter.ai/api/v1
   langchain4j:
+    chat-model:
+      provider: ${CC_AI_PROVIDER:anthropic}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat-model:
+        # Must be a model with tool-calling support - the assistant is built entirely on tools.
+        # `ollama show <model>` lists capabilities; look for "tools".
+        model-id: ${OLLAMA_MODEL:qwen3-coder:latest}
+        # Local models are slower than a hosted API, and this one has to write SQL after a few
+        # tool round-trips. The default 10s is not enough.
+        timeout: PT5M
+      log-requests: false
+      log-responses: false
     anthropic:
       # Placeholder rather than an empty default: LangChain4j requires the property to be
       # non-empty at startup, and an empty string is converted to null and fails validation.

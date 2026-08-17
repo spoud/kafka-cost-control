@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.ai;
 
-import io.quarkus.arc.All;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
 import io.spoud.kcc.aggregator.olap.OlapConfigProperties;
@@ -35,7 +34,7 @@ public class ChatService {
                        OlapConfigProperties olapConfig,
                        SchemaDescriber schemaDescriber,
                        ToolRegistry toolRegistry,
-                       @All Instance<LlmClient> llmClients) {
+                       Instance<LlmClient> llmClients) {
         this.aiConfig = aiConfig;
         this.olapConfig = olapConfig;
         this.schemaDescriber = schemaDescriber;

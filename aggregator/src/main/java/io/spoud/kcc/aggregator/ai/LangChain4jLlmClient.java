@@ -18,6 +18,7 @@ import dev.langchain4j.model.chat.request.json.JsonNumberSchema;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
+import io.quarkus.arc.Unremovable;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -39,6 +40,11 @@ import java.util.Map;
  * The {@link LlmClient} port is kept in front of it so {@link ChatService} stays free of LangChain4j
  * types — useful if a provider ever needs to be driven by its native SDK instead.
  */
+// @Unremovable is required, not decorative: ChatService looks this bean up programmatically
+// through Instance<LlmClient>, which ArC's unused-bean detection does not count as an injection
+// point. Without it the bean is dropped at build time and the assistant reports that no LLM
+// client is available — at runtime only.
+@Unremovable
 @ApplicationScoped
 public class LangChain4jLlmClient implements LlmClient {
 
