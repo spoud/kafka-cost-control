@@ -55,6 +55,56 @@ public class ToolRegistry {
         executedSql.remove();
     }
 
+    /**
+     * A tool result destined for the user rather than the model — the private-mode path.
+     *
+     * @param columns   result column headers
+     * @param rows      result rows
+     * @param truncated whether the row cap was hit
+     * @param error     set instead of the table when the query could not be run
+     */
+    public record TerminalResult(List<String> columns, List<List<String>> rows, boolean truncated, String error) {
+        public static TerminalResult failed(String message) {
+            return new TerminalResult(List.of(), List.of(), false, message);
+        }
+    }
+
+    /**
+     * Execute a terminal tool and hand the data straight back to the caller, so that it never
+     * enters the conversation and therefore never reaches the model.
+     */
+    public TerminalResult invokeTerminal(LlmMessage.ToolCall call) {
+        try {
+            return switch (call.name()) {
+                case "run_sql" -> {
+                    String sql = requireString(call, "sql");
+                    var result = queryExecutor.execute(sql);
+                    executedSql.get().add(result.executedSql());
+                    yield new TerminalResult(result.columns(), result.rows(), result.truncated(), null);
+                }
+                case "cost_overview" -> {
+                    // Cost output is already a small aggregate table; render it as one so private
+                    // mode presents everything the same way.
+                    var text = costOverview(call);
+                    yield new TerminalResult(
+                            List.of("cost breakdown"),
+                            text.lines().map(List::of).map(l -> (List<String>) l).toList(),
+                            false, null);
+                }
+                default -> TerminalResult.failed("Tool '" + call.name() + "' cannot return results directly.");
+            };
+        } catch (SqlGuard.RejectedException e) {
+            executedSql.get().add("-- REJECTED: " + e.getMessage());
+            return TerminalResult.failed("Query rejected. " + e.getMessage());
+        } catch (ReadOnlyQueryExecutor.QueryFailedException | IllegalArgumentException e) {
+            return TerminalResult.failed(e.getMessage());
+        } catch (Exception e) {
+            Log.warnf(e, "Terminal tool '%s' failed unexpectedly", call.name());
+            return TerminalResult.failed(
+                    "Tool failed: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+        }
+    }
+
     /** Dispatch one tool call. Never throws for tool-level problems; returns an error result. */
     public LlmMessage.ToolResult invoke(LlmMessage.ToolCall call) {
         try {

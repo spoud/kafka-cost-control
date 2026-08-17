@@ -110,6 +110,16 @@ public class ChatService {
                 return ChatAnswer.success(assistant.text(), toolRegistry.executedSql());
             }
 
+            // Private mode: the first data-returning call ends the turn. Its rows go to the user,
+            // never into the conversation, so the model never sees the contents of the database.
+            if (aiConfig.privateMode()) {
+                for (LlmMessage.ToolCall call : assistant.toolCalls()) {
+                    if (SchemaDescriber.isTerminalTool(call.name())) {
+                        return answerFromTable(assistant, toolRegistry.invokeTerminal(call));
+                    }
+                }
+            }
+
             var results = new ArrayList<LlmMessage.ToolResult>(assistant.toolCalls().size());
             for (LlmMessage.ToolCall call : assistant.toolCalls()) {
                 Log.debugf("Assistant invoking tool '%s'", call.name());
@@ -124,15 +134,28 @@ public class ChatService {
                 toolRegistry.executedSql());
     }
 
-    private LlmClient selectClient() {
-        String provider = aiConfig.provider();
-        for (LlmClient candidate : llmClients) {
-            if (candidate.providerName().equalsIgnoreCase(provider)) {
-                return candidate;
-            }
+    private ChatAnswer answerFromTable(LlmMessage.Assistant assistant, ToolRegistry.TerminalResult result) {
+        List<String> sql = toolRegistry.executedSql();
+        if (result.error() != null) {
+            return ChatAnswer.error(result.error());
         }
+        String preamble = assistant.text() == null || assistant.text().isBlank()
+                // The model is asked to introduce the table, but if it went straight to the query
+                // the user still needs something above the results.
+                ? "Here are the results."
+                : assistant.text();
+        return ChatAnswer.table(preamble, sql, result.columns(), result.rows(), result.truncated());
+    }
+
+    private LlmClient selectClient() {
+        for (LlmClient candidate : llmClients) {
+            return candidate;
+        }
+        // Which model and vendor is used is LangChain4j's concern, decided by the
+        // quarkus-langchain4j-* artifact on the classpath and quarkus.langchain4j.* config.
         throw new IllegalStateException(
-                "No LLM client is available for provider '" + provider + "'. Check cc.ai.provider.");
+                "No LLM client is available. Check that a quarkus-langchain4j-* provider extension "
+                        + "is on the classpath and configured under quarkus.langchain4j.*");
     }
 
     /** Keep the most recent turns, always starting the retained window on a user turn. */

@@ -5,7 +5,6 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 
 import java.time.Duration;
-import java.util.Optional;
 
 /**
  * Configuration for the optional AI assistant module, which answers natural-language questions
@@ -13,6 +12,14 @@ import java.util.Optional;
  * <p>
  * The module requires {@code cc.olap.enabled=true} as well, since every question is ultimately
  * answered from the DuckDB table.
+ * <p>
+ * <b>Model and provider selection is not here</b> — it belongs to LangChain4j under
+ * {@code quarkus.langchain4j.*}. Which provider is available is decided by the
+ * {@code quarkus-langchain4j-*} artifact on the classpath. For example:
+ * <pre>
+ * quarkus.langchain4j.anthropic.api-key=...
+ * quarkus.langchain4j.anthropic.chat-model.model-name=claude-opus-4-5
+ * </pre>
  */
 @ConfigMapping(prefix = "cc.ai")
 public interface AiConfigProperties {
@@ -21,52 +28,23 @@ public interface AiConfigProperties {
     boolean enabled();
 
     /**
-     * Which LLM provider to use. Selects the {@link LlmClient} implementation.
-     * Currently only "anthropic" is implemented.
+     * Private mode: query results are never sent to the model.
+     * <p>
+     * The model still sees the schema shape (metric names and context keys) and writes the SQL,
+     * but the rows it produces go straight to the user instead of back into the conversation.
+     * Tools that would reveal actual values are withdrawn. The trade-off is that the assistant
+     * cannot summarise, interpret, or self-correct from what the query returned — the answer is a
+     * table rather than a sentence.
+     *
+     * @see SchemaDescriber#buildSystemPrompt()
      */
-    @WithName("provider")
-    @WithDefault("anthropic")
-    String provider();
-
-    /**
-     * API key for Anthropic. Without it the module stays disabled even if {@code enabled=true},
-     * so that a misconfigured deployment fails loudly at startup rather than on the first question.
-     */
-    @WithName("anthropic.api-key")
-    Optional<String> anthropicApiKey();
-
-    /**
-     * Model id, e.g. "claude-opus-5" or "claude-sonnet-5".
-     */
-    @WithName("anthropic.model")
-    @WithDefault("claude-opus-5")
-    String anthropicModel();
-
-    /**
-     * Reasoning effort: low | medium | high | xhigh | max. Higher means better SQL on hard
-     * questions but more tokens. This is the main cost/quality dial.
-     */
-    @WithName("anthropic.effort")
-    @WithDefault("high")
-    String anthropicEffort();
-
-    /**
-     * Upper bound on tokens produced per model call. Note this covers thinking *and* the visible
-     * response, so it needs headroom above what the answer alone would need.
-     */
-    @WithName("anthropic.max-tokens")
-    @WithDefault("8000")
-    long anthropicMaxTokens();
-
-    /**
-     * Optional override of the Anthropic API base URL (for a proxy or gateway).
-     */
-    @WithName("anthropic.base-url")
-    Optional<String> anthropicBaseUrl();
+    @WithName("private-mode")
+    @WithDefault("false")
+    boolean privateMode();
 
     /**
      * Maximum number of rows any single model-authored query may return. Also caps how much
-     * data gets fed back into the model's context.
+     * data gets fed back into the model's context (outside private mode).
      */
     @WithName("max-rows")
     @WithDefault("500")

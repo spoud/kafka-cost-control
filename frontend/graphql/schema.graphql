@@ -1,8 +1,11 @@
 type ChatAnswer {
+  columns: [String!]!
   complete: Boolean!
   error: String
   generatedSql: [String!]!
+  rows: [[String]!]!
   text: String!
+  truncated: Boolean!
 }
 
 type ContextDataEntity {
