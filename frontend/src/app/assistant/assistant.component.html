@@ -1,0 +1,103 @@
+<app-page-header
+    title="Assistant"
+    subtitle="Ask questions about your Kafka usage in plain language"
+>
+    <button
+        matButton
+        actions
+        (click)="reset()"
+        [disabled]="store.entities().length === 0 || store.pending()"
+    >
+        <mat-icon>refresh</mat-icon>
+        New conversation
+    </button>
+</app-page-header>
+
+<div class="assistant">
+    <div class="transcript" #transcript>
+        @if (store.entities().length === 0) {
+            <app-empty-state
+                icon="smart_toy"
+                message="Ask a question about your metrics, topics or applications."
+            >
+                <div class="suggestions" actions>
+                    @for (suggestion of suggestions; track suggestion) {
+                        <button matButton="outlined" (click)="useSuggestion(suggestion)">
+                            {{ suggestion }}
+                        </button>
+                    }
+                </div>
+            </app-empty-state>
+        } @else {
+            @for (message of store.entities(); track message.id) {
+                <div class="message" [class.message--user]="message.role === 'user'">
+                    <div class="bubble" [class.bubble--error]="message.error">
+                        @if (message.error) {
+                            <div class="error-line">
+                                <mat-icon inline>error_outline</mat-icon>
+                                <span>{{ message.error }}</span>
+                            </div>
+                        } @else {
+                            <p class="text">{{ message.text }}</p>
+                        }
+
+                        @if (message.partial) {
+                            <div class="partial-note">
+                                <mat-icon inline>hourglass_disabled</mat-icon>
+                                <span>This answer is incomplete.</span>
+                            </div>
+                        }
+
+                        @if (message.generatedSql.length > 0) {
+                            <button matButton class="sql-toggle" (click)="toggleSql(message.id)">
+                                <mat-icon>
+                                    {{ isSqlExpanded(message.id) ? 'expand_less' : 'expand_more' }}
+                                </mat-icon>
+                                {{ message.generatedSql.length }}
+                                {{ message.generatedSql.length === 1 ? 'query' : 'queries' }}
+                            </button>
+                            @if (isSqlExpanded(message.id)) {
+                                @for (sql of message.generatedSql; track $index) {
+                                    <pre class="sql">{{ sql }}</pre>
+                                }
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+        @if (store.pending()) {
+            <div class="message">
+                <div class="bubble bubble--thinking">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+            </div>
+        }
+    </div>
+
+    <form class="composer" (ngSubmit)="send()">
+        <mat-form-field class="composer-field">
+            <mat-label>Ask a question</mat-label>
+            <textarea
+                matInput
+                rows="1"
+                [ngModel]="draft()"
+                (ngModelChange)="draft.set($event)"
+                (keydown)="onKeydown($event)"
+                name="question"
+                [disabled]="store.pending()"
+            ></textarea>
+        </mat-form-field>
+        <button
+            matIconButton
+            type="submit"
+            matTooltip="Send"
+            [disabled]="store.pending() || draft().trim().length === 0"
+        >
+            <mat-icon>send</mat-icon>
+        </button>
+    </form>
+</div>

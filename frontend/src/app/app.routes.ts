@@ -5,6 +5,12 @@ import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 
 export const routes: Routes = [
     {
+        path: 'assistant',
+        canActivate: [loggedInGuard],
+        loadComponent: () =>
+            import('./assistant/assistant.component').then(m => m.AssistantComponent),
+    },
+    {
         path: 'explore',
         loadComponent: () =>
             import('./tab-graphs/tab-graphs.component').then(m => m.TabGraphsComponent),
@@ -83,11 +89,11 @@ export interface NavLink extends Link {
 }
 
 export const menuLinks: NavLink[] = [
-    { sortOrder: 1, path: '/explore', label: 'Explore', icon: 'explore', group: 'primary' },
-    { sortOrder: 2, path: '/reporting', label: 'Reporting', icon: 'assignment', group: 'primary' },
-    { sortOrder: 3, path: '/context-data', label: 'Context Data', icon: 'label', group: 'admin' },
+    { sortOrder: 2, path: '/explore', label: 'Explore', icon: 'explore', group: 'primary' },
+    { sortOrder: 3, path: '/reporting', label: 'Reporting', icon: 'assignment', group: 'primary' },
+    { sortOrder: 4, path: '/context-data', label: 'Context Data', icon: 'label', group: 'admin' },
     {
-        sortOrder: 4,
+        sortOrder: 5,
         path: '/pricing-rules',
         label: 'Pricing Rules',
         icon: 'price_check',
@@ -103,5 +109,13 @@ export const menuLinksLoggedIn: NavLink[] = [
         icon: 'attach_money',
         group: 'primary',
     },
-    { sortOrder: 5, path: '/others', label: 'Others', icon: 'build', group: 'admin' },
+    // Logged-in only: the chat endpoint is @Authenticated on the aggregator.
+    {
+        sortOrder: 1,
+        path: '/assistant',
+        label: 'Assistant',
+        icon: 'smart_toy',
+        group: 'primary',
+    },
+    { sortOrder: 6, path: '/others', label: 'Others', icon: 'build', group: 'admin' },
 ];
