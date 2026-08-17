@@ -213,33 +213,8 @@ class ReadOnlyQueryExecutorTest {
         }
 
         @Override
-        public String provider() {
-            return "anthropic";
-        }
-
-        @Override
-        public Optional<String> anthropicApiKey() {
-            return Optional.of("test-key");
-        }
-
-        @Override
-        public String anthropicModel() {
-            return "claude-opus-5";
-        }
-
-        @Override
-        public String anthropicEffort() {
-            return "high";
-        }
-
-        @Override
-        public long anthropicMaxTokens() {
-            return 8000;
-        }
-
-        @Override
-        public Optional<String> anthropicBaseUrl() {
-            return Optional.empty();
+        public boolean privateMode() {
+            return false;
         }
 
         @Override
