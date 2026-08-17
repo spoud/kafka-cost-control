@@ -41,6 +41,17 @@ spec:
                 secretKeyRef:
                   name: kafka-cost-control-secret
                   key: CC_ADMIN_PASSWORD
+            # AI assistant. Off by default: it calls a paid third-party API, so enabling it
+            # per-environment should be a deliberate choice. Requires ANTHROPIC_API_KEY in the
+            # secret (optional: the key is only read when CC_AI_ENABLED is true).
+            - name: CC_AI_ENABLED
+              value: "false"
+            - name: CC_AI_ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: ANTHROPIC_API_KEY
+                  optional: true
           envFrom:
             - secretRef:
                 name: kafka-cost-control-secret
