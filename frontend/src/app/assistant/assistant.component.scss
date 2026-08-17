@@ -1,0 +1,132 @@
+.assistant {
+    display: flex;
+    flex-direction: column;
+    // Fill the viewport below the page header so the composer stays pinned to the bottom
+    // and only the transcript scrolls.
+    height: calc(100vh - 180px);
+    min-height: 320px;
+}
+
+.transcript {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-2) 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.message {
+    display: flex;
+    justify-content: flex-start;
+
+    &--user {
+        justify-content: flex-end;
+    }
+}
+
+.bubble {
+    max-width: min(720px, 85%);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--mat-sys-surface-container-low);
+    color: var(--mat-sys-on-surface);
+
+    .message--user & {
+        background: var(--mat-sys-secondary-container);
+        color: var(--mat-sys-on-secondary-container);
+    }
+
+    &--error {
+        background: var(--mat-sys-error-container);
+        color: var(--mat-sys-on-error-container);
+    }
+
+    &--thinking {
+        display: flex;
+        gap: var(--space-1);
+        align-items: center;
+    }
+}
+
+.text {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.error-line,
+.partial-note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font: var(--mat-sys-body-small);
+}
+
+.partial-note {
+    margin-top: var(--space-2);
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.sql-toggle {
+    margin-top: var(--space-2);
+    font: var(--mat-sys-label-small);
+}
+
+.sql {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--mat-sys-surface-container-highest);
+    color: var(--mat-sys-on-surface-variant);
+    font-family: monospace;
+    font-size: 0.75rem;
+    // Long queries scroll inside the block rather than widening the page.
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mat-sys-on-surface-variant);
+    animation: blink 1.4s infinite both;
+
+    &:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+}
+
+@keyframes blink {
+    0%,
+    80%,
+    100% {
+        opacity: 0.2;
+    }
+    40% {
+        opacity: 1;
+    }
+}
+
+.composer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+}
+
+.composer-field {
+    flex: 1;
+}
