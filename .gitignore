@@ -91,3 +91,5 @@ docker-compose.override.yaml
 devenv.lock
 devenv.nix
 devenv.yaml
+
+CLAUDE.md
