@@ -2,6 +2,9 @@ mutation chat($sessionId: String!, $message: String!) {
     chat(request: { sessionId: $sessionId, message: $message }) {
         text
         generatedSql
+        columns
+        rows
+        truncated
         complete
         error
     }

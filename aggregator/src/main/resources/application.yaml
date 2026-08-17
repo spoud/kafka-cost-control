@@ -16,13 +16,13 @@ cc:
   ai:
     # Natural-language querying of the OLAP data. Requires cc.olap.enabled=true as well,
     # since every question is ultimately answered from the DuckDB table.
+    #
+    # Model and provider are NOT configured here - see quarkus.langchain4j.* below.
     enabled: false
-    provider: anthropic
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY:}
-      model: claude-opus-5
-      # low | medium | high | xhigh | max - the main cost/quality dial
-      effort: high
+    # Private mode: the model writes the SQL but never sees the results. Rows go straight to
+    # the user. Only the schema shape (metric names, context keys) and the question leave the
+    # network; no values and no query output. The cost is that answers are tables, not prose.
+    private-mode: false
   admin-password: admin
   metrics:
     aggregations:
@@ -106,6 +106,23 @@ quarkus:
         level: WARN
   container-image:
     build: true
+  # Which LLM the assistant talks to. The provider is decided by the quarkus-langchain4j-*
+  # artifact in pom.xml; swap it for -openai, -ollama, -mistral-ai or -gemini and configure
+  # the matching block here. OpenRouter works through the OpenAI provider by setting
+  # quarkus.langchain4j.openai.base-url=https://openrouter.ai/api/v1
+  langchain4j:
+    anthropic:
+      # Placeholder rather than an empty default: LangChain4j requires the property to be
+      # non-empty at startup, and an empty string is converted to null and fails validation.
+      # Unused unless cc.ai.enabled=true.
+      api-key: ${ANTHROPIC_API_KEY:not-configured}
+      chat-model:
+        model-name: claude-opus-4-5
+        max-tokens: 8000
+      # Prompt and response logging is off by default: prompts contain your metric names and
+      # context keys, and results can contain topic and application names.
+      log-requests: false
+      log-responses: false
 
 "%dev":
   mp:

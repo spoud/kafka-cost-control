@@ -20,6 +20,14 @@ export interface ChatMessage {
     text: string;
     /** SQL the assistant ran to produce this answer, shown collapsed under the reply. */
     generatedSql: string[];
+    /**
+     * Result table. Populated in private mode, where query output goes to the user instead of
+     * back to the model — there the table is the answer and `text` only introduces it.
+     */
+    columns: string[];
+    rows: (string | null)[][];
+    /** True when the result hit the row cap and is not the whole story. */
+    truncated: boolean;
     /** True when the assistant stopped before reaching an answer (step limit). */
     partial: boolean;
     /** Set when the request failed outright; rendered as an error rather than a reply. */
@@ -83,6 +91,9 @@ export const ChatStore = signalStore(
                 role: 'user',
                 text,
                 generatedSql: [],
+                columns: [],
+                rows: [],
+                truncated: false,
                 partial: false,
                 error: null,
                 timestamp: Date.now(),

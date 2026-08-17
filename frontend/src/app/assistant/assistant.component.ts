@@ -14,6 +14,7 @@ import { MatInput } from '@angular/material/input';
 import { MatTooltip } from '@angular/material/tooltip';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
+import { LoadingIndicatorComponent } from '../common/loading-indicator/loading-indicator.component';
 import { ChatStore } from './store/chat.store';
 import { ChatGQL } from '../../generated/graphql/sdk';
 
@@ -37,6 +38,7 @@ const SUGGESTIONS = [
         MatTooltip,
         PageHeaderComponent,
         EmptyStateComponent,
+        LoadingIndicatorComponent,
     ],
     templateUrl: './assistant.component.html',
     styleUrl: './assistant.component.scss',
@@ -73,6 +75,9 @@ export class AssistantComponent {
                         this.store.addAssistantMessage({
                             text: '',
                             generatedSql: [],
+                            columns: [],
+                            rows: [],
+                            truncated: false,
                             partial: false,
                             error: 'The server returned an empty response.',
                         });
@@ -80,6 +85,9 @@ export class AssistantComponent {
                         this.store.addAssistantMessage({
                             text: answer.text,
                             generatedSql: [...(answer.generatedSql ?? [])],
+                            columns: [...(answer.columns ?? [])],
+                            rows: (answer.rows ?? []).map(row => [...row]),
+                            truncated: answer.truncated,
                             partial: !answer.complete && !answer.error,
                             error: answer.error ?? null,
                         });
@@ -91,6 +99,9 @@ export class AssistantComponent {
                     this.store.addAssistantMessage({
                         text: '',
                         generatedSql: [],
+                        columns: [],
+                        rows: [],
+                        truncated: false,
                         partial: false,
                         error: err instanceof Error ? err.message : 'The request failed.',
                     });

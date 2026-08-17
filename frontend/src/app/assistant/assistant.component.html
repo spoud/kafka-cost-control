@@ -41,6 +41,39 @@
                             <p class="text">{{ message.text }}</p>
                         }
 
+                        @if (message.columns.length > 0) {
+                            <div class="table-scroll">
+                                <table class="result">
+                                    <thead>
+                                        <tr>
+                                            @for (column of message.columns; track $index) {
+                                                <th>{{ column }}</th>
+                                            }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (row of message.rows; track $index) {
+                                            <tr>
+                                                @for (cell of row; track $index) {
+                                                    <td>{{ cell ?? '—' }}</td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="row-count">
+                                {{ message.rows.length }}
+                                {{ message.rows.length === 1 ? 'row' : 'rows' }}
+                                @if (message.truncated) {
+                                    <span class="truncated"
+                                        >— cut off at the row limit, so this is not the complete
+                                        result</span
+                                    >
+                                }
+                            </p>
+                        }
+
                         @if (message.partial) {
                             <div class="partial-note">
                                 <mat-icon inline>hourglass_disabled</mat-icon>
@@ -70,9 +103,7 @@
         @if (store.pending()) {
             <div class="message">
                 <div class="bubble bubble--thinking">
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                    <span class="dot"></span>
+                    <app-loading-indicator />
                 </div>
             </div>
         }

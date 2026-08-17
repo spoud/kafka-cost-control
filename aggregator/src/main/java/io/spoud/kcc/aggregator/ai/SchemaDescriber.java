@@ -92,6 +92,24 @@ public class SchemaDescriber {
 
                 # How to work
 
+                %s
+
+                # What is in this installation right now
+
+                Metrics present (%d):
+                %s
+
+                Context keys present (%d):
+                %s
+                """
+                .formatted(
+                        aiConfig.privateMode() ? privateModeInstructions() : standardInstructions(),
+                        metrics.size(), bulletList(metrics),
+                        contextKeys.size(), bulletList(contextKeys));
+    }
+
+    private String standardInstructions() {
+        return """
                 Do not guess at dimension names or values. The `context` keys are specific to this \
                 installation. Before writing a query that filters or groups on a context value, call \
                 `list_context_values` for that key so you use the exact spelling that exists.
@@ -104,19 +122,39 @@ public class SchemaDescriber {
                 number or finding the user asked for; put caveats after. Do not describe the SQL you \
                 wrote — the user can already see it. If the data does not answer the question, say so \
                 plainly instead of approximating.
+                """.formatted(aiConfig.maxRows());
+    }
 
-                # What is in this installation right now
+    /**
+     * Instructions for private mode, where results never come back to the model.
+     * <p>
+     * Two consequences drive the wording: the model gets exactly one shot at the query, so it must
+     * be defensive rather than iterative; and it cannot see any actual values, so filtering on a
+     * guessed string would silently return nothing. Grouping is preferred over filtering for
+     * precisely that reason.
+     */
+    private String privateModeInstructions() {
+        return """
+                This installation runs in **private mode**. You will not see the results of your \
+                query — they go directly to the user. This changes how you must work:
 
-                Metrics present (%d):
-                %s
+                - You get **one query**. There is no opportunity to inspect the output and refine it, \
+                  so make the first one count.
+                - You **cannot see any actual values** in the data — only the metric names and context \
+                  keys listed below. Never filter on a value you have guessed at; a wrong guess \
+                  silently returns an empty table and the user has no way to tell why.
+                - Prefer `GROUP BY` over `WHERE`. If the user asks about "the finance team", group by \
+                  the relevant context key and return all groups rather than filtering for a value \
+                  whose exact spelling you do not know. The user can find their row.
+                - If a filter is genuinely unavoidable, use a case-insensitive pattern match \
+                  (`ILIKE '%%finance%%'`) rather than equality.
+                - Order the results so the interesting rows come first, and label columns clearly — \
+                  the table is the entire answer, so it has to stand on its own.
+                - Results are capped at %d rows, so aggregate rather than pulling raw rows.
 
-                Context keys present (%d):
-                %s
-                """
-                .formatted(
-                        aiConfig.maxRows(),
-                        metrics.size(), bulletList(metrics),
-                        contextKeys.size(), bulletList(contextKeys));
+                Write a short sentence saying what the table shows, then call `run_sql`. Do not \
+                promise to interpret the results afterwards: you will not see them.
+                """.formatted(aiConfig.maxRows());
     }
 
     private String bulletList(Set<String> values) {
@@ -129,8 +167,41 @@ public class SchemaDescriber {
                 .collect(Collectors.joining("\n"));
     }
 
-    /** Tool declarations offered alongside the prompt above. */
+    /**
+     * Tool declarations offered alongside the prompt above.
+     * <p>
+     * In private mode {@code list_context_values} is withdrawn rather than merely discouraged:
+     * it returns real business data (application, team and topic names), which is exactly what
+     * private mode exists to keep in-house. A tool the model cannot call is a stronger guarantee
+     * than an instruction telling it not to.
+     */
     public List<LlmTool> tools() {
+        var tools = new java.util.ArrayList<>(alwaysAvailableTools());
+        if (!aiConfig.privateMode()) {
+            tools.add(listContextValuesTool());
+        }
+        return List.copyOf(tools);
+    }
+
+    /**
+     * Tools whose results are returned to the user instead of to the model. Only meaningful in
+     * private mode; {@link ChatService} ends the turn as soon as one of these is called.
+     */
+    public static boolean isTerminalTool(String toolName) {
+        return "run_sql".equals(toolName) || "cost_overview".equals(toolName);
+    }
+
+    private LlmTool listContextValuesTool() {
+        return new LlmTool("list_context_values",
+                "List the distinct values stored under one `context` key. Call this before filtering "
+                        + "or grouping on a specific value, so that you use the exact spelling that exists "
+                        + "in the data rather than guessing.",
+                java.util.Map.of("key", LlmTool.stringParam(
+                        "The context key to inspect, as returned by list_context_keys.")),
+                List.of("key"));
+    }
+
+    private List<LlmTool> alwaysAvailableTools() {
         return List.of(
                 LlmTool.noArgs("list_metrics",
                         "List every distinct initial_metric_name present in the database. "
@@ -141,14 +212,6 @@ public class SchemaDescriber {
                                 + "dimensions (team, application, topic, cost-unit, ...) available for grouping. "
                                 + "Call this first when the user asks about a dimension and you do not yet know "
                                 + "which keys exist."),
-
-                new LlmTool("list_context_values",
-                        "List the distinct values stored under one `context` key. Call this before filtering "
-                                + "or grouping on a specific value, so that you use the exact spelling that exists "
-                                + "in the data rather than guessing.",
-                        java.util.Map.of("key", LlmTool.stringParam(
-                                "The context key to inspect, as returned by list_context_keys.")),
-                        List.of("key")),
 
                 new LlmTool("run_sql",
                         "Run a read-only SQL query against the aggregated_data table and get the rows back. "

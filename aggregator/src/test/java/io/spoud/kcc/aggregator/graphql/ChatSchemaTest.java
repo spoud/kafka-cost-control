@@ -45,8 +45,16 @@ class ChatSchemaTest {
         String schema = schema();
         assertThat(schema).contains("type ChatAnswer");
         // The UI renders each of these; a silent rename would break it at runtime only.
+        // `rows` and `columns` carry the private-mode result table.
         assertThat(schema.substring(schema.indexOf("type ChatAnswer")))
-                .containsSubsequence("complete: Boolean!", "error: String", "generatedSql: [String!]!", "text: String!");
+                .containsSubsequence(
+                        "columns: [String!]!",
+                        "complete: Boolean!",
+                        "error: String",
+                        "generatedSql: [String!]!",
+                        "rows: [[String]!]!",
+                        "text: String!",
+                        "truncated: Boolean!");
     }
 
     @Test

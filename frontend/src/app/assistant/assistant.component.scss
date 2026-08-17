@@ -49,9 +49,7 @@
     }
 
     &--thinking {
-        display: flex;
-        gap: var(--space-1);
-        align-items: center;
+        min-width: 160px;
     }
 }
 
@@ -75,6 +73,40 @@
     color: var(--mat-sys-on-surface-variant);
 }
 
+// Wide result tables scroll inside the bubble rather than widening the page.
+.table-scroll {
+    margin-top: var(--space-3);
+    overflow-x: auto;
+}
+
+.result {
+    border-collapse: collapse;
+    font: var(--mat-sys-body-small);
+
+    th,
+    td {
+        padding: var(--space-1) var(--space-3);
+        text-align: left;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    th {
+        font-weight: 600;
+        color: var(--mat-sys-on-surface-variant);
+    }
+}
+
+.row-count {
+    margin: var(--space-2) 0 0;
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.truncated {
+    color: var(--mat-sys-error);
+}
+
 .sql-toggle {
     margin-top: var(--space-2);
     font: var(--mat-sys-label-small);
@@ -91,33 +123,6 @@
     // Long queries scroll inside the block rather than widening the page.
     overflow-x: auto;
     white-space: pre;
-}
-
-.dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--mat-sys-on-surface-variant);
-    animation: blink 1.4s infinite both;
-
-    &:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-
-    &:nth-child(3) {
-        animation-delay: 0.4s;
-    }
-}
-
-@keyframes blink {
-    0%,
-    80%,
-    100% {
-        opacity: 0.2;
-    }
-    40% {
-        opacity: 1;
-    }
 }
 
 .composer {

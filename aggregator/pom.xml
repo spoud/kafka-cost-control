@@ -27,7 +27,7 @@
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <kafka.version>4.3.1</kafka.version>
         <confluent.platform.version>8.3.0</confluent.platform.version>
-        <anthropic.sdk.version>2.54.0</anthropic.sdk.version>
+        <quarkus.langchain4j.version>1.12.2</quarkus.langchain4j.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -35,6 +35,13 @@
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
                 <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkiverse.langchain4j</groupId>
+                <artifactId>quarkus-langchain4j-bom</artifactId>
+                <version>${quarkus.langchain4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -47,15 +54,14 @@
             <version>1.5.5.0</version>
         </dependency>
         <!--
-          Official Anthropic SDK, used by the AI assistant (io.spoud.kcc.aggregator.ai).
-          Deliberately a plain library rather than quarkus-langchain4j: the latter is not in the
-          Quarkus platform BOM and its current release targets an older Quarkus than we run on.
-          Provider pluggability lives in our own LlmClient port instead.
+          LangChain4j gives the AI assistant one ChatModel interface with many provider
+          implementations. Swapping provider is a dependency + config change: replace this
+          artifact with -openai, -ollama, -mistral-ai, -gemini, ... (OpenRouter works through
+          -openai by pointing base-url at https://openrouter.ai/api/v1).
         -->
         <dependency>
-            <groupId>com.anthropic</groupId>
-            <artifactId>anthropic-java</artifactId>
-            <version>${anthropic.sdk.version}</version>
+            <groupId>io.quarkiverse.langchain4j</groupId>
+            <artifactId>quarkus-langchain4j-anthropic</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
