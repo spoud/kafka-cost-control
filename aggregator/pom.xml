@@ -27,6 +27,7 @@
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <kafka.version>4.3.1</kafka.version>
         <confluent.platform.version>8.3.0</confluent.platform.version>
+        <anthropic.sdk.version>2.54.0</anthropic.sdk.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -44,6 +45,17 @@
             <groupId>org.duckdb</groupId>
             <artifactId>duckdb_jdbc</artifactId>
             <version>1.5.5.0</version>
+        </dependency>
+        <!--
+          Official Anthropic SDK, used by the AI assistant (io.spoud.kcc.aggregator.ai).
+          Deliberately a plain library rather than quarkus-langchain4j: the latter is not in the
+          Quarkus platform BOM and its current release targets an older Quarkus than we run on.
+          Provider pluggability lives in our own LlmClient port instead.
+        -->
+        <dependency>
+            <groupId>com.anthropic</groupId>
+            <artifactId>anthropic-java</artifactId>
+            <version>${anthropic.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

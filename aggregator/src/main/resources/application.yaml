@@ -13,6 +13,16 @@ cc:
     database:
       # technically this is already the default, but let's be explicit
       url: "jdbc:duckdb:/tmp/cc/local.db"
+  ai:
+    # Natural-language querying of the OLAP data. Requires cc.olap.enabled=true as well,
+    # since every question is ultimately answered from the DuckDB table.
+    enabled: false
+    provider: anthropic
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: claude-opus-5
+      # low | medium | high | xhigh | max - the main cost/quality dial
+      effort: high
   admin-password: admin
   metrics:
     aggregations:
@@ -108,4 +118,7 @@ quarkus:
   cc:
     aggregation-window-size: PT1H
     olap:
+      enabled: true
+    ai:
+      # Still needs ANTHROPIC_API_KEY in the environment to actually answer anything.
       enabled: true

@@ -93,6 +93,31 @@ public class OlapInfra {
         }
     }
 
+    /**
+     * Open an additional connection that shares the same underlying DuckDB instance but has its
+     * own transaction context.
+     * <p>
+     * This must go through {@link org.duckdb.DuckDBConnection#duplicate()} rather than a fresh
+     * {@link DriverManager#getConnection}: with the default in-memory URL ({@code jdbc:duckdb:})
+     * a new DriverManager connection opens a <em>different, empty</em> database, so callers would
+     * silently query nothing.
+     * <p>
+     * Used by the AI assistant to run model-authored queries without contending with the
+     * synchronized ingest flush on the shared read-write connection.
+     *
+     * @return a duplicated connection the caller owns and must close, or empty if OLAP is off
+     */
+    public Optional<Connection> duplicateConnection() {
+        return getConnection().flatMap(conn -> {
+            try {
+                return Optional.of(((org.duckdb.DuckDBConnection) conn).duplicate());
+            } catch (SQLException e) {
+                Log.warn("Failed to duplicate OLAP connection", e);
+                return Optional.empty();
+            }
+        });
+    }
+
     private void createTableIfNotExists(Connection connection) throws SQLException {
         try (var statement = connection.createStatement()) {
             var initSqlStream = OlapInfra.class.getClassLoader().getResourceAsStream("olap-schema.sql");
