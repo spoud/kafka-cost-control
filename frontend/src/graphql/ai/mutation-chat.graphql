@@ -1,5 +1,5 @@
 mutation chat($sessionId: String!, $message: String!) {
-    chat(sessionId: $sessionId, message: $message) {
+    chat(request: { sessionId: $sessionId, message: $message }) {
         text
         generatedSql
         complete

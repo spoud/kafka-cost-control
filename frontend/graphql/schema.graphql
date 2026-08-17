@@ -64,12 +64,7 @@ type MetricToDistributionMap {
 "Mutation root"
 type Mutation {
   "Ask a natural-language question about the aggregated metrics data."
-  chat(
-    "The question to answer."
-    message: String!,
-    "Client-generated conversation id; history is kept per session."
-    sessionId: String!
-  ): ChatAnswer!
+  chat(request: ChatRequestInput): ChatAnswer!
   "Forget the conversation history for one session."
   clearChat(sessionId: String!): Boolean!
   deleteContextData(request: ContextDataDeleteRequestInput): ContextDataEntity
@@ -150,6 +145,13 @@ input ContextDataSaveRequestInput {
   validFrom: DateTime
   "ISO-8601"
   validUntil: DateTime
+}
+
+input ChatRequestInput {
+  "The question to answer."
+  message: String!
+  "Client-generated conversation id; history is kept per session."
+  sessionId: String!
 }
 
 input CostOverviewRequestInput {

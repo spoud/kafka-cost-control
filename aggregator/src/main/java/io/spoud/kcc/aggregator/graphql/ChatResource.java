@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.graphql;
 import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.ai.ChatService;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
+import io.spoud.kcc.aggregator.graphql.data.ChatRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.POST;
@@ -20,7 +21,9 @@ import org.eclipse.microprofile.graphql.NonNull;
 /**
  * Natural-language querying of the OLAP data.
  * <p>
- * Dual-annotated as GraphQL and REST, matching {@link MetricsResource}.
+ * Dual-annotated as GraphQL and REST, matching {@link MetricsResource}. The question is taken as a
+ * single {@link ChatRequest} rather than two parameters because JAX-RS permits only one body
+ * parameter per method — the same reason {@link CostsResource} takes a request object.
  * <p>
  * {@code @Authenticated} is required and must stay: this project has no
  * {@code quarkus.http.auth.permission.*} block and no {@code deny-unannotated}, so an endpoint
@@ -39,12 +42,8 @@ public class ChatResource {
     @POST
     @Mutation("chat")
     @Description("Ask a natural-language question about the aggregated metrics data.")
-    public @NonNull ChatAnswer chat(
-            @Name("sessionId") @Description("Client-generated conversation id; history is kept per session.")
-            @NonNull String sessionId,
-            @Name("message") @Description("The question to answer.")
-            @NonNull String message) {
-        return chatService.ask(sessionId, message);
+    public @NonNull ChatAnswer chat(ChatRequest request) {
+        return chatService.ask(request.sessionId(), request.message());
     }
 
     @DELETE
