@@ -49,6 +49,35 @@ const initialState: ChatState = {
     pending: false,
 };
 
+/**
+ * Normalise messages read back from localStorage.
+ *
+ * A stored transcript can predate any field added since it was written — `columns`, `rows` and
+ * `truncated` arrived with private mode, so a transcript from before then has them missing.
+ * Rendering reads `message.columns.length` directly, so an un-normalised legacy message crashes
+ * the whole page rather than degrading. Filling defaults here means the transcript survives a
+ * schema change instead of having to be cleared by hand.
+ */
+function hydrateMessages(stored: unknown): ChatMessage[] {
+    if (!Array.isArray(stored)) {
+        return [];
+    }
+    return stored
+        .filter((m): m is Partial<ChatMessage> => !!m && typeof m === 'object')
+        .map(m => ({
+            id: m.id ?? uuidv4(),
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            text: m.text ?? '',
+            generatedSql: m.generatedSql ?? [],
+            columns: m.columns ?? [],
+            rows: m.rows ?? [],
+            truncated: m.truncated ?? false,
+            partial: m.partial ?? false,
+            error: m.error ?? null,
+            timestamp: m.timestamp ?? Date.now(),
+        }));
+}
+
 export const ChatStore = signalStore(
     { providedIn: 'root' },
     withState(initialState),
@@ -65,7 +94,7 @@ export const ChatStore = signalStore(
             const storedMessages = localStorage.getItem(MESSAGES_KEY);
             if (storedMessages) {
                 try {
-                    patchState(store, addEntities(JSON.parse(storedMessages) as ChatMessage[]));
+                    patchState(store, addEntities(hydrateMessages(JSON.parse(storedMessages))));
                 } catch {
                     // A corrupted transcript is not worth failing the page over — start fresh.
                     localStorage.removeItem(MESSAGES_KEY);
