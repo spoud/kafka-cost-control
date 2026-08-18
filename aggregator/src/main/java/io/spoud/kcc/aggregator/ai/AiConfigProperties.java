@@ -60,9 +60,13 @@ public interface AiConfigProperties {
 
     /**
      * Wall-clock limit for a single model-authored query.
+     * <p>
+     * This bounds a runaway query against the shared DuckDB instance, so it should stay finite —
+     * but it has to be realistic for an analytical scan over a production-sized table. 10s was
+     * comfortable against synthetic data and far too tight against a few hundred MB.
      */
     @WithName("query-timeout")
-    @WithDefault("PT10S")
+    @WithDefault("PT30S")
     Duration queryTimeout();
 
     /**
