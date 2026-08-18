@@ -100,6 +100,42 @@ class AssistantLiveTest {
         assertThat(answer.generatedSql()).isNotEmpty();
     }
 
+    @Test
+    void keepsContextAcrossQuestionsInTheSameSession() {
+        String session = UUID.randomUUID().toString();
+
+        ChatAnswer first = chatService.ask(session, "How many distinct applications are there?");
+        ChatAnswer second = chatService.ask(session, "What did I just ask you about? Answer in one short sentence.");
+
+        System.out.println("\n=== TURN 1 ===\n" + first.text());
+        System.out.println("\n=== TURN 2 ===\n" + second.text());
+
+        assertThat(first.error()).isNull();
+        assertThat(second.error()).isNull();
+        // The follow-up is unanswerable without the earlier turn, so this fails if history is
+        // not being replayed for the same session id.
+        assertThat(second.text().toLowerCase()).contains("application");
+    }
+
+    @Test
+    void privateModeSurvivesAFollowUpQuestion() {
+        // Private mode returns as soon as a terminal tool is called, which leaves the assistant
+        // turn in history holding a tool call. If the matching tool result is not recorded, the
+        // next question replays a dangling tool call and the provider rejects the conversation.
+        ChatService privateChat = privateModeChatService();
+        String session = UUID.randomUUID().toString();
+
+        ChatAnswer first = privateChat.ask(session, "Show total bytes per application.");
+        ChatAnswer second = privateChat.ask(session, "Now show total bytes per tenant instead.");
+
+        System.out.println("\n=== PRIVATE TURN 1 === rows=" + first.rows().size() + " err=" + first.error());
+        System.out.println("=== PRIVATE TURN 2 === rows=" + second.rows().size() + " err=" + second.error());
+
+        assertThat(first.error()).isNull();
+        assertThat(second.error()).isNull();
+        assertThat(second.rows()).isNotEmpty();
+    }
+
     /**
      * A ChatService wired with private mode on, sharing the application's real repositories so the
      * query runs against the same synthetic data.
