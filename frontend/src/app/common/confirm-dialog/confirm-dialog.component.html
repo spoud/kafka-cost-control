@@ -10,12 +10,16 @@
     }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-    <button mat-stroked-button mat-dialog-close>{{ data.cancelLabel ?? 'Cancel' }}</button>
+    <!-- Focus cancel, not confirm: every caller is destructive, and with focus on confirm a
+         stray Enter fires the action outright. Reprocess resets Kafka Streams consumer offsets
+         and forces a full restart, so the cost of an accidental keypress is high. -->
+    <button mat-stroked-button mat-dialog-close cdkFocusInitial>
+        {{ data.cancelLabel ?? 'Cancel' }}
+    </button>
     <button
         mat-flat-button
         [color]="data.destructive ? 'warn' : 'primary'"
         [mat-dialog-close]="true"
-        cdkFocusInitial
     >
         {{ data.confirmLabel ?? 'Confirm' }}
     </button>
