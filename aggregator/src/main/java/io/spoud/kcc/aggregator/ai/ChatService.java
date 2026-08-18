@@ -151,7 +151,19 @@ public class ChatService {
             if (aiConfig.privateMode()) {
                 for (LlmMessage.ToolCall call : assistant.toolCalls()) {
                     if (SchemaDescriber.isTerminalTool(call.name())) {
-                        return answerFromTable(assistant, toolRegistry.invokeTerminal(call));
+                        ToolRegistry.TerminalResult result = toolRegistry.invokeTerminal(call);
+                        // Close every tool call this turn made, without revealing what came back.
+                        // The assistant turn is already in history carrying its tool calls; leaving
+                        // them unanswered replays a tool_use with no tool_result on the next
+                        // question, which strict providers reject outright - and because the
+                        // rejection lands in the catch below, which only strips the trailing user
+                        // turn, the dangling call would poison every later question in the session.
+                        history.add(new LlmMessage.ToolResults(assistant.toolCalls().stream()
+                                .map(c -> LlmMessage.ToolResult.ok(c.id(),
+                                        "Results were returned directly to the user. Private mode is "
+                                                + "enabled, so you cannot see them."))
+                                .toList()));
+                        return answerFromTable(assistant, result);
                     }
                 }
             }

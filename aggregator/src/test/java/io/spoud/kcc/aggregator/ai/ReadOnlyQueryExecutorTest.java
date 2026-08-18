@@ -123,6 +123,24 @@ class ReadOnlyQueryExecutorTest {
     }
 
     @Test
+    void leavesTheSharedConnectionAbleToExport() throws Exception {
+        // Regression: an earlier version set enable_external_access=false on the duplicated
+        // connection as defence in depth. That setting is global to the DuckDB instance, not
+        // per-connection, so it also killed COPY ... TO on the shared connection - permanently
+        // breaking /olap/export after the first assistant query.
+        executor.execute("SELECT name FROM aggregated_data");
+
+        var out = java.nio.file.Files.createTempFile("export-probe", ".csv");
+        java.nio.file.Files.deleteIfExists(out);
+        Connection shared = olapInfra.getConnection().orElseThrow();
+        try (Statement stmt = shared.createStatement()) {
+            stmt.execute("COPY (SELECT * FROM aggregated_data) TO '" + out + "' (HEADER, DELIMITER ',')");
+        }
+        assertThat(out).exists();
+        java.nio.file.Files.deleteIfExists(out);
+    }
+
+    @Test
     void reportsAClearErrorWhenOlapIsDisabled() {
         var disabled = new ReadOnlyQueryExecutor(
                 new OlapInfra(new FakeOlapConfig() {
