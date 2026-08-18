@@ -63,6 +63,10 @@ public class ChatResource {
     @Mutation("chat")
     @Description("Ask a natural-language question about the aggregated metrics data.")
     public @NonNull ChatAnswer chat(ChatRequest request) {
+        // The GraphQL argument is nullable and the REST body may be empty, so this is reachable.
+        if (request == null) {
+            return ChatAnswer.error("No question was supplied.");
+        }
         return chatService.ask(request.sessionId(), request.message(), request.priorTurnsOrZero());
     }
 

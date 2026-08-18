@@ -25,9 +25,15 @@ import java.util.concurrent.TimeoutException;
  * <ol>
  *   <li><b>Isolated connection</b> — a duplicate of the shared DuckDB connection, so a long
  *       analytical query does not contend with the synchronized ingest flush.</li>
- *   <li><b>{@code enable_external_access=false}</b> — the exfiltration guard. Blocks
- *       {@code COPY ... TO '<file>'}, {@code ATTACH}, {@code INSTALL}/{@code LOAD}, and httpfs
- *       reads at the engine level.</li>
+ *   <li><b>Statement validation</b> ({@link SqlGuard}) — the exfiltration guard. Rejects
+ *       {@code COPY}, {@code ATTACH}, {@code INSTALL}/{@code LOAD} and the {@code read_*} table
+ *       functions before anything reaches the engine.
+ *       <p>
+ *       An earlier version also set {@code enable_external_access=false} on this connection as
+ *       defence in depth. That was removed: in DuckDB the setting is <em>global to the database
+ *       instance</em>, not per-connection, and one-way. Setting it here disabled
+ *       {@code COPY ... TO} on the shared connection too, permanently breaking
+ *       {@code /olap/export} for the lifetime of the process after the first assistant query.</li>
  *   <li><b>Unconditional rollback</b> — every query runs inside an explicit transaction that is
  *       always rolled back. DuckDB DDL is transactional, so this reverts anything that somehow
  *       got past layers 1-2 and {@link SqlGuard}.</li>
@@ -98,18 +104,14 @@ public class ReadOnlyQueryExecutor {
     }
 
     /**
-     * Apply engine-level restrictions to this connection only. The shared read-write connection
-     * is untouched, so ingest keeps its ability to write.
+     * Put this connection in an explicit transaction so everything it does can be rolled back.
+     * <p>
+     * Deliberately does <em>not</em> touch {@code enable_external_access}: that setting is global
+     * to the DuckDB instance rather than per-connection, so disabling it here would also disable
+     * {@code COPY ... TO} on the shared connection and break {@code /olap/export}.
+     * Filesystem and network access are blocked by {@link SqlGuard} instead.
      */
     private void harden(Connection conn) throws SQLException {
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute("SET enable_external_access = false");
-        } catch (SQLException e) {
-            // Fail closed: without this setting the exfiltration guard is gone, and SqlGuard
-            // alone is not a sufficient basis for running untrusted SQL.
-            throw new QueryFailedException(
-                    "Could not apply read-only restrictions to the database connection; refusing to run the query.");
-        }
         conn.setAutoCommit(false);
     }
 

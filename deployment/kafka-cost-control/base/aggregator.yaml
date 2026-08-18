@@ -46,7 +46,9 @@ spec:
             # secret (optional: the key is only read when CC_AI_ENABLED is true).
             - name: CC_AI_ENABLED
               value: "false"
-            - name: CC_AI_ANTHROPIC_API_KEY
+            # Must be ANTHROPIC_API_KEY: application.yaml reads ${ANTHROPIC_API_KEY}, not a
+            # cc.ai.* property. Naming it CC_AI_ANTHROPIC_API_KEY silently did nothing.
+            - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: kafka-cost-control-secret
