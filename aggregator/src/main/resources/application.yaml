@@ -121,13 +121,14 @@ quarkus:
       provider: ${CC_AI_PROVIDER:anthropic}
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      # Belongs to the Ollama client, NOT to chat-model: nesting it one level deeper is silently
+      # ignored and you get the 10s default back. A local model has to load into memory on the
+      # first call and then write SQL across several tool round-trips, which 10s does not cover.
+      timeout: ${OLLAMA_TIMEOUT:PT10M}
       chat-model:
         # Must be a model with tool-calling support - the assistant is built entirely on tools.
         # `ollama show <model>` lists capabilities; look for "tools".
         model-id: ${OLLAMA_MODEL:qwen3-coder:latest}
-        # Local models are slower than a hosted API, and this one has to write SQL after a few
-        # tool round-trips. The default 10s is not enough.
-        timeout: PT5M
       log-requests: false
       log-responses: false
     anthropic:

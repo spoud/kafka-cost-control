@@ -50,8 +50,11 @@ class AssistantLiveTest {
                     "cc.ai.max-tool-iterations", "6",
                     "quarkus.langchain4j.chat-model.provider", "ollama",
                     "quarkus.langchain4j.ollama.chat-model.model-id",
-                    System.getProperty("assistant.model", "Qwen3-Coder:latest"),
-                    "quarkus.langchain4j.ollama.timeout", "PT10M");
+                    System.getProperty("assistant.model", "Qwen3-Coder:latest"));
+            // Deliberately does NOT override quarkus.langchain4j.ollama.timeout. An earlier
+            // version did, and that hid a real defect: application.yaml had the timeout nested
+            // under chat-model, where it is silently ignored. The test passed, the app did not.
+            // Leaving it out means this test exercises the shipped configuration.
         }
     }
 
