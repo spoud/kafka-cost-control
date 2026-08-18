@@ -2,10 +2,13 @@ package io.spoud.kcc.aggregator.graphql;
 
 import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.ai.ChatService;
+import io.spoud.kcc.aggregator.graphql.data.AssistantStatus;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
 import io.spoud.kcc.aggregator.graphql.data.ChatRequest;
+import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -15,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.eclipse.microprofile.graphql.Description;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Mutation;
+import org.eclipse.microprofile.graphql.Query;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 
@@ -38,6 +42,22 @@ import org.eclipse.microprofile.graphql.NonNull;
 public class ChatResource {
 
     private final ChatService chatService;
+
+    /**
+     * Lets the UI hide the assistant when this deployment cannot answer, instead of presenting a
+     * chat box that only reveals it is switched off once a question has been typed.
+     * <p>
+     * {@code @PermitAll} because it exposes nothing but whether a feature is switched on, and the
+     * navigation needs to decide before it knows anything else about the user.
+     */
+    @GET
+    @Path("/status")
+    @PermitAll
+    @Query("assistantStatus")
+    @Description("Whether the AI assistant is configured and able to answer questions.")
+    public @NonNull AssistantStatus assistantStatus() {
+        return chatService.status();
+    }
 
     @POST
     @Mutation("chat")
