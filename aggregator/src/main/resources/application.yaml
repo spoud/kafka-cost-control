@@ -12,7 +12,7 @@ cc:
     enabled: false
     database:
       # technically this is already the default, but let's be explicit
-      url: "jdbc:duckdb:"
+      url: "jdbc:duckdb:/tmp/cc/local.db"
   admin-password: admin
   metrics:
     aggregations:
@@ -59,7 +59,7 @@ quarkus:
     application-id: ${kafka.application.id}
     topics: ${cc.topics.raw-data},${cc.topics.context-data},${cc.topics.pricing-rules},${cc.topics.aggregated}
     state:
-      dir: /tmp/my-streams
+      dir: /tmp/cc/my-streams
     default:
       key:
         serde: org.apache.kafka.common.serialization.Serdes$StringSerde
@@ -96,3 +96,16 @@ quarkus:
         level: WARN
   container-image:
     build: true
+
+"%dev":
+  mp:
+    messaging:
+      connector:
+        smallrye-kafka:
+          apicurio:
+            registry:
+              url: ${kafka.schema.registry.url}/apis/registry/v2
+  cc:
+    aggregation-window-size: PT1H
+    olap:
+      enabled: true
