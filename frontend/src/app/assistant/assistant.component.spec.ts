@@ -121,4 +121,45 @@ describe('AssistantComponent', () => {
         // No composer, so a question that is guaranteed to fail cannot be typed.
         expect(fixture.nativeElement.querySelector('textarea')).toBeNull();
     });
+
+    it('says so when the assistant did not have the earlier messages', () => {
+        // The browser keeps the transcript across an aggregator restart; the aggregator does not
+        // keep its history. Without this the visible history implies a memory the model lacks.
+        localStorage.setItem(
+            MESSAGES_KEY,
+            JSON.stringify([
+                {
+                    id: 'a',
+                    role: 'user',
+                    text: 'an earlier question',
+                    generatedSql: [],
+                    columns: [],
+                    rows: [],
+                    truncated: false,
+                    contextLost: false,
+                    partial: false,
+                    error: null,
+                    timestamp: 1,
+                },
+                {
+                    id: 'b',
+                    role: 'assistant',
+                    text: 'an answer with no memory of the above',
+                    generatedSql: [],
+                    columns: [],
+                    rows: [],
+                    truncated: false,
+                    contextLost: true,
+                    partial: false,
+                    error: null,
+                    timestamp: 2,
+                },
+            ])
+        );
+
+        const fixture = TestBed.createComponent(AssistantComponent);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('Earlier messages were not available');
+    });
 });

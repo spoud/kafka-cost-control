@@ -38,6 +38,18 @@
                 </app-empty-state>
             } @else {
                 @for (message of store.entities(); track message.id) {
+                    @if (message.contextLost) {
+                        <!-- The transcript above survived in the browser but the assistant's memory of
+                         it did not, so say so rather than letting the visible history imply
+                         otherwise. -->
+                        <div class="note">
+                            <mat-icon inline>history_toggle_off</mat-icon>
+                            <span
+                                >Earlier messages were not available to the assistant — it answered
+                                from this question alone.</span
+                            >
+                        </div>
+                    }
                     <div class="message" [class.message--user]="message.role === 'user'">
                         <div class="bubble" [class.bubble--error]="message.error">
                             @if (message.error) {
@@ -83,7 +95,7 @@
                             }
 
                             @if (message.partial) {
-                                <div class="partial-note">
+                                <div class="note">
                                     <mat-icon inline>hourglass_disabled</mat-icon>
                                     <span>This answer is incomplete.</span>
                                 </div>

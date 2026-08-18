@@ -77,9 +77,15 @@ public interface AiConfigProperties {
     int maxSessions();
 
     /**
-     * How many messages to retain per conversation before dropping the oldest turns.
+     * How many completed exchanges (question plus everything the assistant did to answer it) to
+     * retain per conversation.
+     * <p>
+     * Counted in exchanges rather than raw messages on purpose: one question can add a dozen or
+     * more messages once tool round-trips are counted, so a raw message cap makes the retained
+     * history depend on how tool-heavy the recent questions happened to be. A user who asks three
+     * questions expects three questions to be remembered, regardless of how hard each was.
      */
-    @WithName("max-history-messages")
-    @WithDefault("40")
-    int maxHistoryMessages();
+    @WithName("max-history-exchanges")
+    @WithDefault("10")
+    int maxHistoryExchanges();
 }

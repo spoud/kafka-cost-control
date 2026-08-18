@@ -28,6 +28,12 @@ export interface ChatMessage {
     rows: (string | null)[][];
     /** True when the result hit the row cap and is not the whole story. */
     truncated: boolean;
+    /**
+     * True when the backend had no memory of this conversation even though we were showing
+     * earlier questions. Its history is in memory only, so a restart drops it while this
+     * transcript survives in localStorage.
+     */
+    contextLost: boolean;
     /** True when the assistant stopped before reaching an answer (step limit). */
     partial: boolean;
     /** Set when the request failed outright; rendered as an error rather than a reply. */
@@ -72,6 +78,7 @@ function hydrateMessages(stored: unknown): ChatMessage[] {
             columns: m.columns ?? [],
             rows: m.rows ?? [],
             truncated: m.truncated ?? false,
+            contextLost: m.contextLost ?? false,
             partial: m.partial ?? false,
             error: m.error ?? null,
             timestamp: m.timestamp ?? Date.now(),
@@ -123,6 +130,7 @@ export const ChatStore = signalStore(
                 columns: [],
                 rows: [],
                 truncated: false,
+                contextLost: false,
                 partial: false,
                 error: null,
                 timestamp: Date.now(),

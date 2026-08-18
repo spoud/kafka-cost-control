@@ -180,7 +180,7 @@ class AssistantLiveTest {
             return 10;
         }
 
-        public int maxHistoryMessages() {
+        public int maxHistoryExchanges() {
             return 20;
         }
     };

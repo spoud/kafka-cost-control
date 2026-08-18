@@ -63,7 +63,7 @@ public class ChatResource {
     @Mutation("chat")
     @Description("Ask a natural-language question about the aggregated metrics data.")
     public @NonNull ChatAnswer chat(ChatRequest request) {
-        return chatService.ask(request.sessionId(), request.message());
+        return chatService.ask(request.sessionId(), request.message(), request.priorTurnsOrZero());
     }
 
     @DELETE
