@@ -1,10 +1,11 @@
-mutation chat($sessionId: String!, $message: String!) {
-    chat(request: { sessionId: $sessionId, message: $message }) {
+mutation chat($sessionId: String!, $message: String!, $priorTurns: Int) {
+    chat(request: { sessionId: $sessionId, message: $message, priorTurns: $priorTurns }) {
         text
         generatedSql
         columns
         rows
         truncated
+        contextLost
         complete
         error
     }

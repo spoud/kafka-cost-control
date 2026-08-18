@@ -87,6 +87,14 @@ public class ChatService {
     }
 
     public ChatAnswer ask(String sessionId, String question) {
+        return ask(sessionId, question, 0);
+    }
+
+    /**
+     * @param priorTurns how many earlier questions the caller is displaying for this session; used
+     *                   only to detect that the caller remembers more than the server does
+     */
+    public ChatAnswer ask(String sessionId, String question, int priorTurns) {
         if (question == null || question.isBlank()) {
             return ChatAnswer.error("Please enter a question.");
         }
@@ -104,6 +112,10 @@ public class ChatService {
         }
 
         List<LlmMessage> history = conversations.computeIfAbsent(sessionId, k -> new ArrayList<>());
+        // The client's transcript lives in the browser and outlives ours, which is only in memory.
+        // If it is showing turns we have no record of, say so rather than quietly answering
+        // without the context the user can see on screen.
+        boolean contextLost = priorTurns > 0 && history.isEmpty();
         String systemPrompt = schemaDescriber.buildSystemPrompt();
         List<LlmTool> tools = schemaDescriber.tools();
 
@@ -111,7 +123,8 @@ public class ChatService {
             history.add(new LlmMessage.User(question));
             toolRegistry.beginQuestion();
             try {
-                return runToolLoop(llm, systemPrompt, history, tools);
+                ChatAnswer answer = runToolLoop(llm, systemPrompt, history, tools);
+                return contextLost ? answer.withContextLost() : answer;
             } catch (Exception e) {
                 Log.errorf(e, "Chat request failed for session %s", sessionId);
                 // Drop the failed turn so the next question starts from a consistent history.
@@ -181,20 +194,30 @@ public class ChatService {
                         + "is on the classpath and configured under quarkus.langchain4j.*");
     }
 
-    /** Keep the most recent turns, always starting the retained window on a user turn. */
+    /**
+     * Keep the most recent exchanges, where an exchange is a user question plus everything the
+     * assistant did to answer it.
+     * <p>
+     * The window always starts on a user turn: a tool-result turn cannot be first, and an
+     * assistant turn that made tool calls has to keep the results that answer them, or the
+     * provider sees a dangling call.
+     */
     private void trimHistory(List<LlmMessage> history) {
-        int max = aiConfig.maxHistoryMessages();
-        if (history.size() <= max) {
-            return;
+        int maxExchanges = aiConfig.maxHistoryExchanges();
+
+        // Walk back through the user turns and cut at the start of the oldest one we keep.
+        int exchanges = 0;
+        int from = -1;
+        for (int i = history.size() - 1; i >= 0; i--) {
+            if (history.get(i) instanceof LlmMessage.User) {
+                exchanges++;
+                from = i;
+                if (exchanges == maxExchanges) {
+                    break;
+                }
+            }
         }
-        int from = history.size() - max;
-        // A tool-result turn must never be the first message, and an assistant turn with tool
-        // calls must keep its results — so rewind to the nearest user turn.
-        while (from < history.size() && !(history.get(from) instanceof LlmMessage.User)) {
-            from++;
-        }
-        if (from >= history.size()) {
-            history.clear();
+        if (from <= 0) {
             return;
         }
         var retained = new ArrayList<>(history.subList(from, history.size()));

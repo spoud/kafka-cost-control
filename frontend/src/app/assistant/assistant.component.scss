@@ -21,7 +21,6 @@
     flex-direction: column;
     gap: var(--space-2);
 }
-
 .message {
     display: flex;
     justify-content: flex-start;
@@ -60,15 +59,17 @@
     overflow-wrap: anywhere;
 }
 
+// Same shape for every inline note: an icon, a gap, and a line of small text.
+// One shape for every inline note: icon, gap, a line of small text.
 .error-line,
-.partial-note {
+.note {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     font: var(--mat-sys-body-small);
 }
 
-.partial-note {
+.note {
     margin-top: var(--space-2);
     color: var(--mat-sys-on-surface-variant);
 }
@@ -82,12 +83,12 @@
 .result {
     border-collapse: collapse;
     font: var(--mat-sys-body-small);
+    white-space: nowrap;
 
     th,
     td {
         padding: var(--space-1) var(--space-3);
         text-align: left;
-        white-space: nowrap;
         border-bottom: 1px solid var(--mat-sys-outline-variant);
     }
 

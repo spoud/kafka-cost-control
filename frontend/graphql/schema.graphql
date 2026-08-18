@@ -6,6 +6,7 @@ type AssistantStatus {
 type ChatAnswer {
   columns: [String!]!
   complete: Boolean!
+  contextLost: Boolean!
   error: String
   generatedSql: [String!]!
   rows: [[String]!]!
@@ -159,6 +160,8 @@ input ContextDataSaveRequestInput {
 input ChatRequestInput {
   "The question to answer."
   message: String!
+  "How many earlier questions the client is showing for this session."
+  priorTurns: Int
   "Client-generated conversation id; history is kept per session."
   sessionId: String!
 }

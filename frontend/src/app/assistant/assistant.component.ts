@@ -63,13 +63,25 @@ export class AssistantComponent {
             return;
         }
 
+        // Counted before this question is added: how many earlier questions we are displaying.
+        const priorTurns = this.store.entities().filter(m => m.role === 'user').length;
+
         this.store.addUserMessage(question);
         this.draft.set('');
         this.store.setPending(true);
         this.scrollToBottom();
 
         this.chatGql
-            .mutate({ variables: { sessionId: this.store.sessionId(), message: question } })
+            .mutate({
+                variables: {
+                    sessionId: this.store.sessionId(),
+                    message: question,
+                    // How much conversation this transcript is showing. The backend keeps its
+                    // history in memory only, so it uses this to tell us when it has less
+                    // context than the user can see on screen.
+                    priorTurns: priorTurns,
+                },
+            })
             .subscribe({
                 next: response => {
                     const answer = response.data?.chat;
@@ -80,6 +92,7 @@ export class AssistantComponent {
                             columns: [],
                             rows: [],
                             truncated: false,
+                            contextLost: false,
                             partial: false,
                             error: 'The server returned an empty response.',
                         });
@@ -90,6 +103,7 @@ export class AssistantComponent {
                             columns: [...(answer.columns ?? [])],
                             rows: (answer.rows ?? []).map(row => [...row]),
                             truncated: answer.truncated,
+                            contextLost: answer.contextLost,
                             partial: !answer.complete && !answer.error,
                             error: answer.error ?? null,
                         });
@@ -104,6 +118,7 @@ export class AssistantComponent {
                         columns: [],
                         rows: [],
                         truncated: false,
+                        contextLost: false,
                         partial: false,
                         error: err instanceof Error ? err.message : 'The request failed.',
                     });

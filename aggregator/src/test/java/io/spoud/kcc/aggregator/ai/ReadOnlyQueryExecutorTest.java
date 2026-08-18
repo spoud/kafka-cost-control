@@ -238,7 +238,7 @@ class ReadOnlyQueryExecutorTest {
         }
 
         @Override
-        public int maxHistoryMessages() {
+        public int maxHistoryExchanges() {
             return 10;
         }
     }
