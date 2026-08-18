@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.ai;
 
 import io.quarkus.logging.Log;
+import io.spoud.kcc.aggregator.graphql.data.AssistantStatus;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
 import io.spoud.kcc.aggregator.olap.OlapConfigProperties;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -56,20 +57,43 @@ public class ChatService {
      * @param sessionId client-generated conversation id; history is keyed on it
      * @param question  the user's question
      */
+    /**
+     * Whether a question asked right now would be answered.
+     * <p>
+     * {@link #ask} consults this rather than repeating the checks, so the status the UI uses to
+     * hide the feature cannot drift from the conditions actually enforced when answering.
+     * <p>
+     * All three conditions matter and produce different fixes: the module can be switched off, the
+     * database it queries can be switched off, or no LLM provider extension can be configured.
+     */
+    public AssistantStatus status() {
+        if (!aiConfig.enabled()) {
+            return AssistantStatus.unavailable(
+                    "The AI assistant is disabled. Set cc.ai.enabled=true to use it.");
+        }
+        // Every OLAP method returns empty when the module is off, so without this check the
+        // assistant would confidently answer "I found no data" instead of "there is no database".
+        if (!olapConfig.enabled()) {
+            return AssistantStatus.unavailable(
+                    "The analytics database (OLAP) is disabled, so there is no data to query. "
+                            + "Set cc.olap.enabled=true.");
+        }
+        if (!llmClients.iterator().hasNext()) {
+            return AssistantStatus.unavailable(
+                    "No language model is configured. Add a quarkus-langchain4j-* provider "
+                            + "extension and configure it under quarkus.langchain4j.*");
+        }
+        return AssistantStatus.ready();
+    }
+
     public ChatAnswer ask(String sessionId, String question) {
         if (question == null || question.isBlank()) {
             return ChatAnswer.error("Please enter a question.");
         }
 
-        // Distinguish the two "no answer" cases explicitly — every OLAP method returns empty for
-        // both, and "I found no data" when the module is simply switched off is a bad answer.
-        if (!aiConfig.enabled()) {
-            return ChatAnswer.error("The AI assistant is disabled. Set cc.ai.enabled=true to use it.");
-        }
-        if (!olapConfig.enabled()) {
-            return ChatAnswer.error(
-                    "The analytics database (OLAP) is disabled, so there is no data to query. "
-                            + "Set cc.olap.enabled=true.");
+        AssistantStatus status = status();
+        if (!status.available()) {
+            return ChatAnswer.error(status.reason());
         }
 
         LlmClient llm;

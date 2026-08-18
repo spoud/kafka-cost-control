@@ -1,6 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { ApolloTestingModule } from 'apollo-angular/testing';
 import { AssistantComponent } from './assistant.component';
+import { AssistantStatusService } from './assistant-status.service';
+
+/** Stub standing in for the backend's answer about whether the assistant is configured. */
+function statusStub(available: boolean, reason: string | null = null) {
+    return {
+        provide: AssistantStatusService,
+        useValue: {
+            available: () => available,
+            reason: () => reason,
+            loading: () => false,
+        },
+    };
+}
 
 const MESSAGES_KEY = 'kcc_chat_messages';
 const SESSION_KEY = 'kcc_chat_session';
@@ -12,6 +25,7 @@ describe('AssistantComponent', () => {
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             imports: [AssistantComponent, ApolloTestingModule],
+            providers: [statusStub(true)],
         });
     });
 
@@ -89,5 +103,22 @@ describe('AssistantComponent', () => {
         expect(text).toContain('application');
         expect(text).toContain('LogEventAnalyzer');
         expect(text).toContain('1 row');
+    });
+
+    it('explains why instead of taking a question when no model is configured', () => {
+        // The nav entry is hidden in this case, but the route is still reachable directly.
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            imports: [AssistantComponent, ApolloTestingModule],
+            providers: [statusStub(false, 'No language model is configured.')],
+        });
+
+        const fixture = TestBed.createComponent(AssistantComponent);
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent;
+        expect(text).toContain('No language model is configured.');
+        // No composer, so a question that is guaranteed to fail cannot be typed.
+        expect(fixture.nativeElement.querySelector('textarea')).toBeNull();
     });
 });

@@ -30,6 +30,7 @@ import {
 import { MatDivider } from '@angular/material/divider';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
+import { AssistantStatusService } from './assistant/assistant-status.service';
 import { NgOptimizedImage } from '@angular/common';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -95,12 +96,19 @@ export class AppComponent {
     );
 
     isAuthenticated: Signal<boolean>;
+    private readonly assistantStatus = inject(AssistantStatusService);
+
     navLinksSignal: Signal<NavLink[]> = computed(() => {
         const list: NavLink[] = [...menuLinks];
         if (this.isAuthenticated()) {
             list.push(...menuLinksLoggedIn);
         }
-        return list.sort((a, b) => a.sortOrder - b.sortOrder);
+        // The assistant is optional and off by default. Hide it unless the backend reports it can
+        // actually answer, rather than offering a chat box that fails on the first question.
+        const assistantAvailable = this.assistantStatus.available();
+        return list
+            .filter(link => link.path !== '/assistant' || assistantAvailable)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
     });
     primaryNavLinks: Signal<NavLink[]> = computed(() =>
         this.navLinksSignal().filter(link => link.group === 'primary')

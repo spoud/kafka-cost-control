@@ -1,3 +1,8 @@
+type AssistantStatus {
+  available: Boolean!
+  reason: String
+}
+
 type ChatAnswer {
   columns: [String!]!
   complete: Boolean!
@@ -97,6 +102,7 @@ type PricingRuleEntity {
 
 "Query root"
 type Query {
+  assistantStatus: AssistantStatus!
   calculateTable(request: CostOverviewRequestInput): TableResponse!
   contextData: [ContextDataEntity!]!
   contextTest(testString: String): [ContextTestResponse!]!

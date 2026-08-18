@@ -16,6 +16,7 @@ import { PageHeaderComponent } from '../common/page-header/page-header.component
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 import { LoadingIndicatorComponent } from '../common/loading-indicator/loading-indicator.component';
 import { ChatStore } from './store/chat.store';
+import { AssistantStatusService } from './assistant-status.service';
 import { ChatGQL } from '../../generated/graphql/sdk';
 
 /** Shown as clickable starters when the transcript is empty. */
@@ -47,6 +48,7 @@ const SUGGESTIONS = [
 export class AssistantComponent {
     private readonly chatGql = inject(ChatGQL);
     protected readonly store = inject(ChatStore);
+    protected readonly status = inject(AssistantStatusService);
 
     protected readonly suggestions = SUGGESTIONS;
     protected readonly draft = signal('');
