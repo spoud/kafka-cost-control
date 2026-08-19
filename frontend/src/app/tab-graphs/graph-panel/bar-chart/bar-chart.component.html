@@ -1,23 +1,25 @@
-<div class="chart-toolbar">
-    <button
-        mat-icon-button
-        type="button"
-        aria-label="Chart options"
-        [matMenuTriggerFor]="chartMenu"
-    >
-        <mat-icon>more_vert</mat-icon>
-    </button>
-    <mat-menu #chartMenu="matMenu">
-        <button mat-menu-item type="button" (click)="normalized.set(!normalized())">
-            <mat-icon>{{ normalized() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-            <span>Normalized</span>
+@if (showToolbar()) {
+    <div class="chart-toolbar">
+        <button
+            mat-icon-button
+            type="button"
+            aria-label="Chart options"
+            [matMenuTriggerFor]="chartMenu"
+        >
+            <mat-icon>more_vert</mat-icon>
         </button>
-        <button mat-menu-item type="button" (click)="exportToCsv()">
-            <mat-icon>description</mat-icon>
-            <span>Export as CSV</span>
-        </button>
-    </mat-menu>
-</div>
+        <mat-menu #chartMenu="matMenu">
+            <button mat-menu-item type="button" (click)="normalized.set(!normalized())">
+                <mat-icon>{{ normalized() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                <span>Normalized</span>
+            </button>
+            <button mat-menu-item type="button" (click)="exportToCsv()">
+                <mat-icon>description</mat-icon>
+                <span>Export as CSV</span>
+            </button>
+        </mat-menu>
+    </div>
+}
 
 <div class="chart-row">
     <div

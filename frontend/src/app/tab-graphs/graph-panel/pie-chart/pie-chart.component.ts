@@ -16,6 +16,7 @@ import {
     LegendSort,
 } from '../chart-legend/chart-legend.component';
 import { applyLegendClick } from '../legend-selection';
+import { ChartActions } from '../chart-actions';
 import { formatCompact } from '../../../common/compact-number';
 
 @Component({
@@ -33,7 +34,10 @@ import { formatCompact } from '../../../common/compact-number';
     styleUrls: ['./pie-chart.component.scss'],
     providers: [provideEchartsCore({ echarts })],
 })
-export class PieChartComponent {
+export class PieChartComponent implements ChartActions {
+    /** Hosts that surface these actions in their own menu (Reporting panels) turn this off. */
+    showToolbar = input(true);
+
     protected readonly themeService = inject(ThemeService);
 
     chartInit = output<EChartsType>();

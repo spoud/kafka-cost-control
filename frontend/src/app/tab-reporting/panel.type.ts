@@ -1,6 +1,7 @@
 import { BarChartPanelComponent } from './panel/panels/bar-chart-panel/bar-chart-panel.component';
 import { PieChartPanelComponent } from './panel/panels/pie-chart-panel/pie-chart-panel.component';
 import { EChartsType } from 'echarts/core';
+import { Type } from '@angular/core';
 import { LineChartPanelComponent } from './panel/panels/line-chart-panel/line-chart-panel.component';
 import { isRevivableDate } from '../common/persisted-state';
 import { isContextKeys } from '../common/context-keys';
@@ -33,7 +34,10 @@ export type Panel = {
     columns?: number;
 };
 
-export const TYPE_TO_COMPONENT_MAPPING = {
+// Typed as Type<unknown> rather than left to inference: otherwise TypeScript tries to unify the
+// three component classes structurally, and any private member on one of them (the chart each
+// panel wrapper forwards its actions to) makes them mutually unassignable.
+export const TYPE_TO_COMPONENT_MAPPING: Record<PanelType, Type<unknown>> = {
     StackedBar: BarChartPanelComponent,
     Line: LineChartPanelComponent,
     Pie: PieChartPanelComponent,

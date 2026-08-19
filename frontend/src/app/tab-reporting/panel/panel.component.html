@@ -10,12 +10,37 @@
         <button
             mat-icon-button
             type="button"
-            class="settings-button"
-            aria-label="Panel settings"
-            (click)="openOptions()"
+            class="panel-menu-button"
+            aria-label="Panel options"
+            [matMenuTriggerFor]="panelMenu"
+            (menuOpened)="syncChartActions()"
         >
-            <mat-icon>settings</mat-icon>
+            <mat-icon>more_vert</mat-icon>
         </button>
+        <mat-menu #panelMenu="matMenu">
+            <button mat-menu-item type="button" (click)="openOptions()">
+                <mat-icon>settings</mat-icon>
+                <span>Settings</span>
+            </button>
+            @if (chart()?.normalized; as normalized) {
+                <button mat-menu-item type="button" (click)="toggleNormalized()">
+                    <mat-icon>{{
+                        normalized() ? 'check_box' : 'check_box_outline_blank'
+                    }}</mat-icon>
+                    <span>Normalized</span>
+                </button>
+            }
+            @if (chart(); as chartActions) {
+                <button mat-menu-item type="button" (click)="chartActions.exportToCsv()">
+                    <mat-icon>description</mat-icon>
+                    <span>Export as CSV</span>
+                </button>
+            }
+            <button mat-menu-item type="button" class="danger" (click)="remove()">
+                <mat-icon>delete</mat-icon>
+                <span>Remove panel</span>
+            </button>
+        </mat-menu>
     </div>
     <mat-card-content class="panel-body">
         <ng-container

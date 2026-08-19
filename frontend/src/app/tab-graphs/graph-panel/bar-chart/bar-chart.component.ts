@@ -17,6 +17,7 @@ import {
     LegendSort,
 } from '../chart-legend/chart-legend.component';
 import { applyLegendClick } from '../legend-selection';
+import { ChartActions } from '../chart-actions';
 import { formatCompact, formatPercent } from '../../../common/compact-number';
 import { DateRange } from '../../../common/date-range-quick-select/date-range-quick-select.component';
 
@@ -37,7 +38,10 @@ export type BarOrLine = 'bar' | 'line';
     styleUrls: ['./bar-chart.component.scss'],
     providers: [provideEchartsCore({ echarts })],
 })
-export class BarChartComponent {
+export class BarChartComponent implements ChartActions {
+    /** Hosts that surface these actions in their own menu (Reporting panels) turn this off. */
+    showToolbar = input(true);
+
     protected readonly themeService = inject(ThemeService);
 
     chartInit = output<EChartsType>();

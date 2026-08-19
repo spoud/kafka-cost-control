@@ -100,7 +100,7 @@ export const PanelStore = signalStore(
         updatePanel(id: string, panel: Partial<Panel>): void {
             patchState(store, updateEntity({ id: id, changes: panel }));
         },
-        movePanelRight(id: string): void {
+        movePanelDown(id: string): void {
             const index = store.entities().findIndex(panel => panel.id === id);
             if (index === -1 || index === store.entities().length - 1) {
                 return;
@@ -112,7 +112,7 @@ export const PanelStore = signalStore(
             ];
             patchState(store, removeAllEntities(), addEntities(newPanels));
         },
-        movePanelLeft(id: string): void {
+        movePanelUp(id: string): void {
             const index = store.entities().findIndex(panel => panel.id === id);
             if (index === -1 || index === 0) {
                 return;

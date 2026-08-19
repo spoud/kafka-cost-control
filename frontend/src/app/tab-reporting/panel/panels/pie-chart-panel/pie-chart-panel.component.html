@@ -1,1 +1,5 @@
-<app-pie-chart [metricsData]="historyData.value() || []" (chartInit)="chartInit($event)" />
+<app-pie-chart
+    [metricsData]="historyData.value() || []"
+    [showToolbar]="false"
+    (chartInit)="chartInit($event)"
+/>

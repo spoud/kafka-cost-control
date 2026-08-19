@@ -64,9 +64,16 @@ export class GraphFilterComponent {
             effectRef.destroy();
         });
 
-        // default metric name / group-by context to the first available option once
-        // they've loaded, so the dashboard isn't empty waiting on a manual selection
+        // Default metric name / group-by context to the first available option once they've
+        // loaded, so the dashboard isn't empty waiting on a manual selection.
+        //
+        // Only when the host did not supply a filter. A Reporting panel always supplies one, and
+        // filling blanks there means merely *opening* a panel's settings rewrites its
+        // configuration and persists it - the user never chose that group-by key.
         effect(() => {
+            if (this.existingFilter()) {
+                return;
+            }
             const metricNames = this.graphFilterService.metricNames();
             const contextKeys = this.graphFilterService.contextKeys();
             if (!this.form.value.metricName && metricNames.length > 0) {
