@@ -30,12 +30,9 @@ import java.util.Map;
 /**
  * {@link LlmClient} backed by LangChain4j.
  * <p>
- * LangChain4j supplies one {@link ChatModel} interface with many provider implementations, so the
- * choice of model and vendor is a build-and-config decision rather than a code change: swap
- * {@code quarkus-langchain4j-anthropic} for {@code -openai}, {@code -ollama}, {@code -mistral-ai},
- * {@code -gemini}, and configure it under {@code quarkus.langchain4j.*}. OpenRouter is reached
- * through the OpenAI provider by pointing its base URL at {@code https://openrouter.ai/api/v1},
- * which in turn exposes every model OpenRouter proxies.
+ * A single client reaches every vendor: Ollama, OpenAI, Anthropic, Gemini, OpenRouter, Groq, vLLM
+ * and LM Studio all speak the OpenAI chat-completions protocol, so changing provider is a base URL
+ * rather than a dependency. See {@code cc.ai.base-url} and the table in {@code application.yaml}.
  * <p>
  * The {@link LlmClient} port is kept in front of it so {@link ChatService} stays free of LangChain4j
  * types — useful if a provider ever needs to be driven by its native SDK instead.
@@ -56,11 +53,6 @@ public class LangChain4jLlmClient implements LlmClient {
 
     public LangChain4jLlmClient(ChatModel chatModel) {
         this.chatModel = chatModel;
-    }
-
-    @Override
-    public String providerName() {
-        return "langchain4j";
     }
 
     @Override

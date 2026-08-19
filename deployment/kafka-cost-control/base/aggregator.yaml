@@ -44,15 +44,15 @@ spec:
             # AI assistant. Off by default: it can call a paid third-party API, so enabling
             # it per-environment is a deliberate choice.
             #
-            # Provider-agnostic settings - the same four regardless of vendor. Set
-            # CC_AI_PROVIDER=ollama with CC_AI_BASE_URL pointing at an in-cluster model to keep
-            # every question inside the network; no key is needed in that case.
+            # One client reaches every vendor over the OpenAI protocol, so the base URL is what
+            # selects the provider. Point it at an in-cluster Ollama to keep every question
+            # inside the network - no key needed in that case.
             - name: CC_AI_ENABLED
               value: "false"
-            - name: CC_AI_PROVIDER
-              value: "anthropic"
+            - name: CC_AI_BASE_URL
+              value: "https://api.openai.com/v1"
             - name: CC_AI_MODEL
-              value: "claude-opus-4-5"
+              value: "gpt-4o"
             - name: CC_AI_API_KEY
               valueFrom:
                 secretKeyRef:

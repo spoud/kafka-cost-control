@@ -21,8 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * End-to-end exercise of the assistant against a real LLM, using a local Ollama model so that no
- * data leaves the machine and no API key is needed.
+ * End-to-end exercise of the assistant against a real LLM, over Ollama's OpenAI-compatible
+ * endpoint so that no data leaves the machine and no API key is needed. That endpoint is the same
+ * protocol every other vendor is reached through, so this also covers the shared code path.
  * <p>
  * Opt-in — run with {@code -Dassistant.live=true}. It is excluded from the normal build because it
  * needs Ollama running, takes minutes rather than milliseconds, and is non-deterministic in the way
@@ -48,9 +49,10 @@ class AssistantLiveTest {
                     "cc.olap.database.insert-synthetic-days", "30",
                     "cc.ai.enabled", "true",
                     "cc.ai.max-tool-iterations", "6",
-                    // Configured through the provider-agnostic surface only, so this also
-                    // exercises the mapping in application.yaml rather than bypassing it.
-                    "cc.ai.provider", "ollama",
+                    // Configured through the provider-agnostic surface only, so this exercises
+                    // the shipped configuration rather than bypassing it - which is how the
+                    // misplaced Ollama timeout stayed hidden while this test passed.
+                    "cc.ai.base-url", "http://localhost:11434/v1",
                     "cc.ai.model", System.getProperty("assistant.model", "Qwen3-Coder:latest"));
             // Deliberately does NOT override quarkus.langchain4j.ollama.timeout. An earlier
             // version did, and that hid a real defect: application.yaml had the timeout nested

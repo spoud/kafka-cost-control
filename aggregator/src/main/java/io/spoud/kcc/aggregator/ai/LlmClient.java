@@ -21,7 +21,4 @@ public interface LlmClient {
      * @return the model's turn, which either answers or requests tool calls
      */
     LlmMessage.Assistant chat(String systemPrompt, List<LlmMessage> history, List<LlmTool> tools);
-
-    /** Provider id this implementation handles, matching {@code cc.ai.provider}. */
-    String providerName();
 }
