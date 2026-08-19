@@ -3,7 +3,6 @@ import { PanelComponent } from './panel/panel.component';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { IntlDatePipe } from '../common/intl-date.pipe';
-import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import JSPDF from 'jspdf';
 import { PanelStore } from './store/panel.store';
 import * as echarts from 'echarts/core';
@@ -19,9 +18,6 @@ import { EmptyStateComponent } from '../common/empty-state/empty-state.component
         PanelComponent,
         MatIcon,
         IntlDatePipe,
-        MatMenu,
-        MatMenuItem,
-        MatMenuTrigger,
         MatButton,
         PageHeaderComponent,
         EmptyStateComponent,

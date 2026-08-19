@@ -1,50 +1,74 @@
 :host {
     position: absolute;
+    inset: 0;
     z-index: 20;
     background: var(--mat-sys-surface-container-high);
     color: var(--mat-sys-on-surface);
-    top: 0;
-    left: 0;
     border-radius: inherit;
-    width: 100%;
-    height: 100%;
+    overflow: auto;
+}
 
+.options-sheet {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    gap: var(--space-4);
+    min-height: 100%;
+    padding: var(--space-5);
     box-sizing: border-box;
-
-    > div {
-        display: flex;
-        gap: 8px;
-        align-content: center;
-        margin-bottom: 8px;
-    }
 }
 
-.close-button {
-    position: absolute;
-    top: 4px;
-    right: 4px;
+.options-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
 }
 
-.move-left-button {
-    position: absolute;
-    top: 5px;
-    transform: rotate(90deg);
-    left: 50%;
+.options-title {
+    margin: 0;
+    font: var(--mat-sys-title-small);
 }
 
-.move-right-button {
-    position: absolute;
-    bottom: 5px;
-    transform: rotate(90deg);
-    left: 50%;
+.options-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
 }
 
-.remove-panel-button {
-    position: absolute;
-    top: 0;
-    left: 0;
+// the old layout centred everything in a flex column, so fields were different widths and
+// nothing lined up; a row of grow/fixed fields keeps the labels on one baseline
+.field-row {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.field-grow {
+    flex: 1 1 16rem;
+}
+
+.field-type {
+    flex: 0 1 12rem;
+}
+
+.field-full {
+    width: 100%;
+}
+
+.options-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-top: auto;
+}
+
+.reorder {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.danger {
+    color: var(--mat-sys-error);
 }

@@ -1,40 +1,66 @@
-<button mat-icon-button type="button" class="close-button" (click)="showOptions.set(false)">
-    <mat-icon>close</mat-icon>
-</button>
+<div class="options-sheet">
+    <header class="options-header">
+        <h4 class="options-title">Panel settings</h4>
+        <button mat-icon-button type="button" aria-label="Close panel settings" (click)="close()">
+            <mat-icon>close</mat-icon>
+        </button>
+    </header>
 
-<mat-form-field>
-    <mat-label>Title</mat-label>
-    <input matInput [(ngModel)]="panelData().title" />
-</mat-form-field>
-<mat-form-field>
-    <mat-label>Description</mat-label>
-    <input matInput [(ngModel)]="panelData().description" />
-</mat-form-field>
+    <div class="options-body">
+        <div class="field-row">
+            <mat-form-field appearance="outline" class="field-grow">
+                <mat-label>Title</mat-label>
+                <input
+                    matInput
+                    [value]="panelData().title"
+                    (input)="updateTitle($any($event.target).value)"
+                />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="field-type">
+                <mat-label>Chart type</mat-label>
+                <mat-select [value]="panelData().type" (selectionChange)="updateType($event.value)">
+                    @for (option of panelTypes; track option.value) {
+                        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
+        </div>
 
-<app-graph-filter (graphFilter)="updateFilter($event)" [existingFilter]="graphFilter()" />
+        <mat-form-field appearance="outline" class="field-full">
+            <mat-label>Description</mat-label>
+            <input
+                matInput
+                [value]="panelData().description ?? ''"
+                (input)="updateDescription($any($event.target).value)"
+            />
+        </mat-form-field>
 
-<button
-    mat-icon-button
-    type="button"
-    class="move-left-button"
-    (click)="panelStore.movePanelLeft(panelData().id)"
->
-    <mat-icon>chevron_left</mat-icon>
-</button>
-<button
-    mat-icon-button
-    type="button"
-    class="move-right-button"
-    (click)="panelStore.movePanelRight(panelData().id)"
->
-    <mat-icon>chevron_right</mat-icon>
-</button>
+        <app-graph-filter (graphFilter)="updateFilter($event)" [existingFilter]="graphFilter()" />
+    </div>
 
-<button
-    mat-icon-button
-    type="button"
-    class="remove-panel-button"
-    (click)="panelStore.removePanel(panelData().id)"
->
-    <mat-icon>delete</mat-icon>
-</button>
+    <footer class="options-footer">
+        <button mat-button type="button" class="danger" (click)="remove()">
+            <mat-icon>delete</mat-icon>
+            Remove panel
+        </button>
+        <div class="reorder">
+            <button
+                mat-icon-button
+                type="button"
+                aria-label="Move panel up"
+                (click)="panelStore.movePanelLeft(panelData().id)"
+            >
+                <mat-icon>arrow_upward</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                type="button"
+                aria-label="Move panel down"
+                (click)="panelStore.movePanelRight(panelData().id)"
+            >
+                <mat-icon>arrow_downward</mat-icon>
+            </button>
+            <button mat-flat-button color="primary" type="button" (click)="close()">Done</button>
+        </div>
+    </footer>
+</div>

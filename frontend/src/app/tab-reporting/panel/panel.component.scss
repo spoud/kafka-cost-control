@@ -1,20 +1,48 @@
 :host {
     display: block;
-    border-radius: 13px;
 }
 
 .panel {
     position: relative;
     height: 100%;
-    width: 100%;
-    padding: 16px;
-    box-sizing: border-box;
-    border-radius: inherit;
     overflow: hidden;
 }
 
+.panel-header {
+    // deliberately not mat-card-header: it keeps an empty internal text container that offsets
+    // projected content well to the right of the card's own padding
+    display: flex;
+    padding: var(--space-5) var(--space-5) 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.panel-heading {
+    min-width: 0;
+}
+
+.panel-title {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+}
+
+.panel-description {
+    margin: var(--space-1) 0 0;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.panel-meta {
+    margin: var(--space-1) 0 0;
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+}
+
 .settings-button {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+    flex: 0 0 auto;
+}
+
+.panel-body {
+    display: flex;
+    flex-direction: column;
 }

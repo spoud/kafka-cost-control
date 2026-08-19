@@ -32,39 +32,28 @@ function revivePanelDates(panel: Panel): Panel {
 }
 
 type PanelState = {
-    availablePanels: Array<Panel>;
+    /**
+     * The panel the user is currently editing. A freshly added panel is unconfigured — no metric,
+     * no context, default title — so it opens straight into its options rather than landing on
+     * the board as an empty card the user then has to find the settings button for.
+     */
+    editingPanelId: string | null;
+};
+
+const initialState: PanelState = {
+    editingPanelId: null,
 };
 
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_FROM = new Date(new Date(new Date().getTime() - ONE_WEEK).setUTCHours(0, 0, 0, 0));
 
-const initialState: PanelState = {
-    availablePanels: [
-        {
-            id: '1a',
-            title: 'Bar Chart',
-            description: 'A stacked bar chart',
-            type: 'StackedBar',
-            from: DEFAULT_FROM,
-            groupByContext: [],
-        },
-        {
-            id: '1b',
-            title: 'Area Chart',
-            description: 'A stacked area chart',
-            type: 'Line',
-            from: DEFAULT_FROM,
-            groupByContext: [],
-        },
-        {
-            id: '2',
-            title: 'Pie Chart',
-            type: 'Pie',
-            from: DEFAULT_FROM,
-            groupByContext: [],
-        },
-    ],
-};
+function defaultPanel(): Omit<Panel, 'id'> {
+    return {
+        title: 'New panel',
+        type: 'StackedBar',
+        from: new Date(new Date(new Date().getTime() - ONE_WEEK).setUTCHours(0, 0, 0, 0)),
+        groupByContext: [],
+    };
+}
 
 export const PanelStore = signalStore(
     { providedIn: 'root' },
@@ -91,8 +80,16 @@ export const PanelStore = signalStore(
         },
     }),
     withMethods(store => ({
-        addPanel(panel: Panel): void {
-            patchState(store, addEntity({ ...panel, id: uuidv4() }));
+        addPanel(): string {
+            const id = uuidv4();
+            patchState(store, addEntity({ ...defaultPanel(), id }), { editingPanelId: id });
+            return id;
+        },
+        startEditing(id: string): void {
+            patchState(store, { editingPanelId: id });
+        },
+        stopEditing(): void {
+            patchState(store, { editingPanelId: null });
         },
         updatePanel(id: string, panel: Partial<Panel>): void {
             patchState(store, updateEntity({ id: id, changes: panel }));
@@ -123,6 +120,9 @@ export const PanelStore = signalStore(
         },
         removePanel(id: string): void {
             patchState(store, removeEntity(id));
+            if (store.editingPanelId() === id) {
+                patchState(store, { editingPanelId: null });
+            }
         },
         filter(id: Signal<string>): Signal<GraphFilter> {
             return computed(

@@ -1,11 +1,12 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { Panel, TYPE_TO_COMPONENT_MAPPING } from '../panel.type';
 import { NgComponentOutlet } from '@angular/common';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatCard, MatCardContent } from '@angular/material/card';
 import { PanelOptionsComponent } from './panel-options/panel-options.component';
-import { MatDivider } from '@angular/material/divider';
 import { MetaDataPipe } from './meta-data.pipe';
+import { PanelStore } from '../store/panel.store';
 
 @Component({
     selector: 'app-panel',
@@ -13,23 +14,25 @@ import { MetaDataPipe } from './meta-data.pipe';
         NgComponentOutlet,
         MatIconButton,
         MatIcon,
+        MatCard,
+        MatCardContent,
         PanelOptionsComponent,
-        MatDivider,
         MetaDataPipe,
     ],
     templateUrl: './panel.component.html',
     styleUrl: './panel.component.scss',
-    host: {
-        '[style.grid-area]':
-            '"span " + (panelData().rows ?? 3) + "/ span " + (panelData().columns ?? 1)',
-    },
 })
 export class PanelComponent {
+    private panelStore = inject(PanelStore);
+
     panelData = input.required<Panel>();
 
-    component = computed(() => {
-        return TYPE_TO_COMPONENT_MAPPING[this.panelData().type];
-    });
+    component = computed(() => TYPE_TO_COMPONENT_MAPPING[this.panelData().type]);
 
-    showOptions = signal(false);
+    /** Driven by the store so a newly added panel opens straight into its options. */
+    showOptions = computed(() => this.panelStore.editingPanelId() === this.panelData().id);
+
+    openOptions(): void {
+        this.panelStore.startEditing(this.panelData().id);
+    }
 }

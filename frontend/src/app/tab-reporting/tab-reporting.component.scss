@@ -1,6 +1,7 @@
 .panel-wrapper {
     display: grid;
-    grid-template-columns: 2fr;
-    grid-auto-rows: 200px;
-    gap: var(--space-4);
+    // one panel per row, each tall enough for a chart plus its legend; auto rather than a fixed
+    // track so a panel can grow with its content instead of clipping it
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
 }

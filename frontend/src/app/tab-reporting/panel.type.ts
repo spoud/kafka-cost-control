@@ -4,11 +4,20 @@ import { EChartsType } from 'echarts/core';
 import { LineChartPanelComponent } from './panel/panels/line-chart-panel/line-chart-panel.component';
 import { isRevivableDate } from '../common/persisted-state';
 
+export type PanelType = 'StackedBar' | 'Line' | 'Pie';
+
+/** Labels for the chart-type picker in the panel editor, keyed by the type stored on the panel. */
+export const PANEL_TYPE_LABELS: ReadonlyArray<{ value: PanelType; label: string }> = [
+    { value: 'StackedBar', label: 'Stacked bar' },
+    { value: 'Line', label: 'Area / line' },
+    { value: 'Pie', label: 'Pie' },
+];
+
 export type Panel = {
     id: string;
     title: string;
     description?: string;
-    type: 'StackedBar' | 'Line' | 'Pie';
+    type: PanelType;
 
     // graph filter
     from: Date;

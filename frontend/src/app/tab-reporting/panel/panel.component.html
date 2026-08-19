@@ -1,21 +1,30 @@
-<div class="panel mat-elevation-z3">
-    <h3>{{ panelData().title }}</h3>
-    <button mat-icon-button type="button" class="settings-button" (click)="showOptions.set(true)">
-        <mat-icon>settings</mat-icon>
-    </button>
-    @if (panelData().description) {
-        <em>{{ panelData().description }}</em>
-    }
-    <small
-        ><em> {{ panelData() | metaData }}</em></small
-    >
-    <mat-divider />
-    <ng-container
-        [ngComponentOutlet]="component()"
-        [ngComponentOutletInputs]="{ id: panelData().id }"
-    />
+<mat-card appearance="outlined" class="panel">
+    <div class="panel-header">
+        <div class="panel-heading">
+            <h3 class="panel-title">{{ panelData().title }}</h3>
+            @if (panelData().description) {
+                <p class="panel-description">{{ panelData().description }}</p>
+            }
+            <p class="panel-meta">{{ panelData() | metaData }}</p>
+        </div>
+        <button
+            mat-icon-button
+            type="button"
+            class="settings-button"
+            aria-label="Panel settings"
+            (click)="openOptions()"
+        >
+            <mat-icon>settings</mat-icon>
+        </button>
+    </div>
+    <mat-card-content class="panel-body">
+        <ng-container
+            [ngComponentOutlet]="component()"
+            [ngComponentOutletInputs]="{ id: panelData().id }"
+        />
+    </mat-card-content>
 
     @if (showOptions()) {
-        <app-panel-options [panelData]="panelData()" [(showOptions)]="showOptions" />
+        <app-panel-options [panelData]="panelData()" />
     }
-</div>
+</mat-card>
