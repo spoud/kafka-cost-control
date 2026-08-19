@@ -55,7 +55,9 @@ function readStored(key: string): unknown {
 
 /**
  * `reviveDates` on an object without `from`/`to` produces Invalid Date, which flows into the form
- * and then into the GraphQL variables, so the shape is checked rather than assumed.
+ * and then into the GraphQL variables, so the shape is checked rather than assumed. `groupBy` is
+ * checked for the same reason: it postdates the first shipped shape, and `cost.component`'s
+ * `loadConfig` assigns it straight to a signal that the template then calls `.includes()` on.
  */
 function isCostOverviewValues(value: unknown): value is CostOverviewFormValues {
     if (!value || typeof value !== 'object') {
@@ -63,6 +65,7 @@ function isCostOverviewValues(value: unknown): value is CostOverviewFormValues {
     }
     const candidate = value as Partial<CostOverviewFormValues>;
     return (
+        Array.isArray(candidate.groupBy) &&
         !Number.isNaN(new Date(candidate.from as unknown as string).getTime()) &&
         !Number.isNaN(new Date(candidate.to as unknown as string).getTime())
     );

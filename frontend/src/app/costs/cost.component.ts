@@ -43,6 +43,7 @@ import {
 } from '../common/date-range-quick-select/date-range-quick-select.component';
 import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
+import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 
 @Component({
     imports: [
@@ -66,6 +67,7 @@ import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dial
         MatIconButton,
         MatSelectModule,
         SankeyComponent,
+        EmptyStateComponent,
         MatDateRangeInput,
         MatStartDate,
         MatEndDate,

@@ -40,6 +40,32 @@ describe('CostOverviewStore hydration', () => {
         expect(store.current()).toBeNull();
     });
 
+    it('rejects stored state written before groupBy existed', () => {
+        // cost.component's loadConfig assigns groupBy straight to a signal that the template then
+        // calls .includes() on, so an undefined here takes the whole page down.
+        localStorage.setItem(
+            CURRENT_STATE_KEY,
+            JSON.stringify({ from: '2026-01-01T00:00:00Z', to: '2026-02-01T00:00:00Z' })
+        );
+
+        const store = TestBed.inject(CostOverviewStore);
+
+        expect(store.current()).toBeNull();
+    });
+
+    it('drops saved configs written before groupBy existed', () => {
+        localStorage.setItem(
+            SAVED_CONFIGS_KEY,
+            JSON.stringify([
+                { id: 'old', name: 'No groupBy', from: '2026-01-01', to: '2026-02-01' },
+            ])
+        );
+
+        const store = TestBed.inject(CostOverviewStore);
+
+        expect(store.entities()).toEqual([]);
+    });
+
     it('ignores saved configs that are not the expected shape', () => {
         localStorage.setItem(
             SAVED_CONFIGS_KEY,
@@ -66,7 +92,11 @@ describe('CostOverviewStore hydration', () => {
     it('still loads a valid stored state', () => {
         localStorage.setItem(
             CURRENT_STATE_KEY,
-            JSON.stringify({ from: '2026-01-01T00:00:00Z', to: '2026-02-01T00:00:00Z', groupBy: [] })
+            JSON.stringify({
+                from: '2026-01-01T00:00:00Z',
+                to: '2026-02-01T00:00:00Z',
+                groupBy: [],
+            })
         );
 
         const store = TestBed.inject(CostOverviewStore);

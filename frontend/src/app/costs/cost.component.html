@@ -236,7 +236,14 @@
         </mat-card-header>
         <mat-card-content class="results-content">
             <app-cost-table [inputData]="tableData()" [lastRequest]="lastRequest()" />
-            <app-sankey [inputData]="data()" [lastRequest]="lastRequest()" />
+            @if (groupBy().length === 0) {
+                <app-empty-state
+                    icon="account_tree"
+                    message="Pick at least one group-by key above to see how cost breaks down."
+                />
+            } @else {
+                <app-sankey [inputData]="data()" [lastRequest]="lastRequest()" />
+            }
         </mat-card-content>
     </mat-card>
 }
