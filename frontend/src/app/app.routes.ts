@@ -64,12 +64,8 @@ export const routes: Routes = [
 ];
 
 /**
- * Where to send someone who did not ask for a particular page.
- *
- * Cost Overview is behind {@link loggedInGuard} and authentication lives in sessionStorage, so
- * redirecting there unconditionally sent every first visit, new tab and post-session refresh to
- * the "Sign in required" page — an error page as the app's front door. Explore is public and
- * shows real data, so it is the right landing for anyone not signed in.
+ * Where to send someone who did not ask for a particular page. Cost Overview is guarded, so an
+ * unauthenticated visitor must land on Explore instead of the sign-in wall.
  */
 function landingRoute(): string {
     return inject(BasicAuthServiceService).authenticated()() ? '/costs' : '/explore';

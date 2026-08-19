@@ -6,10 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 const MESSAGES_KEY = 'kcc_chat_messages';
 const SESSION_KEY = 'kcc_chat_session';
 
-/**
- * Keep the stored transcript bounded — it lives in localStorage, which is small and shared
- * with every other kcc_* key.
- */
+/** Bound the stored transcript: localStorage is small and shared with every other kcc_* key. */
 const MAX_STORED_MESSAGES = 100;
 
 export type ChatRole = 'user' | 'assistant';
@@ -20,19 +17,12 @@ export interface ChatMessage {
     text: string;
     /** SQL the assistant ran to produce this answer, shown collapsed under the reply. */
     generatedSql: string[];
-    /**
-     * Result table. Populated in private mode, where query output goes to the user instead of
-     * back to the model — there the table is the answer and `text` only introduces it.
-     */
+    /** Result table. Populated in private mode, where the table is the answer. */
     columns: string[];
     rows: (string | null)[][];
     /** True when the result hit the row cap and is not the whole story. */
     truncated: boolean;
-    /**
-     * True when the backend had no memory of this conversation even though we were showing
-     * earlier questions. Its history is in memory only, so a restart drops it while this
-     * transcript survives in localStorage.
-     */
+    /** Backend had no memory of this conversation though we were showing earlier questions. */
     contextLost: boolean;
     /** True when the assistant stopped before reaching an answer (step limit). */
     partial: boolean;
@@ -42,10 +32,7 @@ export interface ChatMessage {
 }
 
 type ChatState = {
-    /**
-     * Conversation id sent with every question. The backend keys its history on this, so it must
-     * survive a page reload or the assistant loses the thread mid-conversation.
-     */
+    /** Conversation id. The backend keys history on it, so it must survive a reload. */
     sessionId: string;
     pending: boolean;
 };
@@ -56,13 +43,8 @@ const initialState: ChatState = {
 };
 
 /**
- * Normalise messages read back from localStorage.
- *
- * A stored transcript can predate any field added since it was written — `columns`, `rows` and
- * `truncated` arrived with private mode, so a transcript from before then has them missing.
- * Rendering reads `message.columns.length` directly, so an un-normalised legacy message crashes
- * the whole page rather than degrading. Filling defaults here means the transcript survives a
- * schema change instead of having to be cleared by hand.
+ * Normalise messages read back from localStorage. A stored transcript can predate fields added
+ * since; rendering reads them directly, so a missing one crashes the page rather than degrading.
  */
 function hydrateMessages(stored: unknown): ChatMessage[] {
     if (!Array.isArray(stored)) {

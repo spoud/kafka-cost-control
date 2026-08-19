@@ -7,47 +7,27 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Validates model-authored SQL before it is allowed anywhere near the database.
+ * Validates model-authored SQL: accepts a single read-only query, rejects everything else.
  * <p>
- * This is one of four independent layers (see {@link ReadOnlyQueryExecutor} for the other three:
- * an isolated connection, {@code enable_external_access=false}, and an unconditional rollback).
- * It is deliberately conservative — it rejects anything it does not positively recognise as a
- * single read-only query, and it is far cheaper to loosen later than to discover it was too
- * permissive.
- * <p>
- * The parsing is literal-aware rather than regex-over-raw-text, because the naive version is
- * defeated by a semicolon or a keyword inside a string literal — e.g.
- * {@code SELECT * FROM aggregated_data WHERE name = 'a;DROP TABLE x'} is a perfectly legitimate
- * single query that a raw split on ';' would reject, while
- * {@code SELECT 1; DROP TABLE aggregated_data} must be rejected.
+ * Parsing is literal- and comment-aware. A raw regex cannot tell
+ * {@code WHERE name = 'a;DROP TABLE x'} (legitimate) from
+ * {@code SELECT 1; DROP TABLE aggregated_data} (not).
  */
 @ApplicationScoped
 public class SqlGuard {
 
-    /**
-     * Statement kinds that must never appear, even in a subquery or CTE. DuckDB allows some of
-     * these in positions a "starts with SELECT" check alone would not catch.
-     */
+    /** Rejected anywhere, including in a subquery or CTE. */
     private static final Set<String> FORBIDDEN_KEYWORDS = Set.of(
-            // mutation
             "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE", "UPSERT",
-            // DDL. Note "REPLACE" is deliberately absent: it is a common string function
-            // (REPLACE(name, 'a', 'b')), and "CREATE OR REPLACE" is already caught by CREATE.
+            // REPLACE is absent on purpose: it is a string function. CREATE covers CREATE OR REPLACE.
             "CREATE", "DROP", "ALTER",
-            // data movement / filesystem / network escape hatches
             "COPY", "EXPORT", "IMPORT", "ATTACH", "DETACH", "INSTALL", "LOAD",
-            // engine control
             "PRAGMA", "SET", "RESET", "CALL", "CHECKPOINT", "VACUUM", "ANALYZE",
             "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION", "PREPARE", "EXECUTE", "DEALLOCATE");
 
     /**
-     * Table functions that read or write outside the database file.
-     * {@code enable_external_access=false} already blocks these at the engine level; rejecting
-     * them here too gives a clearer error and defence in depth.
-     * <p>
-     * These are matched only in function position (followed by an open paren), so that names
-     * which double as operators — notably {@code GLOB}, valid as {@code name GLOB '*.log'} —
-     * are not false-positived.
+     * Table functions that reach outside the database file. Matched only in function position, so
+     * {@code GLOB} as an operator ({@code name GLOB '*.log'}) still works.
      */
     private static final Set<String> FORBIDDEN_FUNCTIONS = Set.of(
             "READ_CSV", "READ_CSV_AUTO", "READ_PARQUET", "READ_JSON", "READ_JSON_AUTO",
@@ -70,10 +50,9 @@ public class SqlGuard {
     }
 
     /**
-     * Validate a model-authored query and return it normalised (comments stripped, single
-     * trailing semicolon removed, {@code LIMIT} appended if absent).
-     *
-     * @throws RejectedException if the SQL is anything other than a single read-only query
+     * @return the query normalised: comments stripped, trailing semicolon removed, {@code LIMIT}
+     *         appended if absent
+     * @throws RejectedException if it is anything but a single read-only query
      */
     public String validate(String sql, int maxRows) {
         if (sql == null || sql.isBlank()) {
@@ -87,8 +66,6 @@ public class SqlGuard {
                     "Only a single statement is allowed; found more than one (';' outside a string literal).");
         }
 
-        // Work on the comment-stripped text so a keyword hidden in a comment cannot trip us,
-        // and a keyword hidden *behind* a comment cannot slip past us.
         String cleaned = stripTrailingSemicolon(stripped).trim();
 
         if (!STARTS_WITH_SELECT_OR_WITH.matcher(cleaned).find()) {
@@ -101,8 +78,7 @@ public class SqlGuard {
                     "The keyword or function '" + forbidden + "' is not permitted. Only read-only SELECT queries are allowed.");
         }
 
-        // Rebuild from the original text (minus comments) so the executed SQL still contains the
-        // string literals verbatim — stripCommentsAndBlankLiterals only blanks them for scanning.
+        // From the original text: literals are blanked for scanning only, not for execution.
         String executable = stripTrailingSemicolon(stripComments(sql)).trim();
 
         if (!HAS_LIMIT.matcher(cleaned).find()) {
@@ -111,10 +87,7 @@ public class SqlGuard {
         return executable;
     }
 
-    /**
-     * Scan for forbidden identifiers. Only words outside string literals count, and a word
-     * immediately preceded by '.' is a column/field reference (e.g. {@code t.set}), not a keyword.
-     */
+    /** A word preceded by '.' is a qualified reference ({@code t.set}), not a keyword. */
     private String findForbiddenWord(String cleanedSql) {
         String upper = cleanedSql.toUpperCase(Locale.ROOT);
         var matcher = WORD.matcher(upper);
@@ -164,27 +137,22 @@ public class SqlGuard {
         return trimmed.endsWith(";") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
     }
 
-    /**
-     * Remove comments, preserving string literals as-is. Used to build the SQL we actually run.
-     */
+    /** Remove comments, preserving literals. Produces the SQL that is executed. */
     String stripComments(String sql) {
         return scan(sql, false);
     }
 
     /**
-     * Remove comments <em>and</em> replace the contents of every string literal with spaces.
-     * Used for scanning only: it makes keyword and separator detection immune to anything a
-     * literal might contain, while preserving character offsets.
+     * Remove comments and blank out literal contents, preserving offsets. For scanning only: a
+     * keyword or ';' inside a literal must not be detected.
      */
     String stripCommentsAndBlankLiterals(String sql) {
         return scan(sql, true);
     }
 
     /**
-     * Single-pass lexer over the SQL text, tracking which literal/comment context we are in.
-     * Handles: single-quoted strings (with '' escaping), double-quoted identifiers (with ""
-     * escaping), dollar-quoted strings ($tag$ ... $tag$), line comments (--) and block comments
-     * (/* ... *&#47;), which DuckDB does not nest.
+     * Single-pass lexer handling single-quoted strings ('' escapes), quoted identifiers,
+     * dollar-quoted strings, and line/block comments.
      */
     private String scan(String sql, boolean blankLiterals) {
         StringBuilder out = new StringBuilder(sql.length());
@@ -248,8 +216,7 @@ public class SqlGuard {
                     }
                     i++;
                 }
-                // Quoted identifiers are kept verbatim even when blanking: they name real columns,
-                // and blanking them would hide a genuine reference from the scanner.
+                // Kept verbatim even when blanking: they name real columns.
                 out.append(sql, start, i);
                 continue;
             }

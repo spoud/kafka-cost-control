@@ -16,12 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Runs one question to completion: prompt the model, execute whatever tools it asks for, feed the
- * results back, repeat until it produces an answer.
- * <p>
- * The loop is bounded by {@code cc.ai.max-tool-iterations}. Hitting that bound is treated as a
- * real outcome and reported, rather than silently returning whatever partial text exists — a
- * truncated answer that looks complete is worse than an explicit "I ran out of steps".
+ * Runs one question to completion: prompt the model, run the tools it asks for, feed results back,
+ * repeat until it answers or hits {@code cc.ai.max-tool-iterations}.
  */
 @ApplicationScoped
 public class ChatService {
@@ -43,7 +39,7 @@ public class ChatService {
         this.schemaDescriber = schemaDescriber;
         this.toolRegistry = toolRegistry;
         this.llmClients = llmClients;
-        // Bounded LRU: conversations are cheap to lose and expensive to leak.
+        // Bounded LRU.
         this.conversations = Collections.synchronizedMap(
                 new LinkedHashMap<>(16, 0.75f, true) {
                     @Override
@@ -59,16 +55,12 @@ public class ChatService {
      * @param sessionId client-generated conversation id; history is keyed on it
      * @param question  the user's question
      */
-    /**
-     * Report the active configuration once at startup, so a wrong provider or model is visible
-     * immediately rather than on the first question a user asks.
-     */
+    /** Report the active configuration at startup rather than on the first question. */
     void logConfiguration(@Observes StartupEvent event) {
         if (!aiConfig.enabled()) {
             Log.info("AI assistant is disabled (cc.ai.enabled=false)");
             return;
         }
-        // The base URL is the provider's identity now, and the setting most likely to be wrong.
         Log.infof("AI assistant enabled: base-url=%s model=%s%s",
                 aiConfig.baseUrl(),
                 aiConfig.model(),
@@ -76,21 +68,15 @@ public class ChatService {
     }
 
     /**
-     * Whether a question asked right now would be answered.
-     * <p>
-     * {@link #ask} consults this rather than repeating the checks, so the status the UI uses to
-     * hide the feature cannot drift from the conditions actually enforced when answering.
-     * <p>
-     * All three conditions matter and produce different fixes: the module can be switched off, the
-     * database it queries can be switched off, or no LLM provider extension can be configured.
+     * Whether a question asked right now would be answered. {@link #ask} consults this, so the
+     * status the UI hides on cannot drift from what is enforced when answering.
      */
     public AssistantStatus status() {
         if (!aiConfig.enabled()) {
             return AssistantStatus.unavailable(
                     "The AI assistant is disabled. Set cc.ai.enabled=true to use it.");
         }
-        // Every OLAP method returns empty when the module is off, so without this check the
-        // assistant would confidently answer "I found no data" instead of "there is no database".
+        // OLAP returns empty when off, which would read as "no data" rather than "no database".
         if (!olapConfig.enabled()) {
             return AssistantStatus.unavailable(
                     "The analytics database (OLAP) is disabled, so there is no data to query. "
@@ -130,9 +116,7 @@ public class ChatService {
         }
 
         List<LlmMessage> history = conversations.computeIfAbsent(sessionId, k -> new ArrayList<>());
-        // The client's transcript lives in the browser and outlives ours, which is only in memory.
-        // If it is showing turns we have no record of, say so rather than quietly answering
-        // without the context the user can see on screen.
+        // The browser transcript outlives ours, which is in memory only.
         boolean contextLost = priorTurns > 0 && history.isEmpty();
         String systemPrompt = schemaDescriber.buildSystemPrompt();
         List<LlmTool> tools = schemaDescriber.tools();
@@ -164,18 +148,13 @@ public class ChatService {
                 return ChatAnswer.success(assistant.text(), toolRegistry.executedSql());
             }
 
-            // Private mode: the first data-returning call ends the turn. Its rows go to the user,
-            // never into the conversation, so the model never sees the contents of the database.
+            // Private mode: the first data-returning call ends the turn; its rows go to the user.
             if (aiConfig.privateMode()) {
                 for (LlmMessage.ToolCall call : assistant.toolCalls()) {
                     if (SchemaDescriber.isTerminalTool(call.name())) {
                         ToolRegistry.TerminalResult result = toolRegistry.invokeTerminal(call);
-                        // Close every tool call this turn made, without revealing what came back.
-                        // The assistant turn is already in history carrying its tool calls; leaving
-                        // them unanswered replays a tool_use with no tool_result on the next
-                        // question, which strict providers reject outright - and because the
-                        // rejection lands in the catch below, which only strips the trailing user
-                        // turn, the dangling call would poison every later question in the session.
+                        // Close the tool calls without revealing results: an unanswered tool_use
+                        // is replayed on the next question and strict providers reject it.
                         history.add(new LlmMessage.ToolResults(assistant.toolCalls().stream()
                                 .map(c -> LlmMessage.ToolResult.ok(c.id(),
                                         "Results were returned directly to the user. Private mode is "
@@ -206,8 +185,6 @@ public class ChatService {
             return ChatAnswer.error(result.error());
         }
         String preamble = assistant.text() == null || assistant.text().isBlank()
-                // The model is asked to introduce the table, but if it went straight to the query
-                // the user still needs something above the results.
                 ? "Here are the results."
                 : assistant.text();
         return ChatAnswer.table(preamble, sql, result.columns(), result.rows(), result.truncated());
@@ -217,25 +194,18 @@ public class ChatService {
         for (LlmClient candidate : llmClients) {
             return candidate;
         }
-        // Which model and vendor is used is LangChain4j's concern, decided by the
-        // quarkus-langchain4j-* artifact on the classpath and quarkus.langchain4j.* config.
         throw new IllegalStateException(
                 "No LLM client is available. Check that a quarkus-langchain4j-* provider extension "
                         + "is on the classpath and configured under quarkus.langchain4j.*");
     }
 
     /**
-     * Keep the most recent exchanges, where an exchange is a user question plus everything the
-     * assistant did to answer it.
-     * <p>
-     * The window always starts on a user turn: a tool-result turn cannot be first, and an
-     * assistant turn that made tool calls has to keep the results that answer them, or the
-     * provider sees a dangling call.
+     * Keep the most recent exchanges. The window always starts on a user turn: a tool-result turn
+     * cannot be first, and an assistant turn must keep the results answering its calls.
      */
     private void trimHistory(List<LlmMessage> history) {
         int maxExchanges = aiConfig.maxHistoryExchanges();
 
-        // Walk back through the user turns and cut at the start of the oldest one we keep.
         int exchanges = 0;
         int from = -1;
         for (int i = history.size() - 1; i >= 0; i--) {

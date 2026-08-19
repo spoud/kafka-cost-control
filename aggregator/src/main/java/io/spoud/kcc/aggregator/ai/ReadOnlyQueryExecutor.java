@@ -18,27 +18,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Executes model-authored SQL under containment.
- * <p>
- * Four independent layers protect the database; this class owns three of them, and
- * {@link SqlGuard} owns the fourth (statement validation). No single layer is trusted:
+ * Executes model-authored SQL under containment:
  * <ol>
- *   <li><b>Isolated connection</b> — a duplicate of the shared DuckDB connection, so a long
- *       analytical query does not contend with the synchronized ingest flush.</li>
- *   <li><b>Statement validation</b> ({@link SqlGuard}) — the exfiltration guard. Rejects
- *       {@code COPY}, {@code ATTACH}, {@code INSTALL}/{@code LOAD} and the {@code read_*} table
- *       functions before anything reaches the engine.
- *       <p>
- *       An earlier version also set {@code enable_external_access=false} on this connection as
- *       defence in depth. That was removed: in DuckDB the setting is <em>global to the database
- *       instance</em>, not per-connection, and one-way. Setting it here disabled
- *       {@code COPY ... TO} on the shared connection too, permanently breaking
- *       {@code /olap/export} for the lifetime of the process after the first assistant query.</li>
- *   <li><b>Unconditional rollback</b> — every query runs inside an explicit transaction that is
- *       always rolled back. DuckDB DDL is transactional, so this reverts anything that somehow
- *       got past layers 1-2 and {@link SqlGuard}.</li>
+ *   <li>a connection duplicated from the shared one, so long queries do not contend with ingest;</li>
+ *   <li>{@link SqlGuard} validation, which also blocks filesystem and network access;</li>
+ *   <li>an unconditional rollback — DuckDB DDL is transactional, so this reverts anything that
+ *       got past the guard;</li>
+ *   <li>a row cap and a wall-clock timeout.</li>
  * </ol>
- * Plus resource caps: a row limit and a wall-clock timeout enforced by cancelling the statement.
+ * Note {@code enable_external_access} is not used: it is global to the DuckDB instance, so
+ * disabling it here would break {@code COPY ... TO} on the shared connection and with it
+ * {@code /olap/export}.
  */
 @ApplicationScoped
 public class ReadOnlyQueryExecutor {
@@ -79,12 +69,8 @@ public class ReadOnlyQueryExecutor {
     }
 
     /**
-     * Validate and execute a read-only query.
-     *
-     * @param sql model-authored SQL
-     * @return the result set, rendered as strings
      * @throws SqlGuard.RejectedException if validation fails
-     * @throws QueryFailedException       if OLAP is unavailable, the query times out, or it errors
+     * @throws QueryFailedException       if OLAP is unavailable, or the query times out or errors
      */
     public QueryResult execute(String sql) {
         int maxRows = aiConfig.maxRows();
@@ -103,23 +89,14 @@ public class ReadOnlyQueryExecutor {
         }
     }
 
-    /**
-     * Put this connection in an explicit transaction so everything it does can be rolled back.
-     * <p>
-     * Deliberately does <em>not</em> touch {@code enable_external_access}: that setting is global
-     * to the DuckDB instance rather than per-connection, so disabling it here would also disable
-     * {@code COPY ... TO} on the shared connection and break {@code /olap/export}.
-     * Filesystem and network access are blocked by {@link SqlGuard} instead.
-     */
+    /** Explicit transaction, so everything this connection does can be rolled back. */
     private void harden(Connection conn) throws SQLException {
         conn.setAutoCommit(false);
     }
 
     private QueryResult runWithTimeout(Connection conn, String safeSql, int maxRows) throws SQLException {
         try (Statement stmt = conn.createStatement()) {
-            // Fetch one row beyond the cap so truncation is *detectable*. With setMaxRows(maxRows)
-            // the driver silently stops at the limit and the result looks complete, which would
-            // let the model report a partial total as if it were the whole answer.
+            // One row beyond the cap, so truncation is detectable rather than looking complete.
             stmt.setMaxRows(maxRows + 1);
 
             Future<QueryResult> future = queryExecutor.submit(() -> {
@@ -143,8 +120,6 @@ public class ReadOnlyQueryExecutor {
                 throw new QueryFailedException("Query failed: " + rootMessage(e.getCause()));
             }
         } finally {
-            // Always roll back — the query should never have written anything, and if it somehow
-            // did, this undoes it. DuckDB DDL is transactional too.
             try {
                 conn.rollback();
             } catch (SQLException e) {

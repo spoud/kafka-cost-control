@@ -66,7 +66,11 @@ describe('CostOverviewStore hydration', () => {
     it('still loads a valid stored state', () => {
         localStorage.setItem(
             CURRENT_STATE_KEY,
-            JSON.stringify({ from: '2026-01-01T00:00:00Z', to: '2026-02-01T00:00:00Z', groupBy: [] })
+            JSON.stringify({
+                from: '2026-01-01T00:00:00Z',
+                to: '2026-02-01T00:00:00Z',
+                groupBy: [],
+            })
         );
 
         const store = TestBed.inject(CostOverviewStore);

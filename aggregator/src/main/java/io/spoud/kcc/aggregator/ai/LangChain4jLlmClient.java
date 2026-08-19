@@ -70,8 +70,7 @@ public class LangChain4jLlmClient implements LlmClient {
                 toolCalls.add(new LlmMessage.ToolCall(req.id(), req.name(), parseArguments(req)));
             }
         }
-        // Keep the provider's own message so the next turn replays it verbatim rather than
-        // reconstructing it from text — reasoning content and tool-call ids must survive intact.
+        // Replay the provider's own message verbatim: tool-call ids must survive intact.
         return new LlmMessage.Assistant(answer.text() == null ? "" : answer.text(), toolCalls, answer);
     }
 
@@ -93,8 +92,8 @@ public class LangChain4jLlmClient implements LlmClient {
 
                 case LlmMessage.ToolResults toolResults -> {
                     for (LlmMessage.ToolResult result : toolResults.results()) {
-                        // LangChain4j has no is-error flag on a tool result; prefix instead so the
-                        // model can still tell a failure from a legitimate empty answer.
+                        // No is-error flag on a tool result; prefix so a failure is distinguishable
+                        // from a legitimate empty answer.
                         String content = result.isError() ? "ERROR: " + result.content() : result.content();
                         messages.add(ToolExecutionResultMessage.from(result.id(), null, content));
                     }
@@ -117,7 +116,7 @@ public class LangChain4jLlmClient implements LlmClient {
                 .build();
     }
 
-    /** Translate our provider-neutral JSON-Schema fragment into LangChain4j's typed equivalent. */
+    /** Provider-neutral JSON-Schema fragment to LangChain4j's typed equivalent. */
     private JsonSchemaElement toSchemaElement(Map<String, Object> schema) {
         String type = String.valueOf(schema.getOrDefault("type", "string"));
         String description = schema.get("description") == null ? null : String.valueOf(schema.get("description"));
@@ -140,7 +139,7 @@ public class LangChain4jLlmClient implements LlmClient {
         };
     }
 
-    /** Tool arguments arrive as a JSON string; a malformed one is the model's error, not a crash. */
+    /** Arguments arrive as a JSON string; malformed ones are the model's error, not a crash. */
     private Map<String, Object> parseArguments(ToolExecutionRequest request) {
         String arguments = request.arguments();
         if (arguments == null || arguments.isBlank()) {

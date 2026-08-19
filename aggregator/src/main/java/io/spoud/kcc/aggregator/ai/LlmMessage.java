@@ -3,11 +3,7 @@ package io.spoud.kcc.aggregator.ai;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Provider-neutral conversation element. Deliberately minimal: just enough to express a
- * tool-use loop, so a non-Anthropic {@link LlmClient} can be written without leaking any
- * vendor types into {@link ChatService}.
- */
+/** Provider-neutral conversation element: enough to express a tool-use loop, and no more. */
 public sealed interface LlmMessage {
 
     /** A question or instruction from the human. */
@@ -15,12 +11,8 @@ public sealed interface LlmMessage {
     }
 
     /**
-     * A model turn. {@code text} is what the user would see; {@code toolCalls} is what the model
-     * wants executed. Both may be present in the same turn.
-     * <p>
-     * {@code raw} carries the provider's own representation of this turn so it can be replayed
-     * verbatim on the next request. This matters for Anthropic: thinking blocks must be echoed
-     * back unchanged, and reconstructing them from {@code text} would corrupt the conversation.
+     * A model turn. {@code raw} carries the provider's own representation so it can be replayed
+     * verbatim; reconstructing it from {@code text} would corrupt the conversation.
      */
     record Assistant(String text, List<ToolCall> toolCalls, Object raw) implements LlmMessage {
         public boolean hasToolCalls() {

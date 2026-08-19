@@ -24,29 +24,16 @@ public interface AiConfigProperties {
     boolean enabled();
 
     /**
-     * Private mode: query results are never sent to the model.
-     * <p>
-     * The model still sees the schema shape (metric names and context keys) and writes the SQL,
-     * but the rows it produces go straight to the user instead of back into the conversation.
-     * Tools that would reveal actual values are withdrawn. The trade-off is that the assistant
-     * cannot summarise, interpret, or self-correct from what the query returned — the answer is a
-     * table rather than a sentence.
-     *
-     * @see SchemaDescriber#buildSystemPrompt()
+     * Query results are never sent to the model: rows go straight to the user, and tools that
+     * reveal values are withdrawn. Answers become tables rather than prose.
      */
     @WithName("private-mode")
     @WithDefault("false")
     boolean privateMode();
 
-    // --- Model settings ------------------------------------------------------------------------
-    // The whole configuration surface for choosing a model, whichever vendor is used. They feed
-    // quarkus.langchain4j.openai.* directly — one client, so there is no per-vendor name mapping.
+    // Model settings. Feed quarkus.langchain4j.openai.* directly.
 
-    /**
-     * Base URL of an OpenAI-compatible chat-completions endpoint. This is what selects the
-     * provider: {@code http://localhost:11434/v1} for a local Ollama,
-     * {@code https://api.anthropic.com/v1/} for Claude, and so on.
-     */
+    /** OpenAI-compatible endpoint. Selects the provider, e.g. {@code http://localhost:11434/v1}. */
     @WithName("base-url")
     @WithDefault("http://localhost:11434/v1")
     String baseUrl();
@@ -61,26 +48,17 @@ public interface AiConfigProperties {
     @WithDefault("not-configured")
     String apiKey();
 
-    /**
-     * Per-request timeout. A local model has to load into memory and then write SQL across
-     * several tool round-trips, so provider defaults of a few seconds are far too short.
-     */
+    /** Per-request timeout. Provider defaults of a few seconds are too short for a local model. */
     @WithName("request-timeout")
     @WithDefault("PT10M")
     Duration requestTimeout();
 
-    /**
-     * Maximum number of rows any single model-authored query may return. Also caps how much
-     * data gets fed back into the model's context (outside private mode).
-     */
+    /** Row cap per query. Also bounds how much data re-enters the model's context. */
     @WithName("max-rows")
     @WithDefault("500")
     int maxRows();
 
-    /**
-     * Maximum number of tool round-trips per user question. Bounds both runaway loops and the
-     * cost of a single question.
-     */
+    /** Tool round-trips per question. Bounds runaway loops and per-question cost. */
     @WithName("max-tool-iterations")
     @WithDefault("8")
     int maxToolIterations();
@@ -104,13 +82,8 @@ public interface AiConfigProperties {
     int maxSessions();
 
     /**
-     * How many completed exchanges (question plus everything the assistant did to answer it) to
-     * retain per conversation.
-     * <p>
-     * Counted in exchanges rather than raw messages on purpose: one question can add a dozen or
-     * more messages once tool round-trips are counted, so a raw message cap makes the retained
-     * history depend on how tool-heavy the recent questions happened to be. A user who asks three
-     * questions expects three questions to be remembered, regardless of how hard each was.
+     * Exchanges (a question plus everything done to answer it) retained per conversation.
+     * Counted in exchanges, not messages: one question can add a dozen messages via tool calls.
      */
     @WithName("max-history-exchanges")
     @WithDefault("10")

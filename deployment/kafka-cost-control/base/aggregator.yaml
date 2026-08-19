@@ -41,22 +41,10 @@ spec:
                 secretKeyRef:
                   name: kafka-cost-control-secret
                   key: CC_ADMIN_PASSWORD
-            # AI assistant, off by default. No model is configured here on purpose: a default
-            # would name a vendor nobody has chosen, and there is no right answer while the
-            # feature is switched off. The application's own defaults keep startup valid.
-            #
-            # To enable, set CC_AI_ENABLED=true and add, in this overlay:
-            #   CC_AI_BASE_URL  any OpenAI-compatible endpoint - one client reaches every vendor,
-            #                   so this alone selects the provider:
-            #                     http://ollama:11434/v1                   in-cluster, no key,
-            #                                                              nothing leaves the cluster
-            #                     https://api.openai.com/v1
-            #                     https://api.anthropic.com/v1/
-            #                     https://openrouter.ai/api/v1
-            #                   Use a Service name, not localhost - in a pod localhost is the pod.
-            #   CC_AI_MODEL     matching model id. It must support tool calling; the assistant is
-            #                   built entirely on tools and cannot answer without them.
-            #   CC_AI_API_KEY   from the secret below, for providers that need one.
+            # AI assistant, off by default. No model is set here: that is a per-environment
+            # choice. To enable, set CC_AI_ENABLED=true plus CC_AI_BASE_URL (any OpenAI-compatible
+            # endpoint, e.g. http://ollama:11434/v1 in-cluster - a Service name, not localhost)
+            # and CC_AI_MODEL. The model must support tool calling.
             - name: CC_AI_ENABLED
               value: "false"
             - name: CC_AI_API_KEY

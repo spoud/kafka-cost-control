@@ -94,18 +94,13 @@ public class OlapInfra {
     }
 
     /**
-     * Open an additional connection that shares the same underlying DuckDB instance but has its
-     * own transaction context.
+     * A connection sharing the same DuckDB instance but with its own transaction context.
      * <p>
-     * This must go through {@link org.duckdb.DuckDBConnection#duplicate()} rather than a fresh
-     * {@link DriverManager#getConnection}: with the default in-memory URL ({@code jdbc:duckdb:})
-     * a new DriverManager connection opens a <em>different, empty</em> database, so callers would
-     * silently query nothing.
-     * <p>
-     * Used by the AI assistant to run model-authored queries without contending with the
-     * synchronized ingest flush on the shared read-write connection.
+     * Must use {@link org.duckdb.DuckDBConnection#duplicate()}: with the in-memory URL
+     * ({@code jdbc:duckdb:}) a fresh {@link DriverManager} connection opens a different, empty
+     * database and callers would silently query nothing.
      *
-     * @return a duplicated connection the caller owns and must close, or empty if OLAP is off
+     * @return a connection the caller owns and must close, or empty if OLAP is off
      */
     public Optional<Connection> duplicateConnection() {
         return getConnection().flatMap(conn -> {
