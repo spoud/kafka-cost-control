@@ -8,9 +8,18 @@ import {
 } from '@ngrx/signals/entities';
 import { effect } from '@angular/core';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    isRevivableDate,
+    isUnknownArray,
+    readPersisted,
+    reviveDate,
+    writePersisted,
+} from '../../common/persisted-state';
 
 const CURRENT_STATE_KEY = 'kcc_cost_overview_state';
 const SAVED_CONFIGS_KEY = 'kcc_cost_overview_saved_configs';
+/** Bump when CostOverviewFormValues changes in a way values written by an older build cannot satisfy. */
+const PERSISTED_VERSION = 1;
 
 export interface CostOverviewFormValues {
     from: Date;
@@ -36,21 +45,7 @@ const initialState: CostOverviewState = {
 };
 
 function reviveDates<T extends { from: Date; to: Date }>(value: T): T {
-    return { ...value, from: new Date(value.from), to: new Date(value.to) };
-}
-
-/** Read and parse a stored value, discarding it if it is unreadable rather than throwing. */
-function readStored(key: string): unknown {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-        return null;
-    }
-    try {
-        return JSON.parse(raw);
-    } catch {
-        localStorage.removeItem(key);
-        return null;
-    }
+    return { ...value, from: reviveDate(value.from), to: reviveDate(value.to) };
 }
 
 /**
@@ -66,8 +61,8 @@ function isCostOverviewValues(value: unknown): value is CostOverviewFormValues {
     const candidate = value as Partial<CostOverviewFormValues>;
     return (
         Array.isArray(candidate.groupBy) &&
-        !Number.isNaN(new Date(candidate.from as unknown as string).getTime()) &&
-        !Number.isNaN(new Date(candidate.to as unknown as string).getTime())
+        isRevivableDate(candidate.from) &&
+        isRevivableDate(candidate.to)
     );
 }
 
@@ -85,28 +80,38 @@ export const CostOverviewStore = signalStore(
     withEntities<SavedCostConfig>(),
     withHooks({
         onInit(store) {
-            // Both reads are defensive on purpose. This is a root-provided store, so anything
-            // thrown here happens during construction and takes the whole Cost Overview route
-            // down with no in-app way back — the user would have to clear localStorage by hand.
-            // Stored values can also predate a shape change, so a parse succeeding is not enough.
-            const storedCurrent = readStored(CURRENT_STATE_KEY);
-            if (storedCurrent && isCostOverviewValues(storedCurrent)) {
+            // Hydration is defensive on purpose: this is a root-provided store, so anything thrown
+            // here happens during construction and takes the whole Cost Overview route down with
+            // no in-app way back. See common/persisted-state.
+            const storedCurrent = readPersisted(
+                CURRENT_STATE_KEY,
+                PERSISTED_VERSION,
+                isCostOverviewValues
+            );
+            if (storedCurrent) {
                 patchState(store, { current: reviveDates(storedCurrent) });
             }
-            const storedConfigs = readStored(SAVED_CONFIGS_KEY);
-            if (Array.isArray(storedConfigs)) {
-                const configs = storedConfigs.filter(isSavedConfig).map(reviveDates);
-                patchState(store, addEntities(configs));
+            const storedConfigs = readPersisted(
+                SAVED_CONFIGS_KEY,
+                PERSISTED_VERSION,
+                isUnknownArray
+            );
+            if (storedConfigs) {
+                // filtered per item so one unusable config costs the user that config, not all of them
+                patchState(
+                    store,
+                    addEntities(storedConfigs.filter(isSavedConfig).map(reviveDates))
+                );
             }
 
             effect(() => {
                 const current = store.current();
                 if (current) {
-                    localStorage.setItem(CURRENT_STATE_KEY, JSON.stringify(current));
+                    writePersisted(CURRENT_STATE_KEY, PERSISTED_VERSION, current);
                 }
             });
             effect(() => {
-                localStorage.setItem(SAVED_CONFIGS_KEY, JSON.stringify(store.entities()));
+                writePersisted(SAVED_CONFIGS_KEY, PERSISTED_VERSION, store.entities());
             });
         },
     }),
