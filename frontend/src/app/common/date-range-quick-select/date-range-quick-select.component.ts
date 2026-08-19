@@ -23,6 +23,8 @@ function endOfDay(date: Date): Date {
     return d;
 }
 
+// Counted inclusively of today, so a preset spans exactly as many calendar days as its
+// label says: "Last 7 days" is daysAgo(6) through end of today.
 function daysAgo(days: number): Date {
     return startOfDay(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 }
@@ -55,11 +57,11 @@ export class DateRangeQuickSelectComponent {
         },
         {
             label: 'Last 7 days',
-            range: () => ({ from: daysAgo(7), to: endOfDay(new Date()) }),
+            range: () => ({ from: daysAgo(6), to: endOfDay(new Date()) }),
         },
         {
             label: 'Last 30 days',
-            range: () => ({ from: daysAgo(30), to: endOfDay(new Date()) }),
+            range: () => ({ from: daysAgo(29), to: endOfDay(new Date()) }),
         },
         {
             label: 'This month',
@@ -67,7 +69,9 @@ export class DateRangeQuickSelectComponent {
                 const now = new Date();
                 return {
                     from: new Date(now.getFullYear(), now.getMonth(), 1),
-                    to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+                    // ends today, not at month-end: an in-progress period has no data past
+                    // now, and this matches 'This year' below
+                    to: endOfDay(now),
                 };
             },
         },
