@@ -1,9 +1,23 @@
 @if (inputData()) {
-    <div
-        class="sankey-chart"
-        style="height: 1000px"
-        echarts
-        [options]="sankeyOptions()"
-        [theme]="themeService.chartTheme()"
-    ></div>
+    <div class="sankey-container">
+        <div
+            class="sankey-chart"
+            echarts
+            [options]="sankeyOptions()"
+            [theme]="themeService.chartTheme()"
+            (chartInit)="onChartInit($event)"
+        ></div>
+        <div class="sankey-controls">
+            <button
+                mat-icon-button
+                type="button"
+                aria-label="Reset zoom and position"
+                matTooltip="Reset zoom and position"
+                (click)="resetView()"
+            >
+                <mat-icon>center_focus_strong</mat-icon>
+            </button>
+            <span class="sankey-hint">Hold {{ modifierKey }} to zoom · drag to pan</span>
+        </div>
+    </div>
 }

@@ -1,7 +1,11 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
 import { CostOverviewQuery } from '../../../generated/graphql/sdk';
 import { CostOverviewRequestInput } from '../../../generated/graphql/types';
 import { NgxEchartsDirective } from 'ngx-echarts';
+import { EChartsType } from 'echarts/core';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption } from 'echarts/core';
 import { SankeyChart } from 'echarts/charts';
@@ -17,17 +21,56 @@ const MAX_ENTRIES_PER_METRIC = 25;
 
 @Component({
     selector: 'app-sankey',
-    imports: [NgxEchartsDirective],
+    imports: [NgxEchartsDirective, MatIconButton, MatIcon, MatTooltip],
     templateUrl: './sankey.component.html',
     styleUrl: './sankey.component.scss',
 })
 export class SankeyComponent {
     protected readonly themeService = inject(ThemeService);
 
+    private chart: EChartsType | null = null;
+    private readonly destroyRef = inject(DestroyRef);
+
+    /** Bumped to force a fresh option object, which drops ECharts' accumulated roam transform. */
+    private resetCount = signal(0);
+
+    protected readonly modifierKey = navigator.platform.startsWith('Mac') ? '\u2318' : 'Ctrl';
+
+    protected onChartInit(chart: EChartsType): void {
+        this.chart = chart;
+
+        // The diagram is a tall element in a scrolling page and `roam` binds the wheel, so
+        // scrolling past it zoomed instead of scrolling. Swallow the event in the capture phase -
+        // before ECharts' own handler on the canvas inside - unless a modifier is held. No
+        // preventDefault, so the page scrolls normally.
+        //
+        // Done natively rather than with an Angular binding: `(wheel.capture)` is not an event
+        // modifier Angular understands outside key events, it would bind an event of that literal
+        // name and never fire.
+        const container = chart.getDom();
+        const onWheel = (event: WheelEvent) => {
+            if (!event.metaKey && !event.ctrlKey) {
+                event.stopPropagation();
+            }
+        };
+        container.addEventListener('wheel', onWheel, { capture: true });
+        this.destroyRef.onDestroy(() =>
+            container.removeEventListener('wheel', onWheel, { capture: true })
+        );
+    }
+
+    protected resetView(): void {
+        // No public action resets sankey roam, so re-apply the option non-mergefully: ECharts
+        // rebuilds the view and the pan/zoom transform goes with it.
+        this.resetCount.update(n => n + 1);
+        this.chart?.setOption(this.sankeyOptions(), { notMerge: true });
+    }
+
     inputData = input.required<CostOverviewQuery | undefined>();
     lastRequest = input.required<CostOverviewRequestInput | undefined>();
 
     sankeyOptions = computed<EChartsCoreOption>(() => {
+        this.resetCount(); // a reset produces a new option object; see resetView
         const storage = (this.lastRequest()?.kafkaStorageCents ?? 0) / 100; // dollar amount...
         const kafkaIn = (this.lastRequest()?.kafkaNetworkReadCents ?? 0) / 100;
         const kafkaOut = (this.lastRequest()?.kafkaNetworkWriteCents ?? 0) / 100;
@@ -127,6 +170,7 @@ export class SankeyComponent {
                     focus: 'trajectory',
                 },
                 layout: 'none',
+                // pan freely by dragging; zoom is wheel-driven and gated in onWheelCapture
                 roam: true,
                 label: {
                     formatter: (params: { name?: string }) =>

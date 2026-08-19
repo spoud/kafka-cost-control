@@ -1,4 +1,26 @@
+.sankey-container {
+    position: relative;
+}
+
 .sankey-chart {
+    height: 1000px;
     border: 1px solid var(--mat-sys-outline-variant);
     border-radius: 8px;
+}
+
+.sankey-controls {
+    position: absolute;
+    left: var(--space-3);
+    bottom: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-2);
+    background: color-mix(in srgb, var(--mat-sys-surface) 85%, transparent);
+}
+
+.sankey-hint {
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
 }
