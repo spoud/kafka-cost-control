@@ -27,6 +27,7 @@
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <kafka.version>4.3.1</kafka.version>
         <confluent.platform.version>8.3.0</confluent.platform.version>
+        <quarkus.langchain4j.version>1.12.2</quarkus.langchain4j.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -37,6 +38,13 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>io.quarkiverse.langchain4j</groupId>
+                <artifactId>quarkus-langchain4j-bom</artifactId>
+                <version>${quarkus.langchain4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -44,6 +52,16 @@
             <groupId>org.duckdb</groupId>
             <artifactId>duckdb_jdbc</artifactId>
             <version>1.5.5.0</version>
+        </dependency>
+        <!--
+          One dependency for every LLM vendor. Ollama, OpenAI, Anthropic, Gemini, OpenRouter,
+          Groq, vLLM and LM Studio all speak the OpenAI chat-completions protocol, so pointing
+          this client at a different base URL is all it takes to change provider - no extra
+          artifact, no extra config block. See quarkus.langchain4j.openai in application.yaml.
+        -->
+        <dependency>
+            <groupId>io.quarkiverse.langchain4j</groupId>
+            <artifactId>quarkus-langchain4j-openai</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

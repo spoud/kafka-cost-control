@@ -12,7 +12,28 @@ cc:
     enabled: false
     database:
       # technically this is already the default, but let's be explicit
-      url: "jdbc:duckdb:"
+      url: "jdbc:duckdb:/tmp/cc/local.db"
+  ai:
+    # Natural-language querying of the OLAP data. Requires cc.olap.enabled=true as well,
+    # since every question is ultimately answered from the DuckDB table.
+    enabled: false
+    # Private mode: the model writes the SQL but never sees the results. Rows go straight to
+    # the user. Only the schema shape (metric names, context keys) and the question leave the
+    # network; no values and no query output. The cost is that answers are tables, not prose.
+    private-mode: false
+
+    # --- Which model to talk to. These four settings are the entire configuration surface,
+    # whichever vendor you point at; see the base-URL table under quarkus.langchain4j below.
+    #
+    # Defaults target a local Ollama, since that is the only option needing no secret.
+    base-url: ${CC_AI_BASE_URL:http://localhost:11434/v1}
+    model: ${CC_AI_MODEL:qwen3-coder:latest}
+    # Placeholder rather than empty: the client validates this at startup and an empty string
+    # converts to null and fails. Ignored by providers that need no key, such as Ollama.
+    api-key: ${CC_AI_API_KEY:not-configured}
+    # A local model has to load into memory and then write SQL across several tool round-trips,
+    # so the usual few-second default is far too short.
+    request-timeout: ${CC_AI_REQUEST_TIMEOUT:PT10M}
   admin-password: admin
   metrics:
     aggregations:
@@ -59,7 +80,7 @@ quarkus:
     application-id: ${kafka.application.id}
     topics: ${cc.topics.raw-data},${cc.topics.context-data},${cc.topics.pricing-rules},${cc.topics.aggregated}
     state:
-      dir: /tmp/my-streams
+      dir: /tmp/cc/my-streams
     default:
       key:
         serde: org.apache.kafka.common.serialization.Serdes$StringSerde
@@ -96,3 +117,50 @@ quarkus:
         level: WARN
   container-image:
     build: true
+  # Which LLM the assistant talks to.
+  #
+  # One client covers every vendor, because they all speak the OpenAI chat-completions protocol.
+  # Changing provider is a base URL, not a dependency:
+  #
+  #   Ollama (local)  http://localhost:11434/v1                                    no key needed
+  #   OpenAI          https://api.openai.com/v1
+  #   Anthropic       https://api.anthropic.com/v1/                                see caveat below
+  #   Gemini          https://generativelanguage.googleapis.com/v1beta/openai/
+  #   OpenRouter      https://openrouter.ai/api/v1                                 proxies many models
+  #   vLLM / LM Studio / Groq / Together                                           all OpenAI-compatible
+  #
+  # Whichever you pick, the model must support tool calling - the assistant is built entirely on
+  # tools and a model without them cannot answer anything.
+  #
+  # Caveat on Anthropic: its OpenAI-compatible endpoint is documented as being for evaluation
+  # rather than production, and it does not support prompt caching, so the schema prompt is paid
+  # for in full on every call. Claude works, but its native API would be cheaper and better
+  # supported - re-add quarkus-langchain4j-anthropic if that matters.
+  langchain4j:
+    openai:
+      base-url: ${cc.ai.base-url}
+      api-key: ${cc.ai.api-key}
+      timeout: ${cc.ai.request-timeout}
+      chat-model:
+        model-name: ${cc.ai.model}
+      # Off by default: prompts carry your metric names and context keys, and results can carry
+      # topic and application names.
+      log-requests: false
+      log-responses: false
+
+"%dev":
+  mp:
+    messaging:
+      connector:
+        smallrye-kafka:
+          apicurio:
+            registry:
+              url: ${kafka.schema.registry.url}/apis/registry/v2
+  cc:
+    aggregation-window-size: PT1H
+    olap:
+      enabled: true
+    ai:
+      # Answers out of the box against a local Ollama on the default base URL; no key needed.
+      # Point CC_AI_BASE_URL and CC_AI_MODEL elsewhere to use a hosted provider.
+      enabled: true

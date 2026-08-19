@@ -45,3 +45,26 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  kafka-init:
+    image: confluentinc/cp-kafka:8.3.0
+    depends_on:
+      - broker
+    restart: "no"
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        cub kafka-ready -b broker:29092 1 60
+        # Topics the aggregator's `quarkus.kafka-streams.topics` waits on before it will call
+        # KafkaStreams#start() (see aggregator/src/main/resources/application.yaml). On a clean
+        # broker none of these exist yet, and nothing else creates them, so Kafka Streams would
+        # otherwise be stuck in state CREATED forever.
+        # metrics-raw-telegraf-env gets retention.ms=-1 (never expire): seed-data backdates each
+        # record's Kafka timestamp up to ~90 days into the past so Kafka Streams' zero-grace
+        # windowing buckets it correctly, but that same timestamp is what the broker's default
+        # 7-day log retention uses for cleanup - without this, most of a fresh `load` gets deleted
+        # by the broker before the aggregator ever consumes it.
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic metrics-raw-telegraf-env --partitions 1 --replication-factor 1 --config retention.ms=-1
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic context-data --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic pricing-rules --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic aggregated --partitions 1 --replication-factor 1

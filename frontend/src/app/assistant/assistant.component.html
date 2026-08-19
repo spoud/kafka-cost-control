@@ -1,0 +1,163 @@
+<app-page-header
+    title="Assistant"
+    subtitle="Ask questions about your Kafka usage in plain language"
+>
+    <button
+        matButton
+        actions
+        (click)="reset()"
+        [disabled]="store.entities().length === 0 || store.pending()"
+    >
+        <mat-icon>refresh</mat-icon>
+        New conversation
+    </button>
+</app-page-header>
+
+@if (!status.loading() && !status.available()) {
+    <!-- Reachable by direct navigation even though the nav entry is hidden. Say why rather
+         than accepting a question that is guaranteed to fail. -->
+    <app-empty-state
+        icon="smart_toy_outlined"
+        [message]="status.reason() ?? 'The AI assistant is not available.'"
+    />
+} @else {
+    <div class="assistant">
+        <div class="transcript" #transcript>
+            @if (store.entities().length === 0) {
+                <app-empty-state
+                    icon="smart_toy"
+                    message="Ask a question about your metrics, topics or applications."
+                >
+                    <div class="suggestions" actions>
+                        @for (suggestion of suggestions; track suggestion) {
+                            <button matButton="outlined" (click)="useSuggestion(suggestion)">
+                                {{ suggestion }}
+                            </button>
+                        }
+                    </div>
+                </app-empty-state>
+            } @else {
+                @for (message of store.entities(); track message.id) {
+                    @if (message.contextLost) {
+                        <!-- The transcript above survived in the browser but the assistant's memory of
+                         it did not, so say so rather than letting the visible history imply
+                         otherwise. -->
+                        <div class="note">
+                            <mat-icon inline>history_toggle_off</mat-icon>
+                            <span
+                                >Earlier messages were not available to the assistant — it answered
+                                from this question alone.</span
+                            >
+                        </div>
+                    }
+                    <div class="message" [class.message--user]="message.role === 'user'">
+                        <div class="bubble" [class.bubble--error]="message.error">
+                            @if (message.error) {
+                                <div class="error-line">
+                                    <mat-icon inline>error_outline</mat-icon>
+                                    <span>{{ message.error }}</span>
+                                </div>
+                            } @else {
+                                <p class="text">{{ message.text }}</p>
+                            }
+
+                            @if (message.columns.length > 0) {
+                                <div class="table-scroll">
+                                    <table class="result">
+                                        <thead>
+                                            <tr>
+                                                @for (column of message.columns; track $index) {
+                                                    <th>{{ column }}</th>
+                                                }
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (row of message.rows; track $index) {
+                                                <tr>
+                                                    @for (cell of row; track $index) {
+                                                        <td>{{ cell ?? '—' }}</td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p class="row-count">
+                                    {{ message.rows.length }}
+                                    {{ message.rows.length === 1 ? 'row' : 'rows' }}
+                                    @if (message.truncated) {
+                                        <span class="truncated"
+                                            >— cut off at the row limit, so this is not the complete
+                                            result</span
+                                        >
+                                    }
+                                </p>
+                            }
+
+                            @if (message.partial) {
+                                <div class="note">
+                                    <mat-icon inline>hourglass_disabled</mat-icon>
+                                    <span>This answer is incomplete.</span>
+                                </div>
+                            }
+
+                            @if (message.generatedSql.length > 0) {
+                                <button
+                                    matButton
+                                    class="sql-toggle"
+                                    (click)="toggleSql(message.id)"
+                                >
+                                    <mat-icon>
+                                        {{
+                                            isSqlExpanded(message.id)
+                                                ? 'expand_less'
+                                                : 'expand_more'
+                                        }}
+                                    </mat-icon>
+                                    {{ message.generatedSql.length }}
+                                    {{ message.generatedSql.length === 1 ? 'query' : 'queries' }}
+                                </button>
+                                @if (isSqlExpanded(message.id)) {
+                                    @for (sql of message.generatedSql; track $index) {
+                                        <pre class="sql">{{ sql }}</pre>
+                                    }
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (store.pending()) {
+                <div class="message">
+                    <div class="bubble bubble--thinking">
+                        <app-loading-indicator />
+                    </div>
+                </div>
+            }
+        </div>
+
+        <form class="composer" (ngSubmit)="send()">
+            <mat-form-field class="composer-field">
+                <mat-label>Ask a question</mat-label>
+                <textarea
+                    matInput
+                    rows="1"
+                    [ngModel]="draft()"
+                    (ngModelChange)="draft.set($event)"
+                    (keydown)="onKeydown($event)"
+                    name="question"
+                    [disabled]="store.pending()"
+                ></textarea>
+            </mat-form-field>
+            <button
+                matIconButton
+                type="submit"
+                matTooltip="Send"
+                [disabled]="store.pending() || draft().trim().length === 0"
+            >
+                <mat-icon>send</mat-icon>
+            </button>
+        </form>
+    </div>
+}

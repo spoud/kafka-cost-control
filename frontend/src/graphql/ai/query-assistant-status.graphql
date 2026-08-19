@@ -1,0 +1,6 @@
+query assistantStatus {
+    assistantStatus {
+        available
+        reason
+    }
+}
