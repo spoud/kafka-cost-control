@@ -41,18 +41,23 @@ spec:
                 secretKeyRef:
                   name: kafka-cost-control-secret
                   key: CC_ADMIN_PASSWORD
-            # AI assistant. Off by default: it calls a paid third-party API, so enabling it
-            # per-environment should be a deliberate choice. Requires ANTHROPIC_API_KEY in the
-            # secret (optional: the key is only read when CC_AI_ENABLED is true).
+            # AI assistant. Off by default: it can call a paid third-party API, so enabling
+            # it per-environment is a deliberate choice.
+            #
+            # Provider-agnostic settings - the same four regardless of vendor. Set
+            # CC_AI_PROVIDER=ollama with CC_AI_BASE_URL pointing at an in-cluster model to keep
+            # every question inside the network; no key is needed in that case.
             - name: CC_AI_ENABLED
               value: "false"
-            # Must be ANTHROPIC_API_KEY: application.yaml reads ${ANTHROPIC_API_KEY}, not a
-            # cc.ai.* property. Naming it CC_AI_ANTHROPIC_API_KEY silently did nothing.
-            - name: ANTHROPIC_API_KEY
+            - name: CC_AI_PROVIDER
+              value: "anthropic"
+            - name: CC_AI_MODEL
+              value: "claude-opus-4-5"
+            - name: CC_AI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: kafka-cost-control-secret
-                  key: ANTHROPIC_API_KEY
+                  key: CC_AI_API_KEY
                   optional: true
           envFrom:
             - secretRef:

@@ -23,6 +23,28 @@ cc:
     # the user. Only the schema shape (metric names, context keys) and the question leave the
     # network; no values and no query output. The cost is that answers are tables, not prose.
     private-mode: false
+
+    # --- Which model to talk to. Provider-agnostic: these five settings are all you configure,
+    # whichever vendor you point at. They are mapped onto each provider's own property names
+    # under quarkus.langchain4j.* below.
+    #
+    #   anthropic  hosted Claude. Needs CC_AI_API_KEY.
+    #   ollama     a model on your own machine or cluster. Needs no key; set CC_AI_BASE_URL if
+    #              it is not on localhost. The model must support tool calling.
+    #
+    # CC_AI_BASE_URL is the fifth knob and is deliberately env-var-only, not a property here:
+    # the sensible default differs per provider, and a property with an empty default is a real
+    # value that would stop each provider's own fallback from firing.
+    #
+    # Adding a vendor is a dependency in pom.xml plus a block below - see the note there.
+    provider: ${CC_AI_PROVIDER:anthropic}
+    model: ${CC_AI_MODEL:claude-opus-4-5}
+    # Placeholder rather than empty: providers validate this at startup even when not selected,
+    # and an empty string converts to null and fails. Ignored by providers that need no key.
+    api-key: ${CC_AI_API_KEY:not-configured}
+    # A local model has to load into memory and then write SQL across several tool round-trips,
+    # so the usual 10s default is far too short.
+    request-timeout: ${CC_AI_REQUEST_TIMEOUT:PT10M}
   admin-password: admin
   metrics:
     aggregations:
@@ -116,31 +138,46 @@ quarkus:
   # To add another vendor, put its quarkus-langchain4j-* artifact on the classpath and name it
   # here: -openai, -mistral-ai, -gemini, -vertex-ai, -watsonx. OpenRouter is reached through the
   # OpenAI provider with quarkus.langchain4j.openai.base-url=https://openrouter.ai/api/v1
+  # Which LLM the assistant talks to.
+  #
+  # Configure it through the provider-agnostic cc.ai.* block above (CC_AI_PROVIDER, CC_AI_MODEL,
+  # CC_AI_API_KEY, CC_AI_BASE_URL, CC_AI_REQUEST_TIMEOUT). The per-provider blocks below exist
+  # only to feed those same values into whatever each LangChain4j provider happens to call them:
+  # `chat-model.model-name` here, `chat-model.model-id` there, `api-key` on some and not others.
+  # That naming is LangChain4j's, not ours, so the mapping cannot be avoided - but it is confined
+  # to this file and nobody configuring the app has to know about it.
+  #
+  # To add a provider: put its quarkus-langchain4j-* artifact on the classpath and add a block
+  # here that wires the same cc.ai.* values into its property names. Nothing else changes; the
+  # application code only ever sees LangChain4j's ChatModel interface.
+  #
+  # Every provider is validated at startup even when inactive, so each block needs values that
+  # parse - hence the fallbacks. Only the selected provider's values are actually used.
   langchain4j:
     chat-model:
-      provider: ${CC_AI_PROVIDER:anthropic}
+      provider: ${cc.ai.provider}
+
+    anthropic:
+      api-key: ${cc.ai.api-key}
+      chat-model:
+        model-name: ${cc.ai.model}
+        max-tokens: 8000
+      timeout: ${cc.ai.request-timeout}
+      # Off by default: prompts carry your metric names and context keys, and results can carry
+      # topic and application names.
+      log-requests: false
+      log-responses: false
+
     ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      # Provider-specific fallback: only used when CC_AI_BASE_URL is not set.
+      base-url: ${CC_AI_BASE_URL:http://localhost:11434}
       # Belongs to the Ollama client, NOT to chat-model: nesting it one level deeper is silently
-      # ignored and you get the 10s default back. A local model has to load into memory on the
-      # first call and then write SQL across several tool round-trips, which 10s does not cover.
-      timeout: ${OLLAMA_TIMEOUT:PT10M}
+      # ignored and you get the 10s default back.
+      timeout: ${cc.ai.request-timeout}
       chat-model:
         # Must be a model with tool-calling support - the assistant is built entirely on tools.
         # `ollama show <model>` lists capabilities; look for "tools".
-        model-id: ${OLLAMA_MODEL:qwen3-coder:latest}
-      log-requests: false
-      log-responses: false
-    anthropic:
-      # Placeholder rather than an empty default: LangChain4j requires the property to be
-      # non-empty at startup, and an empty string is converted to null and fails validation.
-      # Unused unless cc.ai.enabled=true.
-      api-key: ${ANTHROPIC_API_KEY:not-configured}
-      chat-model:
-        model-name: claude-opus-4-5
-        max-tokens: 8000
-      # Prompt and response logging is off by default: prompts contain your metric names and
-      # context keys, and results can contain topic and application names.
+        model-id: ${cc.ai.model}
       log-requests: false
       log-responses: false
 

@@ -42,6 +42,35 @@ public interface AiConfigProperties {
     @WithDefault("false")
     boolean privateMode();
 
+    // --- Provider-agnostic model settings -----------------------------------------------------
+    // These are the whole configuration surface for choosing a model, whichever vendor is used.
+    // application.yaml maps them onto each LangChain4j provider's own property names, which
+    // differ (`chat-model.model-name` vs `chat-model.model-id`, api keys on some and not others).
+    // Declared here so they are validated and documented rather than being loose YAML.
+
+    /** Which LangChain4j provider to use, e.g. "anthropic" or "ollama". */
+    @WithName("provider")
+    @WithDefault("anthropic")
+    String provider();
+
+    /** Model identifier, in whatever form the selected provider expects. */
+    @WithName("model")
+    @WithDefault("claude-opus-4-5")
+    String model();
+
+    /** API key for providers that need one. Ignored by those that do not, such as Ollama. */
+    @WithName("api-key")
+    @WithDefault("not-configured")
+    String apiKey();
+
+    /**
+     * Per-request timeout. A local model has to load into memory and then write SQL across
+     * several tool round-trips, so provider defaults of a few seconds are far too short.
+     */
+    @WithName("request-timeout")
+    @WithDefault("PT10M")
+    Duration requestTimeout();
+
     /**
      * Maximum number of rows any single model-authored query may return. Also caps how much
      * data gets fed back into the model's context (outside private mode).

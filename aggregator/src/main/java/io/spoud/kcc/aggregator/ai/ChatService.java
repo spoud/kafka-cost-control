@@ -1,10 +1,12 @@
 package io.spoud.kcc.aggregator.ai;
 
 import io.quarkus.logging.Log;
+import io.quarkus.runtime.StartupEvent;
 import io.spoud.kcc.aggregator.graphql.data.AssistantStatus;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
 import io.spoud.kcc.aggregator.olap.OlapConfigProperties;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 
 import java.util.ArrayList;
@@ -57,6 +59,21 @@ public class ChatService {
      * @param sessionId client-generated conversation id; history is keyed on it
      * @param question  the user's question
      */
+    /**
+     * Report the active configuration once at startup, so a wrong provider or model is visible
+     * immediately rather than on the first question a user asks.
+     */
+    void logConfiguration(@Observes StartupEvent event) {
+        if (!aiConfig.enabled()) {
+            Log.info("AI assistant is disabled (cc.ai.enabled=false)");
+            return;
+        }
+        Log.infof("AI assistant enabled: provider=%s model=%s%s",
+                aiConfig.provider(),
+                aiConfig.model(),
+                aiConfig.privateMode() ? " (private mode: results are not sent to the model)" : "");
+    }
+
     /**
      * Whether a question asked right now would be answered.
      * <p>
