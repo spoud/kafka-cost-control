@@ -68,8 +68,9 @@ public class ChatService {
             Log.info("AI assistant is disabled (cc.ai.enabled=false)");
             return;
         }
-        Log.infof("AI assistant enabled: provider=%s model=%s%s",
-                aiConfig.provider(),
+        // The base URL is the provider's identity now, and the setting most likely to be wrong.
+        Log.infof("AI assistant enabled: base-url=%s model=%s%s",
+                aiConfig.baseUrl(),
                 aiConfig.model(),
                 aiConfig.privateMode() ? " (private mode: results are not sent to the model)" : "");
     }

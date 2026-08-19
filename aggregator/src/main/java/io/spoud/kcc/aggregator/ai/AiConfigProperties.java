@@ -13,13 +13,9 @@ import java.time.Duration;
  * The module requires {@code cc.olap.enabled=true} as well, since every question is ultimately
  * answered from the DuckDB table.
  * <p>
- * <b>Model and provider selection is not here</b> — it belongs to LangChain4j under
- * {@code quarkus.langchain4j.*}. Which provider is available is decided by the
- * {@code quarkus-langchain4j-*} artifact on the classpath. For example:
- * <pre>
- * quarkus.langchain4j.anthropic.api-key=...
- * quarkus.langchain4j.anthropic.chat-model.model-name=claude-opus-4-5
- * </pre>
+ * Which model is used is decided entirely by {@link #baseUrl()} and {@link #model()}. Every
+ * vendor speaks the OpenAI chat-completions protocol, so changing provider is a URL rather than a
+ * dependency — see the table in {@code application.yaml}.
  */
 @ConfigMapping(prefix = "cc.ai")
 public interface AiConfigProperties {
@@ -42,20 +38,22 @@ public interface AiConfigProperties {
     @WithDefault("false")
     boolean privateMode();
 
-    // --- Provider-agnostic model settings -----------------------------------------------------
-    // These are the whole configuration surface for choosing a model, whichever vendor is used.
-    // application.yaml maps them onto each LangChain4j provider's own property names, which
-    // differ (`chat-model.model-name` vs `chat-model.model-id`, api keys on some and not others).
-    // Declared here so they are validated and documented rather than being loose YAML.
+    // --- Model settings ------------------------------------------------------------------------
+    // The whole configuration surface for choosing a model, whichever vendor is used. They feed
+    // quarkus.langchain4j.openai.* directly — one client, so there is no per-vendor name mapping.
 
-    /** Which LangChain4j provider to use, e.g. "anthropic" or "ollama". */
-    @WithName("provider")
-    @WithDefault("anthropic")
-    String provider();
+    /**
+     * Base URL of an OpenAI-compatible chat-completions endpoint. This is what selects the
+     * provider: {@code http://localhost:11434/v1} for a local Ollama,
+     * {@code https://api.anthropic.com/v1/} for Claude, and so on.
+     */
+    @WithName("base-url")
+    @WithDefault("http://localhost:11434/v1")
+    String baseUrl();
 
-    /** Model identifier, in whatever form the selected provider expects. */
+    /** Model identifier, in whatever form the endpoint expects. Must support tool calling. */
     @WithName("model")
-    @WithDefault("claude-opus-4-5")
+    @WithDefault("qwen3-coder:latest")
     String model();
 
     /** API key for providers that need one. Ignored by those that do not, such as Ollama. */
