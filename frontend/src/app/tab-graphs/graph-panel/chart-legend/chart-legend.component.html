@@ -6,6 +6,7 @@
             <mat-option value="name">Name</mat-option>
         </mat-select>
     </mat-form-field>
+    <p class="legend-hint">Click to isolate · shift-click to hide</p>
     <ul class="legend-list">
         @for (item of items(); track item.name) {
             <li>
@@ -13,7 +14,8 @@
                     type="button"
                     class="legend-item"
                     [class.deselected]="!item.selected"
-                    (click)="toggleSeries.emit(item.name)"
+                    [title]="item.name"
+                    (click)="onClick($event, item.name)"
                 >
                     <span class="swatch" [style.background-color]="item.color"></span>
                     <span class="name">{{ item.name }}</span>

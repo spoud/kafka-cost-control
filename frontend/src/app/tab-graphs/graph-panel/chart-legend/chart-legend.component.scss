@@ -20,6 +20,14 @@
     width: 100%;
 }
 
+.legend-hint {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    color: var(--mat-sys-on-surface-variant);
+}
+
 .legend-list {
     flex: 1 1 auto;
     min-height: 0;

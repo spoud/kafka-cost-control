@@ -1,10 +1,10 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { MatCheckbox } from '@angular/material/checkbox';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
 import { EChartsCoreOption, EChartsType } from 'echarts/core';
 import { saveAs } from 'file-saver-es';
-import { MatButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { Panel } from '../../../tab-reporting/panel.type';
 import { Maybe, MetricHistory, Scalars } from '../../../../generated/graphql/types';
@@ -13,14 +13,26 @@ import { CHART_COLORS_DARK, CHART_COLORS_LIGHT } from '../../../services/chart-t
 import {
     ChartLegendComponent,
     ChartLegendItem,
+    LegendClick,
     LegendSort,
 } from '../chart-legend/chart-legend.component';
+import { applyLegendClick } from '../legend-selection';
+import { formatCompact, formatPercent } from '../../../common/compact-number';
+import { DateRange } from '../../../common/date-range-quick-select/date-range-quick-select.component';
 
 export type BarOrLine = 'bar' | 'line';
 
 @Component({
     selector: 'app-bar-chart',
-    imports: [MatCheckbox, NgxEchartsDirective, MatButton, MatIcon, ChartLegendComponent],
+    imports: [
+        NgxEchartsDirective,
+        MatIconButton,
+        MatIcon,
+        MatMenu,
+        MatMenuItem,
+        MatMenuTrigger,
+        ChartLegendComponent,
+    ],
     templateUrl: './bar-chart.component.html',
     styleUrls: ['./bar-chart.component.scss'],
     providers: [provideEchartsCore({ echarts })],
@@ -42,6 +54,13 @@ export class BarChartComponent {
 
     type = input.required<BarOrLine>();
 
+    /**
+     * The range the user actually asked for. Without it the time axis spans only the timestamps
+     * present in the response, so a quiet period at either end silently shrinks the window and
+     * two charts of the same range can end up with different axes.
+     */
+    range = input<DateRange | null>(null);
+
     // color assignment follows each series' fixed index in metricsData(), never the
     // sorted/displayed legend order, so toggling the sort never repaints a series' color
     protected legendItems = computed<ChartLegendItem[]>(() => {
@@ -61,14 +80,14 @@ export class BarChartComponent {
         return items;
     });
 
-    protected toggleLegend(name: string) {
-        const next = new Set(this.deselected());
-        if (next.has(name)) {
-            next.delete(name);
-        } else {
-            next.add(name);
-        }
-        this.deselected.set(next);
+    protected toggleLegend(click: LegendClick) {
+        this.deselected.set(
+            applyLegendClick(
+                this.deselected(),
+                this.metricsData().map(m => m.name),
+                click
+            )
+        );
     }
 
     options = computed<EChartsCoreOption>(() => {
@@ -107,26 +126,46 @@ export class BarChartComponent {
         });
 
         const deselected = this.deselected();
+        const normalized = this.normalized();
+        const range = this.range();
+        const format = normalized ? formatPercent : formatCompact;
 
         return {
             tooltip: {
                 trigger: 'axis',
                 confine: true,
                 appendTo: 'body',
+                valueFormatter: (value: unknown) =>
+                    typeof value === 'number' ? format(value) : '—',
             },
+            // ECharts defaults the grid to 10% inset on each side, which leaves the plot area
+            // noticeably narrower than its container. containLabel already reserves whatever the
+            // axis labels need, so the explicit margins can be small.
             grid: {
+                left: 8,
+                right: 16,
+                // room for the y-axis name, which ECharts draws above the axis and will
+                // otherwise clip against the top of the canvas
+                top: 32,
+                bottom: 8,
                 containLabel: true,
             },
             xAxis: {
                 type: 'time',
+                // pinned to the requested range, not the data extent - see the `range` input
+                min: range?.from?.getTime(),
+                max: range?.to?.getTime(),
             },
             yAxis: {
                 type: 'value',
                 axisLine: {
                     show: true,
                 },
-                max: this.normalized() ? 100 : undefined,
-                name: this.normalized() ? '%' : 'bytes',
+                max: normalized ? 100 : undefined,
+                name: normalized ? '%' : 'bytes',
+                axisLabel: {
+                    formatter: (value: number) => format(value),
+                },
             },
             dataset: {
                 source: datasetSource,

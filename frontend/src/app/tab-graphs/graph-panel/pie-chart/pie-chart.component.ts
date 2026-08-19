@@ -3,7 +3,8 @@ import * as echarts from 'echarts/core';
 import { EChartsCoreOption, EChartsType } from 'echarts/core';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 import { saveAs } from 'file-saver-es';
-import { MatButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatIcon } from '@angular/material/icon';
 import { MetricHistory } from '../../../../generated/graphql/types';
 import { ThemeService } from '../../../services/theme.service';
@@ -11,12 +12,23 @@ import { CHART_COLORS_DARK, CHART_COLORS_LIGHT } from '../../../services/chart-t
 import {
     ChartLegendComponent,
     ChartLegendItem,
+    LegendClick,
     LegendSort,
 } from '../chart-legend/chart-legend.component';
+import { applyLegendClick } from '../legend-selection';
+import { formatCompact } from '../../../common/compact-number';
 
 @Component({
     selector: 'app-pie-chart',
-    imports: [NgxEchartsDirective, MatButton, MatIcon, ChartLegendComponent],
+    imports: [
+        NgxEchartsDirective,
+        MatIconButton,
+        MatIcon,
+        MatMenu,
+        MatMenuItem,
+        MatMenuTrigger,
+        ChartLegendComponent,
+    ],
     templateUrl: './pie-chart.component.html',
     styleUrls: ['./pie-chart.component.scss'],
     providers: [provideEchartsCore({ echarts })],
@@ -65,14 +77,14 @@ export class PieChartComponent {
         return items;
     });
 
-    protected toggleLegend(name: string) {
-        const next = new Set(this.deselected());
-        if (next.has(name)) {
-            next.delete(name);
-        } else {
-            next.add(name);
-        }
-        this.deselected.set(next);
+    protected toggleLegend(click: LegendClick) {
+        this.deselected.set(
+            applyLegendClick(
+                this.deselected(),
+                this.pieChartDataSet().map(([name]) => name as string),
+                click
+            )
+        );
     }
 
     piechartOptions = computed<EChartsCoreOption>(() => {
@@ -81,6 +93,9 @@ export class PieChartComponent {
         return {
             tooltip: {
                 trigger: 'item',
+                confine: true,
+                valueFormatter: (value: unknown) =>
+                    typeof value === 'number' ? formatCompact(value) : '—',
             },
             dataset: {
                 source: this.pieChartDataSet(),
@@ -94,9 +109,16 @@ export class PieChartComponent {
             series: [
                 {
                     type: 'pie',
+                    // leaves room for the legend column instead of centring in the whole host
+                    radius: ['35%', '70%'],
                     label: {
                         formatter: '{b} ({d}%)',
                     },
+                    // With a couple of dozen slices most are sub-1% and their labels pile up in an
+                    // unreadable stack down the side. Anything too thin to label is still in the
+                    // legend and the tooltip, so nothing is actually lost by dropping the label.
+                    minShowLabelAngle: 4,
+                    labelLayout: { hideOverlap: true },
                 },
             ],
         };

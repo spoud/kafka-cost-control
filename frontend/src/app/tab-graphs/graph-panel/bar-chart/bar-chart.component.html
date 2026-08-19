@@ -1,16 +1,22 @@
-<div id="toolbar">
-    <mat-checkbox
-        color="primary"
-        class="mb-4"
-        [checked]="normalized()"
-        (change)="normalized.set($event.checked)"
+<div class="chart-toolbar">
+    <button
+        mat-icon-button
+        type="button"
+        aria-label="Chart options"
+        [matMenuTriggerFor]="chartMenu"
     >
-        normalized
-    </mat-checkbox>
-    <button mat-raised-button color="secondary" (click)="exportToCsv()">
-        <mat-icon>description</mat-icon>
-        Export as CSV
+        <mat-icon>more_vert</mat-icon>
     </button>
+    <mat-menu #chartMenu="matMenu">
+        <button mat-menu-item type="button" (click)="normalized.set(!normalized())">
+            <mat-icon>{{ normalized() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+            <span>Normalized</span>
+        </button>
+        <button mat-menu-item type="button" (click)="exportToCsv()">
+            <mat-icon>description</mat-icon>
+            <span>Export as CSV</span>
+        </button>
+    </mat-menu>
 </div>
 
 <div class="chart-row">

@@ -1,0 +1,17 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.chart-card mat-card-content {
+    // the header row sits inside the content so the options button lines up with the title
+    display: flex;
+    flex-direction: column;
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}

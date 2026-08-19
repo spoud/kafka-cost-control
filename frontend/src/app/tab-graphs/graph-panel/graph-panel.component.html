@@ -1,5 +1,23 @@
-<!--<app-bar-chart [metricsData]="metricsData()" type="bar"></app-bar-chart>-->
-<!--<mat-divider />-->
-<app-bar-chart [metricsData]="metricsData()" type="line"></app-bar-chart>
-<mat-divider />
-<app-pie-chart [metricsData]="metricsData()"></app-pie-chart>
+<mat-card appearance="outlined" class="chart-card">
+    <mat-card-header>
+        <mat-card-title class="card-title">
+            <mat-icon>show_chart</mat-icon>
+            Usage over time
+        </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+        <app-bar-chart [metricsData]="metricsData()" [range]="range()" type="line" />
+    </mat-card-content>
+</mat-card>
+
+<mat-card appearance="outlined" class="chart-card">
+    <mat-card-header>
+        <mat-card-title class="card-title">
+            <mat-icon>pie_chart</mat-icon>
+            Share of total
+        </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+        <app-pie-chart [metricsData]="metricsData()" />
+    </mat-card-content>
+</mat-card>
