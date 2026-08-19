@@ -12,6 +12,12 @@
                 <mat-icon>save</mat-icon>
                 Update "{{ selectedConfigName() }}"
             </button>
+            <!-- Re-picking the same entry in the select cannot fire selectionChange, so reverting
+                 edits needs its own control rather than relying on the dropdown. -->
+            <button mat-stroked-button type="button" (click)="loadConfig(configId)">
+                <mat-icon>restore</mat-icon>
+                Revert
+            </button>
             <button mat-stroked-button color="warn" type="button" (click)="deleteConfig(configId)">
                 <mat-icon>delete</mat-icon>
                 Delete
@@ -25,7 +31,13 @@
         @if (savedConfigs().length > 0) {
             <mat-form-field class="saved-configs-select" subscriptSizing="dynamic">
                 <mat-label>Load saved</mat-label>
-                <mat-select (selectionChange)="loadConfig($event.value)">
+                <!-- [value] must be bound: without it MatSelect keeps its own selection, so
+                     re-picking the config already shown emits nothing (no way to revert edits)
+                     and a deleted config stays selected internally. -->
+                <mat-select
+                    [value]="selectedConfigId()"
+                    (selectionChange)="loadConfig($event.value)"
+                >
                     <mat-select-trigger>{{ selectedConfigName() }}</mat-select-trigger>
                     @for (config of savedConfigs(); track config.id) {
                         <mat-option [value]="config.id">{{ config.name }}</mat-option>

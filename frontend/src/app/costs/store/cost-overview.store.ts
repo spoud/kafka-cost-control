@@ -39,19 +39,60 @@ function reviveDates<T extends { from: Date; to: Date }>(value: T): T {
     return { ...value, from: new Date(value.from), to: new Date(value.to) };
 }
 
+/** Read and parse a stored value, discarding it if it is unreadable rather than throwing. */
+function readStored(key: string): unknown {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+        return null;
+    }
+    try {
+        return JSON.parse(raw);
+    } catch {
+        localStorage.removeItem(key);
+        return null;
+    }
+}
+
+/**
+ * `reviveDates` on an object without `from`/`to` produces Invalid Date, which flows into the form
+ * and then into the GraphQL variables, so the shape is checked rather than assumed.
+ */
+function isCostOverviewValues(value: unknown): value is CostOverviewFormValues {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    const candidate = value as Partial<CostOverviewFormValues>;
+    return (
+        !Number.isNaN(new Date(candidate.from as unknown as string).getTime()) &&
+        !Number.isNaN(new Date(candidate.to as unknown as string).getTime())
+    );
+}
+
+function isSavedConfig(value: unknown): value is SavedCostConfig {
+    return (
+        isCostOverviewValues(value) &&
+        typeof (value as SavedCostConfig).id === 'string' &&
+        typeof (value as SavedCostConfig).name === 'string'
+    );
+}
+
 export const CostOverviewStore = signalStore(
     { providedIn: 'root' },
     withState(initialState),
     withEntities<SavedCostConfig>(),
     withHooks({
         onInit(store) {
-            const storedCurrent = localStorage.getItem(CURRENT_STATE_KEY);
-            if (storedCurrent) {
-                patchState(store, { current: reviveDates(JSON.parse(storedCurrent)) });
+            // Both reads are defensive on purpose. This is a root-provided store, so anything
+            // thrown here happens during construction and takes the whole Cost Overview route
+            // down with no in-app way back — the user would have to clear localStorage by hand.
+            // Stored values can also predate a shape change, so a parse succeeding is not enough.
+            const storedCurrent = readStored(CURRENT_STATE_KEY);
+            if (storedCurrent && isCostOverviewValues(storedCurrent)) {
+                patchState(store, { current: reviveDates(storedCurrent) });
             }
-            const storedConfigs = localStorage.getItem(SAVED_CONFIGS_KEY);
-            if (storedConfigs) {
-                const configs: SavedCostConfig[] = JSON.parse(storedConfigs).map(reviveDates);
+            const storedConfigs = readStored(SAVED_CONFIGS_KEY);
+            if (Array.isArray(storedConfigs)) {
+                const configs = storedConfigs.filter(isSavedConfig).map(reviveDates);
                 patchState(store, addEntities(configs));
             }
 
