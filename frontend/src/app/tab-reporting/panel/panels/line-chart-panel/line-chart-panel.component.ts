@@ -20,6 +20,10 @@ export class LineChartPanelComponent implements ChartActions {
         return this.chart().normalized;
     }
 
+    get showLegend() {
+        return this.chart().showLegend;
+    }
+
     exportToCsv(): void {
         this.chart().exportToCsv();
     }

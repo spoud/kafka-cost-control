@@ -44,6 +44,9 @@ export class PieChartComponent implements ChartActions {
 
     legendSort = signal<LegendSort>('value');
 
+    /** The legend column costs real width; hiding it gives the plot the whole card. */
+    showLegend = signal(true);
+
     deselected = signal<ReadonlySet<string>>(new Set());
 
     metricsData = input.required<MetricHistory[]>();

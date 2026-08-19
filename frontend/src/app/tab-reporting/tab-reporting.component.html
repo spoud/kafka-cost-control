@@ -4,22 +4,21 @@
             <mat-icon>description</mat-icon>
             Export as PDF
         </button>
-        <button mat-flat-button color="primary" type="button" (click)="panelStore.addPanel()">
-            <mat-icon>add</mat-icon>
-            Add panel
-        </button>
     </ng-container>
 </app-page-header>
 
-@if (panelStore.entities().length === 0) {
-    <app-empty-state
-        icon="assignment"
-        message="No panels yet. Add one to start building your report."
-    ></app-empty-state>
-} @else {
-    <div class="panel-wrapper">
-        @for (panel of panelStore.entities(); track panel.id) {
-            <app-panel [panelData]="panel" />
+<div class="panel-wrapper">
+    @for (panel of panelStore.entities(); track panel.id) {
+        <app-panel [panelData]="panel" />
+    }
+    <!-- The placeholder sits at the end of the board rather than in the header, so the panel it
+         creates - which opens straight into its editor - appears where the user just clicked
+         instead of appended somewhere below the fold. -->
+    <button type="button" class="add-panel" (click)="panelStore.addPanel()">
+        <mat-icon>add</mat-icon>
+        <span class="add-panel-label">Add panel</span>
+        @if (panelStore.entities().length === 0) {
+            <span class="add-panel-hint">Start building your report</span>
         }
-    </div>
-}
+    </button>
+</div>

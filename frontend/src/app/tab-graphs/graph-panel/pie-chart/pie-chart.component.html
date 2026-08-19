@@ -9,6 +9,10 @@
             <mat-icon>more_vert</mat-icon>
         </button>
         <mat-menu #chartMenu="matMenu">
+            <button mat-menu-item type="button" (click)="showLegend.set(!showLegend())">
+                <mat-icon>{{ showLegend() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                <span>{{ showLegend() ? 'Hide legend' : 'Show legend' }}</span>
+            </button>
             <button mat-menu-item type="button" (click)="exportToCsv()">
                 <mat-icon>description</mat-icon>
                 <span>Export as CSV</span>
@@ -25,10 +29,12 @@
         [theme]="themeService.chartTheme()"
         (chartInit)="onChartInit($event)"
     ></div>
-    <app-chart-legend
-        [items]="legendItems()"
-        [sort]="legendSort()"
-        (sortChange)="legendSort.set($event)"
-        (toggleSeries)="toggleLegend($event)"
-    ></app-chart-legend>
+    @if (showLegend()) {
+        <app-chart-legend
+            [items]="legendItems()"
+            [sort]="legendSort()"
+            (sortChange)="legendSort.set($event)"
+            (toggleSeries)="toggleLegend($event)"
+        ></app-chart-legend>
+    }
 </div>

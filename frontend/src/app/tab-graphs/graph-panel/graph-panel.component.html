@@ -1,23 +1,76 @@
 <mat-card appearance="outlined" class="chart-card">
-    <mat-card-header>
-        <mat-card-title class="card-title">
-            <mat-icon>show_chart</mat-icon>
-            Usage over time
-        </mat-card-title>
-    </mat-card-header>
+    <div class="chart-card-header">
+        <h3 class="chart-card-title"><mat-icon>show_chart</mat-icon> Usage over time</h3>
+        <button
+            mat-icon-button
+            type="button"
+            aria-label="Chart options"
+            [matMenuTriggerFor]="historyMenu"
+        >
+            <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #historyMenu="matMenu">
+            <button
+                mat-menu-item
+                type="button"
+                (click)="history().normalized.set(!history().normalized())"
+            >
+                <mat-icon>{{
+                    history().normalized() ? 'check_box' : 'check_box_outline_blank'
+                }}</mat-icon>
+                <span>Normalized</span>
+            </button>
+            <button
+                mat-menu-item
+                type="button"
+                (click)="history().showLegend.set(!history().showLegend())"
+            >
+                <mat-icon>{{ history().showLegend() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                <span>{{ history().showLegend() ? 'Hide legend' : 'Show legend' }}</span>
+            </button>
+            <button mat-menu-item type="button" (click)="history().exportToCsv()">
+                <mat-icon>description</mat-icon>
+                <span>Export as CSV</span>
+            </button>
+        </mat-menu>
+    </div>
     <mat-card-content>
-        <app-bar-chart [metricsData]="metricsData()" [range]="range()" type="line" />
+        <app-bar-chart
+            [metricsData]="metricsData()"
+            [range]="range()"
+            [showToolbar]="false"
+            type="line"
+        />
     </mat-card-content>
 </mat-card>
 
 <mat-card appearance="outlined" class="chart-card">
-    <mat-card-header>
-        <mat-card-title class="card-title">
-            <mat-icon>pie_chart</mat-icon>
-            Share of total
-        </mat-card-title>
-    </mat-card-header>
+    <div class="chart-card-header">
+        <h3 class="chart-card-title"><mat-icon>pie_chart</mat-icon> Share of total</h3>
+        <button
+            mat-icon-button
+            type="button"
+            aria-label="Chart options"
+            [matMenuTriggerFor]="shareMenu"
+        >
+            <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #shareMenu="matMenu">
+            <button
+                mat-menu-item
+                type="button"
+                (click)="share().showLegend.set(!share().showLegend())"
+            >
+                <mat-icon>{{ share().showLegend() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                <span>{{ share().showLegend() ? 'Hide legend' : 'Show legend' }}</span>
+            </button>
+            <button mat-menu-item type="button" (click)="share().exportToCsv()">
+                <mat-icon>description</mat-icon>
+                <span>Export as CSV</span>
+            </button>
+        </mat-menu>
+    </div>
     <mat-card-content>
-        <app-pie-chart [metricsData]="metricsData()" />
+        <app-pie-chart [metricsData]="metricsData()" [showToolbar]="false" />
     </mat-card-content>
 </mat-card>

@@ -52,6 +52,11 @@ export class PanelComponent {
         this.chart.set(isChartActions(instance) ? instance : null);
     }
 
+    protected toggleLegend(): void {
+        const showLegend = this.chart()?.showLegend;
+        showLegend?.set(!showLegend());
+    }
+
     protected toggleNormalized(): void {
         const normalized = this.chart()?.normalized;
         normalized?.set(!normalized());

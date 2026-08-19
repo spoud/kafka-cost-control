@@ -14,6 +14,7 @@ export interface ChartActions {
     exportToCsv(): void;
     /** Absent on charts with no normalized mode, such as the pie. */
     normalized?: WritableSignal<boolean>;
+    showLegend: WritableSignal<boolean>;
 }
 
 export function isChartActions(value: unknown): value is ChartActions {

@@ -14,6 +14,10 @@ export class PieChartPanelComponent implements ChartActions {
     // forwarded rather than reached through. No normalized mode on a pie.
     private chart = viewChild.required(PieChartComponent);
 
+    get showLegend() {
+        return this.chart().showLegend;
+    }
+
     exportToCsv(): void {
         this.chart().exportToCsv();
     }

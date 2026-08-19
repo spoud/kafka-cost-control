@@ -4,14 +4,24 @@
     gap: var(--space-6);
 }
 
-.chart-card mat-card-content {
-    // the header row sits inside the content so the options button lines up with the title
+.chart-card-header {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-4) 0 var(--space-5);
 }
 
-.card-title {
+.chart-card-title {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    margin: 0;
+    // smaller than mat-card-title: this labels a chart, it is not the page's heading
+    font: var(--mat-sys-title-small);
+}
+
+.chart-card mat-card-content {
+    display: flex;
+    flex-direction: column;
 }

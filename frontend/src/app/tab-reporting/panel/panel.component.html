@@ -19,8 +19,8 @@
         </button>
         <mat-menu #panelMenu="matMenu">
             <button mat-menu-item type="button" (click)="openOptions()">
-                <mat-icon>settings</mat-icon>
-                <span>Settings</span>
+                <mat-icon>edit</mat-icon>
+                <span>Edit</span>
             </button>
             @if (chart()?.normalized; as normalized) {
                 <button mat-menu-item type="button" (click)="toggleNormalized()">
@@ -31,6 +31,12 @@
                 </button>
             }
             @if (chart(); as chartActions) {
+                <button mat-menu-item type="button" (click)="toggleLegend()">
+                    <mat-icon>{{
+                        chartActions.showLegend() ? 'visibility_off' : 'visibility'
+                    }}</mat-icon>
+                    <span>{{ chartActions.showLegend() ? 'Hide legend' : 'Show legend' }}</span>
+                </button>
                 <button mat-menu-item type="button" (click)="chartActions.exportToCsv()">
                     <mat-icon>description</mat-icon>
                     <span>Export as CSV</span>

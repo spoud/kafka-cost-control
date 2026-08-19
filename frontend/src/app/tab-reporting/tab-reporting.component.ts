@@ -3,6 +3,8 @@ import { PanelComponent } from './panel/panel.component';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { IntlDatePipe } from '../common/intl-date.pipe';
+import { IntlDateService } from '../services/intl-date.service';
+import { formatPanelMeta } from './panel/meta-data.pipe';
 import JSPDF from 'jspdf';
 import { PanelStore } from './store/panel.store';
 import * as echarts from 'echarts/core';
@@ -10,26 +12,25 @@ import { EChartsType } from 'echarts/core';
 import { ResizeOpts } from 'echarts/types/dist/shared';
 import { provideEchartsCore } from 'ngx-echarts';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
-import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 
 @Component({
     selector: 'app-tab-reporting',
-    imports: [
-        PanelComponent,
-        MatIcon,
-        IntlDatePipe,
-        MatButton,
-        PageHeaderComponent,
-        EmptyStateComponent,
-    ],
+    imports: [PanelComponent, MatIcon, IntlDatePipe, MatButton, PageHeaderComponent],
     templateUrl: './tab-reporting.component.html',
     styleUrl: './tab-reporting.component.scss',
     providers: [provideEchartsCore({ echarts })],
 })
 export class TabReportingComponent {
     panelStore = inject(PanelStore);
+    private intlDateService = inject(IntlDateService);
 
     date = new Date();
+
+    // A4 portrait is 210mm wide. The chart canvases are rendered at 800x400 for export, and
+    // addImage with width 0 sizes from the image's own pixel dimensions - roughly 280mm - so the
+    // right-hand side of every chart used to run off the page. Fit to the printable width instead.
+    private static readonly PAGE_MARGIN_MM = 10;
+    private static readonly CHART_ASPECT = 400 / 800;
 
     print() {
         const pdf = new JSPDF();
@@ -53,18 +54,28 @@ export class TabReportingComponent {
             this.resizeToPrevious(eChartsInstances, oldSizes);
         }
 
-        pdf.text('Report ' + this.date.toLocaleString(), 10, 10);
+        const margin = TabReportingComponent.PAGE_MARGIN_MM;
+        const pageWidth = pdf.internal.pageSize.width;
+        const chartWidth = pageWidth - margin * 2;
+        const chartHeight = chartWidth * TabReportingComponent.CHART_ASPECT;
+        const centre = pageWidth / 2;
+
+        pdf.text('Report ' + this.date.toLocaleString(), margin, 10);
         for (let i = 0; i < imageUrls.length; i++) {
-            const title = this.panelStore.entities()[i].title;
-            const description = this.panelStore.entities()[i].description ?? '';
+            const panel = this.panelStore.entities()[i];
             const offset = (i % 2) * 150;
             pdf.setFontSize(14);
-            pdf.text(title, pdf.internal.pageSize.width / 2, 15 + offset, { align: 'center' });
+            pdf.text(panel.title, centre, 15 + offset, { align: 'center' });
             pdf.setFontSize(10);
-            pdf.text(description, pdf.internal.pageSize.width / 2, 22 + offset, {
+            pdf.text(panel.description ?? '', centre, 22 + offset, { align: 'center' });
+            // what the chart is actually of - metric, window and grouping. Without it a printed
+            // report is a page of unlabelled shapes.
+            pdf.setFontSize(8);
+            pdf.text(formatPanelMeta(panel, this.intlDateService), centre, 28 + offset, {
                 align: 'center',
+                maxWidth: chartWidth,
             });
-            pdf.addImage(imageUrls[i], 'png', 5, 28 + offset, 0, 0);
+            pdf.addImage(imageUrls[i], 'png', margin, 32 + offset, chartWidth, chartHeight);
             if (i % 2 == 1 && i < imageUrls.length - 1) {
                 pdf.addPage();
             }
