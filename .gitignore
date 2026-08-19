@@ -92,4 +92,4 @@ devenv.lock
 devenv.nix
 devenv.yaml
 
-CLAUDE.md
+/CLAUDE.md

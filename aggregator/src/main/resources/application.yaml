@@ -96,3 +96,18 @@ quarkus:
         level: WARN
   container-image:
     build: true
+
+"%dev":
+  mp:
+    messaging:
+      connector:
+        smallrye-kafka:
+          apicurio:
+            registry:
+              url: ${kafka.schema.registry.url}/apis/registry/v2
+  cc:
+    aggregation-window-size: PT1H
+    olap:
+      # on by default in dev so the OLAP-backed queries (metricContextKeys, the cost-overview
+      # Group By) have data without needing a /api/v1/kafka-stream/reprocess first
+      enabled: true
