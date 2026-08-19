@@ -9,12 +9,8 @@ import java.util.stream.Collectors;
 
 /**
  * Builds the system prompt: the table definition plus the domain rules that separate a correct
- * answer from a confidently wrong one.
- * <p>
- * The prompt is intentionally stable across turns within a conversation so it can be
- * prompt-cached. Live introspection (metric names, context keys) is included because it is
- * small and slow-changing; the high-cardinality part — the <em>values</em> behind each context
- * key — is left to the {@code list_context_values} tool rather than inlined here.
+ * answer from a confidently wrong one. Metric names and context keys are inlined; the
+ * high-cardinality values behind each key are left to {@code list_context_values}.
  */
 @ApplicationScoped
 public class SchemaDescriber {
@@ -126,12 +122,8 @@ public class SchemaDescriber {
     }
 
     /**
-     * Instructions for private mode, where results never come back to the model.
-     * <p>
-     * Two consequences drive the wording: the model gets exactly one shot at the query, so it must
-     * be defensive rather than iterative; and it cannot see any actual values, so filtering on a
-     * guessed string would silently return nothing. Grouping is preferred over filtering for
-     * precisely that reason.
+     * Instructions for private mode: one shot at the query, and no visibility of actual values,
+     * so filtering on a guessed string would silently return nothing.
      */
     private String privateModeInstructions() {
         return """
@@ -168,12 +160,9 @@ public class SchemaDescriber {
     }
 
     /**
-     * Tool declarations offered alongside the prompt above.
-     * <p>
-     * In private mode {@code list_context_values} is withdrawn rather than merely discouraged:
-     * it returns real business data (application, team and topic names), which is exactly what
-     * private mode exists to keep in-house. A tool the model cannot call is a stronger guarantee
-     * than an instruction telling it not to.
+     * Tool declarations offered alongside the prompt. In private mode
+     * {@code list_context_values} is withdrawn: it returns the business data private mode exists
+     * to keep in-house.
      */
     public List<LlmTool> tools() {
         var tools = new java.util.ArrayList<>(alwaysAvailableTools());
@@ -183,10 +172,7 @@ public class SchemaDescriber {
         return List.copyOf(tools);
     }
 
-    /**
-     * Tools whose results are returned to the user instead of to the model. Only meaningful in
-     * private mode; {@link ChatService} ends the turn as soon as one of these is called.
-     */
+    /** Tools whose results go to the user, not the model. {@link ChatService} ends the turn. */
     public static boolean isTerminalTool(String toolName) {
         return "run_sql".equals(toolName) || "cost_overview".equals(toolName);
     }

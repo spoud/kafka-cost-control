@@ -39,9 +39,7 @@
             } @else {
                 @for (message of store.entities(); track message.id) {
                     @if (message.contextLost) {
-                        <!-- The transcript above survived in the browser but the assistant's memory of
-                         it did not, so say so rather than letting the visible history imply
-                         otherwise. -->
+                        <!-- Transcript survived in the browser; the assistant's memory of it did not. -->
                         <div class="note">
                             <mat-icon inline>history_toggle_off</mat-icon>
                             <span

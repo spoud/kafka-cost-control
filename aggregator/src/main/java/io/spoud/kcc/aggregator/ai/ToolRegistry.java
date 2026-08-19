@@ -15,19 +15,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Executes the tools declared by {@link SchemaDescriber}.
- * <p>
- * Every tool returns plain text destined for the model's context, so results are formatted
- * compactly — this is the single biggest lever on per-question token cost after prompt caching.
- * <p>
- * Failures are returned as error results rather than thrown: the model can read the message and
- * correct itself (fix the SQL, pick a real context key), which is far more useful than aborting
- * the whole conversation.
+ * Executes the tools declared by {@link SchemaDescriber}. Results are plain text bound for the
+ * model's context, so they are formatted compactly. Failures are returned as error results, not
+ * thrown, so the model can correct itself.
  */
 @ApplicationScoped
 public class ToolRegistry {
 
-    /** Cap on distinct values echoed back for one context key, to bound context growth. */
+    /** Cap on values echoed back for one context key. */
     private static final int MAX_VALUES_LISTED = 200;
 
     private final AggregatedMetricsRepository repository;
@@ -55,24 +50,14 @@ public class ToolRegistry {
         executedSql.remove();
     }
 
-    /**
-     * A tool result destined for the user rather than the model — the private-mode path.
-     *
-     * @param columns   result column headers
-     * @param rows      result rows
-     * @param truncated whether the row cap was hit
-     * @param error     set instead of the table when the query could not be run
-     */
+    /** A result destined for the user rather than the model — the private-mode path. */
     public record TerminalResult(List<String> columns, List<List<String>> rows, boolean truncated, String error) {
         public static TerminalResult failed(String message) {
             return new TerminalResult(List.of(), List.of(), false, message);
         }
     }
 
-    /**
-     * Execute a terminal tool and hand the data straight back to the caller, so that it never
-     * enters the conversation and therefore never reaches the model.
-     */
+    /** Execute a terminal tool, returning data to the caller so it never enters the conversation. */
     public TerminalResult invokeTerminal(LlmMessage.ToolCall call) {
         try {
             return switch (call.name()) {
@@ -83,8 +68,6 @@ public class ToolRegistry {
                     yield new TerminalResult(result.columns(), result.rows(), result.truncated(), null);
                 }
                 case "cost_overview" -> {
-                    // Cost output is already a small aggregate table; render it as one so private
-                    // mode presents everything the same way.
                     var text = costOverview(call);
                     yield new TerminalResult(
                             List.of("cost breakdown"),
@@ -164,8 +147,7 @@ public class ToolRegistry {
             executedSql.get().add(result.executedSql());
             return LlmMessage.ToolResult.ok(call.id(), formatRows(result));
         } catch (SqlGuard.RejectedException e) {
-            // Record the rejected attempt too — if a user ever reports a wrong answer, the
-            // rejected queries are usually the most informative part of the trail.
+            // Rejected attempts are recorded too: they are the most informative part of the trail.
             executedSql.get().add("-- REJECTED: " + e.getMessage() + "\n" + sql);
             return LlmMessage.ToolResult.error(call.id(), "Query rejected. " + e.getMessage());
         } catch (ReadOnlyQueryExecutor.QueryFailedException e) {
@@ -174,7 +156,7 @@ public class ToolRegistry {
         }
     }
 
-    /** Render a result set as TSV — compact, and unambiguous enough for the model to read. */
+    /** Render a result set as TSV. */
     private String formatRows(ReadOnlyQueryExecutor.QueryResult result) {
         if (result.rows().isEmpty()) {
             return "0 rows. The query is valid but matched no data — check the time range and filter values.";

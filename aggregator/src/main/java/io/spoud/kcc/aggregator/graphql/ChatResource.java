@@ -23,15 +23,12 @@ import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 
 /**
- * Natural-language querying of the OLAP data.
+ * Natural-language querying of the OLAP data. Dual-annotated as GraphQL and REST, matching
+ * {@link MetricsResource}; the question is a single {@link ChatRequest} because JAX-RS permits
+ * only one body parameter.
  * <p>
- * Dual-annotated as GraphQL and REST, matching {@link MetricsResource}. The question is taken as a
- * single {@link ChatRequest} rather than two parameters because JAX-RS permits only one body
- * parameter per method — the same reason {@link CostsResource} takes a request object.
- * <p>
- * {@code @Authenticated} is required and must stay: this project has no
- * {@code quarkus.http.auth.permission.*} block and no {@code deny-unannotated}, so an endpoint
- * without it is fully public — as {@code /olap/export} currently is.
+ * {@code @Authenticated} must stay: this project has no {@code deny-unannotated}, so an endpoint
+ * without it is fully public.
  */
 @Path("/api/v1/chat")
 @Produces(MediaType.APPLICATION_JSON)
@@ -44,11 +41,8 @@ public class ChatResource {
     private final ChatService chatService;
 
     /**
-     * Lets the UI hide the assistant when this deployment cannot answer, instead of presenting a
-     * chat box that only reveals it is switched off once a question has been typed.
-     * <p>
-     * {@code @PermitAll} because it exposes nothing but whether a feature is switched on, and the
-     * navigation needs to decide before it knows anything else about the user.
+     * Lets the UI hide the assistant when this deployment cannot answer. {@code @PermitAll}: it
+     * exposes only whether a feature is on, and the nav decides before knowing anything else.
      */
     @GET
     @Path("/status")
@@ -63,7 +57,7 @@ public class ChatResource {
     @Mutation("chat")
     @Description("Ask a natural-language question about the aggregated metrics data.")
     public @NonNull ChatAnswer chat(ChatRequest request) {
-        // The GraphQL argument is nullable and the REST body may be empty, so this is reachable.
+        // The GraphQL argument is nullable and the REST body may be empty.
         if (request == null) {
             return ChatAnswer.error("No question was supplied.");
         }
