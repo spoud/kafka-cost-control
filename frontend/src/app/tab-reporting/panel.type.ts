@@ -3,6 +3,7 @@ import { PieChartPanelComponent } from './panel/panels/pie-chart-panel/pie-chart
 import { EChartsType } from 'echarts/core';
 import { LineChartPanelComponent } from './panel/panels/line-chart-panel/line-chart-panel.component';
 import { isRevivableDate } from '../common/persisted-state';
+import { isContextKeys } from '../common/context-keys';
 
 export type PanelType = 'StackedBar' | 'Line' | 'Pie';
 
@@ -57,7 +58,7 @@ export function isPanel(value: unknown): value is Panel {
         typeof candidate.id === 'string' &&
         typeof candidate.title === 'string' &&
         isPanelType(candidate.type) &&
-        Array.isArray(candidate.groupByContext) &&
+        isContextKeys(candidate.groupByContext) &&
         isRevivableDate(candidate.from) &&
         (candidate.to === undefined || isRevivableDate(candidate.to))
     );

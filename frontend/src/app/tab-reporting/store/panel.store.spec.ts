@@ -62,6 +62,22 @@ describe('PanelStore hydration', () => {
         ).toEqual(['p1']);
     });
 
+    it('rescues a panel whose groupByContext was stored as a bare string', () => {
+        // The filter form's single-select emitted its raw control value, so any panel configured
+        // with a group-by key was persisted with a string where the type says string[]. The guard
+        // must repair that, not drop the panel - dropping it also erases it from storage, because
+        // the write-back effect then persists the filtered list.
+        localStorage.setItem(
+            PANEL_KEY,
+            JSON.stringify([{ ...validPanel, groupByContext: 'application' }])
+        );
+
+        const [panel] = TestBed.inject(PanelStore).entities();
+
+        expect(panel).toBeDefined();
+        expect(panel.groupByContext).toEqual(['application']);
+    });
+
     it('revives from/to as Dates, not the strings JSON gives back', () => {
         localStorage.setItem(
             PANEL_KEY,

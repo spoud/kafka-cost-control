@@ -11,6 +11,7 @@ import {
     DateRange,
     DateRangeQuickSelectComponent,
 } from '../../common/date-range-quick-select/date-range-quick-select.component';
+import { toContextKeyControl, toContextKeys } from '../../common/context-keys';
 
 @Component({
     selector: 'app-graph-filter',
@@ -55,7 +56,8 @@ export class GraphFilterComponent {
                     from: newValues.from,
                     to: newValues.to,
                     metricName: newValues.metricName,
-                    groupByContext: newValues.groupByContext,
+                    // the control binds one key; the filter carries a list
+                    groupByContext: toContextKeyControl(newValues.groupByContext),
                 });
             }
             // only do this once
@@ -84,7 +86,13 @@ export class GraphFilterComponent {
         effect(() => {
             const filter = values();
             if (filter.metricName && filter.groupByContext) {
-                this.graphFilter.emit(filter);
+                // normalized on the way out so consumers never see the control's raw string -
+                // writing that onto a Panel is what made configured panels fail their own
+                // hydration guard and disappear on the next reload
+                this.graphFilter.emit({
+                    ...filter,
+                    groupByContext: toContextKeys(filter.groupByContext),
+                });
             }
         });
     }

@@ -13,6 +13,7 @@ import {
     reviveDate,
     writePersisted,
 } from '../common/persisted-state';
+import { toContextKeys } from '../common/context-keys';
 
 export interface GraphFilter {
     from: Date;
@@ -38,11 +39,13 @@ function isGraphFilter(value: unknown): value is GraphFilter {
     );
 }
 
-function reviveFilterDates(filter: GraphFilter): GraphFilter {
+function reviveFilter(filter: GraphFilter): GraphFilter {
     return {
         ...filter,
         from: reviveDate(filter.from),
         to: filter.to === undefined ? undefined : reviveDate(filter.to),
+        // filters stored before the normalization hold a bare string here
+        groupByContext: toContextKeys(filter.groupByContext),
     };
 }
 
@@ -53,7 +56,7 @@ function reviveFilterDates(filter: GraphFilter): GraphFilter {
  */
 function restoreFilter(): GraphFilter | undefined {
     const stored = readPersisted(FILTER_KEY, PERSISTED_VERSION, isGraphFilter);
-    return stored ? reviveFilterDates(stored) : undefined;
+    return stored ? reviveFilter(stored) : undefined;
 }
 
 @Component({
@@ -93,7 +96,13 @@ export class TabGraphsComponent {
             this.filter()?.from.toISOString() ??
             new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const to = this.filter()?.to?.toISOString() ?? new Date().toISOString();
-        return `olap/export/aggregated?fromDate=${from}&toDate=${to}&groupByContextKey=${this.filter()?.groupByContext}`;
+        const groupBy = this.filter()?.groupByContext?.join(',') ?? '';
+        const params = new URLSearchParams({
+            fromDate: from,
+            toDate: to,
+            groupByContextKey: groupBy,
+        });
+        return `olap/export/aggregated?${params}`;
     });
 
     historyData = this.graphFilterService.historyResource(this.filter);

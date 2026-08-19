@@ -6,6 +6,7 @@ import {
     reviveDate,
     writePersisted,
 } from '../../common/persisted-state';
+import { toContextKeys } from '../../common/context-keys';
 import { v4 as uuidv4 } from 'uuid';
 import { computed, effect, Signal } from '@angular/core';
 import {
@@ -22,12 +23,17 @@ const PANEL_KEY = 'kcc_panels';
 /** Bump when Panel changes in a way values written by an older build cannot satisfy. */
 const PERSISTED_VERSION = 1;
 
-/** `from`/`to` are Dates in the type but ISO strings once they have been through localStorage. */
-function revivePanelDates(panel: Panel): Panel {
+/**
+ * Repairs a stored panel: `from`/`to` are Dates in the type but ISO strings once they have been
+ * through localStorage, and `groupByContext` may be a bare string on anything saved while the
+ * filter form was emitting its raw control value.
+ */
+function revivePanel(panel: Panel): Panel {
     return {
         ...panel,
         from: reviveDate(panel.from),
         to: panel.to === undefined ? undefined : reviveDate(panel.to),
+        groupByContext: toContextKeys(panel.groupByContext),
     };
 }
 
@@ -67,7 +73,7 @@ export const PanelStore = signalStore(
             const storedPanels = readPersisted(PANEL_KEY, PERSISTED_VERSION, isUnknownArray);
             if (storedPanels) {
                 // filtered per item so one unusable panel costs the user that panel, not the board
-                patchState(store, addEntities(storedPanels.filter(isPanel).map(revivePanelDates)));
+                patchState(store, addEntities(storedPanels.filter(isPanel).map(revivePanel)));
             }
             effect(() => {
                 // every time store entities (panels) change we save them to localStorage
@@ -124,10 +130,16 @@ export const PanelStore = signalStore(
                 patchState(store, { editingPanelId: null });
             }
         },
-        filter(id: Signal<string>): Signal<GraphFilter> {
+        filter(id: Signal<string>): Signal<GraphFilter | undefined> {
             return computed(
                 () => {
+                    // Removing a panel invalidates this computed while the chart that owns it may
+                    // still read it in the same flush, so the lookup can miss. historyResource
+                    // already treats an undefined filter as "nothing to fetch".
                     const panel = store.entityMap()[id()];
+                    if (!panel) {
+                        return undefined;
+                    }
                     return {
                         from: panel.from,
                         to: panel.to,
