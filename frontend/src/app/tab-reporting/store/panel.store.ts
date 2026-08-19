@@ -1,5 +1,11 @@
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { Panel } from '../panel.type';
+import { isPanel, Panel } from '../panel.type';
+import {
+    isUnknownArray,
+    readPersisted,
+    reviveDate,
+    writePersisted,
+} from '../../common/persisted-state';
 import { v4 as uuidv4 } from 'uuid';
 import { computed, effect, Signal } from '@angular/core';
 import {
@@ -13,6 +19,17 @@ import {
 import { GraphFilter } from '../../tab-graphs/tab-graphs.component';
 
 const PANEL_KEY = 'kcc_panels';
+/** Bump when Panel changes in a way values written by an older build cannot satisfy. */
+const PERSISTED_VERSION = 1;
+
+/** `from`/`to` are Dates in the type but ISO strings once they have been through localStorage. */
+function revivePanelDates(panel: Panel): Panel {
+    return {
+        ...panel,
+        from: reviveDate(panel.from),
+        to: panel.to === undefined ? undefined : reviveDate(panel.to),
+    };
+}
 
 type PanelState = {
     availablePanels: Array<Panel>;
@@ -55,17 +72,21 @@ export const PanelStore = signalStore(
     withEntities<Panel>(),
     withHooks({
         onInit(store) {
-            const jsonPanels = localStorage.getItem(PANEL_KEY);
-            if (jsonPanels) {
-                patchState(store, addEntities(JSON.parse(jsonPanels)));
+            // Hydration is defensive on purpose: this is a root-provided store, so anything thrown
+            // here happens during construction and takes the whole Reporting route down with no
+            // in-app way back. See common/persisted-state.
+            const storedPanels = readPersisted(PANEL_KEY, PERSISTED_VERSION, isUnknownArray);
+            if (storedPanels) {
+                // filtered per item so one unusable panel costs the user that panel, not the board
+                patchState(store, addEntities(storedPanels.filter(isPanel).map(revivePanelDates)));
             }
             effect(() => {
                 // every time store entities (panels) change we save them to localStorage
                 // we ignore eChartsInstance when serializing, this gets set again when eCharts instantiates
                 const serializable = store
-                    .entities() // TOOD I'm not even sure if that's correct atm
+                    .entities()
                     .map(panel => ({ ...panel, eChartsInstance: undefined }));
-                localStorage.setItem(PANEL_KEY, JSON.stringify(serializable));
+                writePersisted(PANEL_KEY, PERSISTED_VERSION, serializable);
             });
         },
     }),
