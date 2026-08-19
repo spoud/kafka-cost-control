@@ -48,9 +48,10 @@ class AssistantLiveTest {
                     "cc.olap.database.insert-synthetic-days", "30",
                     "cc.ai.enabled", "true",
                     "cc.ai.max-tool-iterations", "6",
-                    "quarkus.langchain4j.chat-model.provider", "ollama",
-                    "quarkus.langchain4j.ollama.chat-model.model-id",
-                    System.getProperty("assistant.model", "Qwen3-Coder:latest"));
+                    // Configured through the provider-agnostic surface only, so this also
+                    // exercises the mapping in application.yaml rather than bypassing it.
+                    "cc.ai.provider", "ollama",
+                    "cc.ai.model", System.getProperty("assistant.model", "Qwen3-Coder:latest"));
             // Deliberately does NOT override quarkus.langchain4j.ollama.timeout. An earlier
             // version did, and that hid a real defect: application.yaml had the timeout nested
             // under chat-model, where it is silently ignored. The test passed, the app did not.
