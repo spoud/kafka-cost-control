@@ -13,6 +13,14 @@
                 <mat-icon>{{ normalized() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
                 <span>Normalized</span>
             </button>
+            @if (type() === 'line') {
+                <button mat-menu-item type="button" (click)="connectNulls.set(!connectNulls())">
+                    <mat-icon>{{
+                        connectNulls() ? 'check_box' : 'check_box_outline_blank'
+                    }}</mat-icon>
+                    <span>Connect gaps</span>
+                </button>
+            }
             <button mat-menu-item type="button" (click)="showLegend.set(!showLegend())">
                 <mat-icon>{{ showLegend() ? 'visibility_off' : 'visibility' }}</mat-icon>
                 <span>{{ showLegend() ? 'Hide legend' : 'Show legend' }}</span>

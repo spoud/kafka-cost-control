@@ -23,6 +23,16 @@
             <button
                 mat-menu-item
                 type="button"
+                (click)="history().connectNulls.set(!history().connectNulls())"
+            >
+                <mat-icon>{{
+                    history().connectNulls() ? 'check_box' : 'check_box_outline_blank'
+                }}</mat-icon>
+                <span>Connect gaps</span>
+            </button>
+            <button
+                mat-menu-item
+                type="button"
                 (click)="history().showLegend.set(!history().showLegend())"
             >
                 <mat-icon>{{ history().showLegend() ? 'visibility_off' : 'visibility' }}</mat-icon>

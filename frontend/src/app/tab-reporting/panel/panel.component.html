@@ -30,6 +30,14 @@
                     <span>Normalized</span>
                 </button>
             }
+            @if (chart()?.connectNulls; as connectNulls) {
+                <button mat-menu-item type="button" (click)="toggleConnectNulls()">
+                    <mat-icon>{{
+                        connectNulls() ? 'check_box' : 'check_box_outline_blank'
+                    }}</mat-icon>
+                    <span>Connect gaps</span>
+                </button>
+            }
             @if (chart(); as chartActions) {
                 <button mat-menu-item type="button" (click)="toggleLegend()">
                     <mat-icon>{{

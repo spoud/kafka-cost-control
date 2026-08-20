@@ -57,6 +57,11 @@ export class PanelComponent {
         showLegend?.set(!showLegend());
     }
 
+    protected toggleConnectNulls(): void {
+        const connectNulls = this.chart()?.connectNulls;
+        connectNulls?.set(!connectNulls());
+    }
+
     protected toggleNormalized(): void {
         const normalized = this.chart()?.normalized;
         normalized?.set(!normalized());

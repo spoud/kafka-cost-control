@@ -53,6 +53,12 @@ export class BarChartComponent implements ChartActions {
     /** The legend column costs real width; hiding it gives the plot the whole card. */
     showLegend = signal(true);
 
+    /**
+     * Whether to bridge a genuine hole in a series. Off by default: a straight line across a
+     * period with no measurements reads as "steady" when the truth is "unknown".
+     */
+    connectNulls = signal(false);
+
     deselected = signal<ReadonlySet<string>>(new Set());
 
     metricsData = input.required<MetricHistory[]>();
@@ -117,10 +123,13 @@ export class BarChartComponent implements ChartActions {
             let sum = 0;
             this.metricsData().forEach(metricHistory => {
                 const index = metricHistory.times.indexOf(time);
-                if (index > -1 && metricHistory.values[index]) {
-                    timeSeries.push(metricHistory.values[index]);
+                // `!= null` rather than a truthiness test: a real measurement of 0 is data, and
+                // treating it as absent turned every zero into a hole in the series.
+                const value = index > -1 ? metricHistory.values[index] : null;
+                if (value != null) {
+                    timeSeries.push(value);
                     if (this.normalized()) {
-                        sum += metricHistory.values[index]!;
+                        sum += value;
                     }
                 } else {
                     timeSeries.push(null);
@@ -195,6 +204,7 @@ export class BarChartComponent implements ChartActions {
                     name: metricHistory.name,
                     type: 'line',
                     areaStyle: {},
+                    connectNulls: this.connectNulls(),
                     emphasis: {
                         focus: 'series',
                     },

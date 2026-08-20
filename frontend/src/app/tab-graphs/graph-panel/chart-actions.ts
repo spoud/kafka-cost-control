@@ -15,6 +15,8 @@ export interface ChartActions {
     /** Absent on charts with no normalized mode, such as the pie. */
     normalized?: WritableSignal<boolean>;
     showLegend: WritableSignal<boolean>;
+    /** Line charts only: bridge holes in a series rather than breaking the line. */
+    connectNulls?: WritableSignal<boolean>;
 }
 
 export function isChartActions(value: unknown): value is ChartActions {

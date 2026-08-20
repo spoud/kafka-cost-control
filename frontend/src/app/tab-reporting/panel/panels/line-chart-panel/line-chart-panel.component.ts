@@ -20,6 +20,10 @@ export class LineChartPanelComponent implements ChartActions {
         return this.chart().normalized;
     }
 
+    get connectNulls() {
+        return this.chart().connectNulls;
+    }
+
     get showLegend() {
         return this.chart().showLegend;
     }
