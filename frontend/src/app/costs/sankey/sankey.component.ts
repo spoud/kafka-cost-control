@@ -13,11 +13,22 @@ import { ThemeService } from '../../services/theme.service';
 
 echarts.use([SankeyChart]);
 
+/** Vertical room to reserve per node in the busiest column, so labels are not stacked on top of
+ * each other. The canvas grows with the data instead of collapsing the data to fit the canvas. */
+const PIXELS_PER_NODE = 26;
+const MIN_CHART_HEIGHT = 600;
+
 /**
- * Most entries to draw per metric before the remainder is collapsed into one node. Chosen to keep
- * the fixed-height canvas readable rather than from any property of the data.
+ * Distinct colour per node. The shared 8-colour chart palette repeats every 8 entries, which on a
+ * tenant/application breakdown left most applications looking identical. Successive hues are a
+ * golden angle apart, so neighbouring nodes are always far apart on the wheel.
  */
-const MAX_ENTRIES_PER_METRIC = 25;
+function nodeColor(index: number, isDark: boolean): string {
+    const hue = (index * 137.508) % 360;
+    // Comma-separated on purpose: zrender's colour parser splits on commas, so the modern
+    // space-separated CSS form parses as a single component and every node renders black.
+    return isDark ? `hsl(${hue}, 55%, 62%)` : `hsl(${hue}, 62%, 45%)`;
+}
 
 @Component({
     selector: 'app-sankey',
@@ -34,7 +45,16 @@ export class SankeyComponent {
     /** Bumped to force a fresh option object, which drops ECharts' accumulated roam transform. */
     private resetCount = signal(0);
 
-    protected readonly modifierKey = navigator.platform.startsWith('Mac') ? '\u2318' : 'Ctrl';
+    /**
+     * Zoom works on every platform - onWheelCapture accepts either metaKey or ctrlKey. Only the
+     * hint text differs, and navigator.platform is deprecated, so prefer userAgentData.
+     */
+    protected readonly modifierKey = /mac|iphone|ipad/i.test(
+        (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+            navigator.userAgent
+    )
+        ? '\u2318'
+        : 'Ctrl';
 
     protected onChartInit(chart: EChartsType): void {
         this.chart = chart;
@@ -69,7 +89,12 @@ export class SankeyComponent {
     inputData = input.required<CostOverviewQuery | undefined>();
     lastRequest = input.required<CostOverviewRequestInput | undefined>();
 
-    sankeyOptions = computed<EChartsCoreOption>(() => {
+    /**
+     * Nodes, links and the busiest column, built once. `sankeyOptions` and `chartHeight` both
+     * derive from this: a computed may not write to a signal, so the height cannot simply be set
+     * while assembling the option object.
+     */
+    private model = computed(() => {
         this.resetCount(); // a reset produces a new option object; see resetView
         const storage = (this.lastRequest()?.kafkaStorageCents ?? 0) / 100; // dollar amount...
         const kafkaIn = (this.lastRequest()?.kafkaNetworkReadCents ?? 0) / 100;
@@ -86,7 +111,10 @@ export class SankeyComponent {
         // multiple breakdown rows - e.g. two different apps under the same customer - merges into one link
         // instead of drawing duplicate/conflicting edges between the same two nodes.
         const linkValues = new Map<string, { source: string; target: string; value: number }>();
+        // node -> how many hops from `total`, so the busiest column can be measured
+        const depths = new Map<string, number>([['total', 0]]);
         const addLink = (source: string, target: string, value: number) => {
+            depths.set(target, (depths.get(source) ?? 0) + 1);
             const key = `${source}\u0000${target}`;
             const existing = linkValues.get(key);
             if (existing) {
@@ -116,21 +144,10 @@ export class SankeyComponent {
             dataSet.add(metric);
             const entries = entry?.nameToPriceList?.filter(x => !!x) ?? [];
 
-            // Bound the diagram. Every entry contributes one node per group-by level, so a
-            // high-cardinality key such as `topic` would otherwise emit thousands of nodes into a
-            // fixed-height canvas. Keep the biggest contributors and roll the rest into a single
-            // sibling so the total still adds up.
-            const ranked = [...entries].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-            const shown = ranked.slice(0, MAX_ENTRIES_PER_METRIC);
-            const remainder = ranked.slice(MAX_ENTRIES_PER_METRIC);
-            if (remainder.length > 0) {
-                const restTotal = remainder.reduce((sum, e) => sum + (e.price ?? 0), 0) / 100;
-                const restLabel = `${remainder.length} smaller`;
-                const restPath = `${metric} › ${restLabel}`;
-                dataSet.add(restPath);
-                shortLabels.set(restPath, restLabel);
-                addLink(metric, restPath, restTotal);
-            }
+            // Everything is drawn - no "N smaller" roll-up. The canvas height is derived from the
+            // node count below, so a high-cardinality group-by produces a tall diagram rather than
+            // a truncated one.
+            const shown = [...entries].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
 
             shown.forEach(nameToPrice => {
                 // Keep positions: values are paired with groupByKeys by index below, so
@@ -157,8 +174,27 @@ export class SankeyComponent {
             });
         });
 
-        const data = Array.from(dataSet, name => ({ name }));
+        const isDark = this.themeService.isDark();
+        const data = Array.from(dataSet, (name, index) => ({
+            name,
+            itemStyle: { color: nodeColor(index, isDark) },
+        }));
         const links = Array.from(linkValues.values());
+
+        const perDepth = new Map<number, number>();
+        depths.forEach(depth => perDepth.set(depth, (perDepth.get(depth) ?? 0) + 1));
+        const busiestColumn = Math.max(1, ...perDepth.values());
+
+        return { data, links, shortLabels, busiestColumn };
+    });
+
+    /** Tall enough that every node in the busiest column has room for its label. */
+    chartHeight = computed(() =>
+        Math.max(MIN_CHART_HEIGHT, this.model().busiestColumn * PIXELS_PER_NODE)
+    );
+
+    sankeyOptions = computed<EChartsCoreOption>(() => {
+        const { data, links, shortLabels } = this.model();
         return {
             tooltip: {
                 trigger: 'item',
@@ -172,6 +208,9 @@ export class SankeyComponent {
                 layout: 'none',
                 // pan freely by dragging; zoom is wheel-driven and gated in onWheelCapture
                 roam: true,
+                // breathing room between nodes in a column so low-value labels stop colliding
+                nodeGap: 14,
+                lineStyle: { color: 'gradient', opacity: 0.45 },
                 label: {
                     formatter: (params: { name?: string }) =>
                         shortLabels.get(params.name ?? '') ?? params.name ?? '',
