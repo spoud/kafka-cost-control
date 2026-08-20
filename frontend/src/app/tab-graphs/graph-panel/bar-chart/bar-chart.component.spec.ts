@@ -54,6 +54,43 @@ describe('BarChartComponent dataset', () => {
         ]);
     });
 
+    it('breaks the line where whole buckets are missing', () => {
+        // hourly buckets with 02:00 and 03:00 absent from every series: there is no row for them
+        // at all, so without an inserted break the time axis joins 01:00 straight to 04:00
+        const rows = datasetOf([
+            series(
+                'a',
+                [
+                    '2026-01-01T00:00:00Z',
+                    '2026-01-01T01:00:00Z',
+                    '2026-01-01T04:00:00Z',
+                    '2026-01-01T05:00:00Z',
+                ],
+                [1, 2, 3, 4]
+            ),
+        ]);
+
+        expect(rows).toEqual([
+            ['2026-01-01T00:00:00Z', 1],
+            ['2026-01-01T01:00:00Z', 2],
+            ['2026-01-01T02:00:00.000Z', null],
+            ['2026-01-01T04:00:00Z', 3],
+            ['2026-01-01T05:00:00Z', 4],
+        ]);
+    });
+
+    it('leaves evenly sampled data untouched', () => {
+        const rows = datasetOf([
+            series(
+                'a',
+                ['2026-01-01T00:00:00Z', '2026-01-01T01:00:00Z', '2026-01-01T02:00:00Z'],
+                [1, 2, 3]
+            ),
+        ]);
+
+        expect(rows).toHaveLength(3);
+    });
+
     it('does not bridge holes unless asked', () => {
         const fixture = TestBed.createComponent(BarChartComponent);
         fixture.componentRef.setInput('metricsData', [series('a', ['t1'], [1])]);

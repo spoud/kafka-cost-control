@@ -117,8 +117,28 @@ export class BarChartComponent implements ChartActions {
         */
         const allTimesSorted = this.extractAllTimestamps();
         const datasetSource: Array<Array<string | Maybe<number> | null>> = [];
+        // The union of timestamps only contains buckets that at least one series reported. When
+        // every series is silent the bucket is missing outright, so there is no null for the chart
+        // to break on and a time axis just joins the points either side - a dead period reads as a
+        // steady line. Insert one all-null row at the first missing bucket to break it.
+        const bucketMs = this.detectBucketSize(allTimesSorted);
+        const seriesCount = this.metricsData().length;
+        let previousMs: number | null = null;
 
         allTimesSorted.forEach(time => {
+            const currentMs = new Date(time).getTime();
+            if (
+                previousMs !== null &&
+                bucketMs !== null &&
+                currentMs - previousMs > bucketMs * 1.5
+            ) {
+                datasetSource.push([
+                    new Date(previousMs + bucketMs).toISOString(),
+                    ...new Array<null>(seriesCount).fill(null),
+                ]);
+            }
+            previousMs = currentMs;
+
             const timeSeries: Array<string | number | null> = [time];
             let sum = 0;
             this.metricsData().forEach(metricHistory => {
@@ -248,6 +268,24 @@ export class BarChartComponent implements ChartActions {
                 timeSeries[i] = (value / total) * 100;
             }
         }
+    }
+
+    /**
+     * Median spacing between reported buckets, i.e. the sampling interval. The median rather than
+     * the minimum so one short delta cannot shrink it, and rather than the mean so the gaps being
+     * looked for do not inflate it.
+     */
+    private detectBucketSize(times: string[]): number | null {
+        if (times.length < 2) {
+            return null;
+        }
+        const deltas: number[] = [];
+        for (let i = 1; i < times.length; i++) {
+            deltas.push(new Date(times[i]).getTime() - new Date(times[i - 1]).getTime());
+        }
+        deltas.sort((a, b) => a - b);
+        const median = deltas[Math.floor(deltas.length / 2)];
+        return median > 0 ? median : null;
     }
 
     private extractAllTimestamps() {
