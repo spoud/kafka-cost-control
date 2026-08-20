@@ -91,6 +91,32 @@ describe('BarChartComponent dataset', () => {
         expect(rows).toHaveLength(3);
     });
 
+    it('gives a lone reading a visible dot, and connected ones none', () => {
+        // 'b' only reports at 01:00, so it has no neighbour to draw a segment to; with symbols
+        // off outright it rendered as nothing and could only be found by hovering
+        const fixture = TestBed.createComponent(BarChartComponent);
+        fixture.componentRef.setInput('metricsData', [
+            series(
+                'a',
+                ['2026-01-01T00:00:00Z', '2026-01-01T01:00:00Z', '2026-01-01T02:00:00Z'],
+                [1, 2, 3]
+            ),
+            series('b', ['2026-01-01T01:00:00Z'], [9]),
+        ]);
+        fixture.componentRef.setInput('type', 'line');
+
+        const seriesOptions = fixture.componentInstance.options() as {
+            series: { symbolSize: (v: unknown, p: { dataIndex: number }) => number }[];
+        };
+        const sizeOf = (i: number, row: number) =>
+            seriesOptions.series[i].symbolSize(null, { dataIndex: row });
+
+        // 'b' at row 1 stands alone -> visible
+        expect(sizeOf(1, 1)).toBeGreaterThan(0);
+        // every point of 'a' has a neighbour -> no marker
+        expect([sizeOf(0, 0), sizeOf(0, 1), sizeOf(0, 2)]).toEqual([0, 0, 0]);
+    });
+
     it('does not bridge holes unless asked', () => {
         const fixture = TestBed.createComponent(BarChartComponent);
         fixture.componentRef.setInput('metricsData', [series('a', ['t1'], [1])]);

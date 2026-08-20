@@ -161,6 +161,25 @@ export class BarChartComponent implements ChartActions {
             datasetSource.push(timeSeries);
         });
 
+        // A point whose neighbours are both absent has no segment to be drawn as, and with
+        // symbols off it renders as nothing at all - today's single reading was invisible until
+        // hovered. Mark those so they can carry a visible dot while dense lines stay clean.
+        const isolatedPerSeries = this.metricsData().map((_, seriesIndex) => {
+            const column = seriesIndex + 1;
+            const isolated = new Set<number>();
+            datasetSource.forEach((row, rowIndex) => {
+                if (row[column] == null) {
+                    return;
+                }
+                const previous = datasetSource[rowIndex - 1];
+                const next = datasetSource[rowIndex + 1];
+                if (previous?.[column] == null && next?.[column] == null) {
+                    isolated.add(rowIndex);
+                }
+            });
+            return isolated;
+        });
+
         const deselected = this.deselected();
         const normalized = this.normalized();
         const range = this.range();
@@ -207,7 +226,7 @@ export class BarChartComponent implements ChartActions {
                 source: datasetSource,
                 dimensions: ['timestamp', ...this.metricsData().map(m => m.name)],
             },
-            series: this.metricsData().map(metricHistory => {
+            series: this.metricsData().map((metricHistory, seriesIndex) => {
                 if (this.type() === 'bar') {
                     return {
                         name: metricHistory.name,
@@ -220,6 +239,7 @@ export class BarChartComponent implements ChartActions {
                     };
                 }
                 // type === line
+                const isolated = isolatedPerSeries[seriesIndex];
                 return {
                     name: metricHistory.name,
                     type: 'line',
@@ -228,7 +248,11 @@ export class BarChartComponent implements ChartActions {
                     emphasis: {
                         focus: 'series',
                     },
-                    showSymbol: false,
+                    // symbols are on, but sized to nothing except where a point stands alone
+                    showSymbol: true,
+                    symbol: 'circle',
+                    symbolSize: (_value: unknown, params: { dataIndex: number }) =>
+                        isolated.has(params.dataIndex) ? 6 : 0,
                     stack: '_',
                     encode: {
                         y: metricHistory.name, // https://github.com/apache/echarts/issues/14312
