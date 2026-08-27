@@ -98,13 +98,6 @@ quarkus:
     build: true
 
 "%dev":
-  mp:
-    messaging:
-      connector:
-        smallrye-kafka:
-          apicurio:
-            registry:
-              url: ${kafka.schema.registry.url}/apis/registry/v2
   cc:
     aggregation-window-size: PT1H
     olap:
