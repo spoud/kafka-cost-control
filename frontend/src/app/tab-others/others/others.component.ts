@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { ReprocessDialogComponent } from '../reprocess-dialog/reprocess-dialog.component';
+import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
 import { ReprocessGQL } from '../../../generated/graphql/sdk';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -10,6 +10,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatInputModule } from '@angular/material/input';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatCardModule } from '@angular/material/card';
+import { PageHeaderComponent } from '../../common/page-header/page-header.component';
 
 @Component({
     selector: 'app-others',
@@ -22,6 +23,7 @@ import { MatCardModule } from '@angular/material/card';
         MatInputModule,
         MatSnackBarModule,
         MatCardModule,
+        PageHeaderComponent,
     ],
     providers: [provideNativeDateAdapter()],
 })
@@ -33,7 +35,16 @@ export class OthersComponent {
     startTime: Date | undefined;
 
     openReprocessDialog(): void {
-        const dialogRef = this._dialog.open(ReprocessDialogComponent);
+        const dialogRef = this._dialog.open(ConfirmDialogComponent, {
+            data: {
+                title: 'Are you really sure?',
+                message:
+                    'Reprocessing data can take a while and will add a significant lag for a while, this means data will not be leave for a while.',
+                confirmLabel: "I'm not afraid, reprocess it!",
+                cancelLabel: "No, I'm sorry, get me back",
+                destructive: true,
+            },
+        });
 
         dialogRef
             .afterClosed()

@@ -1,0 +1,43 @@
+@use '@angular/material' as mat;
+@use 'theme-colors' as theme-colors;
+
+// Single source of truth for the app's Material 3 theme. Light is the default;
+// `.dark` (toggled on <html>, see theme.service.ts) overrides the same
+// primary/tertiary palettes with dark-scheme tones. Must stay on <html>, not
+// <body>: mat.*-overrides() mixins below emit their rules scoped to `html`,
+// and CSS custom properties resolve var() references against the declaring
+// element's own cascade — so a `.dark` class anywhere other than `html` would
+// leave those overrides permanently resolved to the light-mode tokens.
+html {
+    @include mat.theme(
+        (
+            color: (
+                theme-type: light,
+                primary: theme-colors.$primary-palette,
+                tertiary: theme-colors.$tertiary-palette,
+            ),
+            typography: Poppins,
+            density: 0,
+        )
+    );
+
+    // Brand-colored toolbar background/foreground, kept as tokens (rather than literals in
+    // styles.scss) so it can vary per theme like everything else instead of staying static.
+    --kcc-toolbar-background: #0a4159;
+    --kcc-toolbar-foreground: #ffffff;
+}
+
+.dark {
+    @include mat.theme(
+        (
+            color: (
+                theme-type: dark,
+                primary: theme-colors.$primary-palette,
+                tertiary: theme-colors.$tertiary-palette,
+            ),
+        )
+    );
+
+    --kcc-toolbar-background: #1a4b64;
+    --kcc-toolbar-foreground: #ffffff;
+}

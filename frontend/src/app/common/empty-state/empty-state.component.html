@@ -1,0 +1,7 @@
+<div class="empty-state">
+    <mat-icon class="empty-state-icon">{{ icon() }}</mat-icon>
+    <p class="empty-state-message">{{ message() }}</p>
+    <div class="empty-state-actions">
+        <ng-content select="[actions]"></ng-content>
+    </div>
+</div>

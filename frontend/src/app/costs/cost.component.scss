@@ -1,29 +1,23 @@
-.section-header {
-    margin-bottom: 24px;
-}
+@use '../../styles/breakpoints';
 
-.page-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--mat-sys-on-surface);
-}
+.saved-configs-select {
+    width: 200px;
 
-.page-sub {
-    font-size: 13px;
-    color: var(--mat-sys-on-surface-variant);
-    margin-top: 4px;
+    @include breakpoints.handset {
+        width: 100%;
+    }
 }
 
 .card-row {
     display: grid;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: var(--space-5);
+    margin-bottom: var(--space-5);
 }
 
 .top-row {
     grid-template-columns: 1fr 2fr;
 
-    @media (max-width: 900px) {
+    @include breakpoints.compact {
         grid-template-columns: 1fr;
     }
 }
@@ -31,7 +25,7 @@
 .middle-row {
     grid-template-columns: 2fr 1fr;
 
-    @media (max-width: 900px) {
+    @include breakpoints.compact {
         grid-template-columns: 1fr;
     }
 }
@@ -39,9 +33,8 @@
 .card-title {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
+    gap: var(--space-2);
+    font: var(--mat-sys-title-small);
 
     mat-icon {
         font-size: 18px;
@@ -52,7 +45,7 @@
 }
 
 mat-card-content {
-    padding-top: 8px;
+    padding-top: var(--space-2);
 }
 
 .full-width {
@@ -61,34 +54,38 @@ mat-card-content {
 
 .form-row {
     display: flex;
-    gap: 16px;
+    gap: var(--space-4);
     flex-wrap: wrap;
     align-items: flex-start;
 
     mat-form-field {
         flex: 1;
         min-width: 130px;
+
+        @include breakpoints.handset {
+            flex-basis: 100%;
+            min-width: 0;
+        }
     }
 }
 
 .info {
     background: var(--mat-sys-surface-container);
     color: var(--mat-sys-on-surface-variant);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12px;
-    margin-bottom: 16px;
-    line-height: 1.5;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font: var(--mat-sys-body-small);
+    margin-bottom: var(--space-4);
 }
 
 .unsupported-notice {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-1);
     font-size: 12px;
     font-weight: 500;
     color: var(--mat-sys-tertiary);
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
 
     mat-icon {
         font-size: 16px;
@@ -104,16 +101,21 @@ mat-card-content {
 }
 
 .rule-hint {
-    font-size: 13px;
+    font: var(--mat-sys-body-small);
     color: var(--mat-sys-on-surface-variant);
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
 }
 
 .rule-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 4px;
+    gap: var(--space-3);
+    margin-bottom: var(--space-1);
+    flex-wrap: wrap;
+
+    @include breakpoints.handset {
+        row-gap: 0;
+    }
 }
 
 .rule-label {
@@ -124,6 +126,7 @@ mat-card-content {
 
 .rule-slider {
     flex: 1;
+    min-width: 120px;
 }
 
 .rule-val {
@@ -135,27 +138,59 @@ mat-card-content {
 }
 
 .rule-info {
-    margin-top: 12px;
+    margin-top: var(--space-3);
     background: var(--mat-sys-surface-container);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12px;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font: var(--mat-sys-body-small);
     color: var(--mat-sys-on-surface-variant);
-    line-height: 1.5;
 }
 
 .group-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-2);
+}
+
+.group-chips-ordered {
+    margin-bottom: var(--space-3);
+}
+
+.group-chip-ordered {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+    border-radius: var(--radius-sm);
+    padding-left: var(--space-2);
+    cursor: default;
+
+    .drag-handle {
+        cursor: grab;
+        color: var(--mat-sys-on-surface-variant);
+    }
+
+    button {
+        transform: scale(0.75);
+    }
+}
+
+.cdk-drag-preview {
+    box-shadow: var(--mat-sys-level3);
+    border-radius: var(--radius-sm);
+}
+
+.cdk-drag-placeholder {
+    opacity: 0.3;
 }
 
 .results-card {
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
 }
 
 .results-content {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: var(--space-5);
 }

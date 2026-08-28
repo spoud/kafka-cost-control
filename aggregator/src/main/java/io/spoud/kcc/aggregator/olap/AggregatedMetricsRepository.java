@@ -40,6 +40,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.spoud.kcc.olap.domain.Tables.AGGREGATED_DATA;
@@ -399,18 +400,16 @@ public class AggregatedMetricsRepository {
                 return;
             }
 
-            List<AggregatedTotal> totalGroupedByContext = getTotalGroupedByContext(request.from(), request.to(), request.contextKeysToGroupBy(), metricName);
-
-            List<AggregatedTotal> inPercentage = totalGroupedByContext.stream()
-                    .map(aggregatedTotal -> new AggregatedTotal(aggregatedTotal.contextValues(), aggregatedTotal.total() / totalForMetric))
-                    .toList();
-
-            List<CostOverviewResponse.MetricToDistributionMap.NameToPrice> nameToPrices = inPercentage.stream()
-                    .map(aggregatedInPercentage -> new CostOverviewResponse.MetricToDistributionMap.NameToPrice(
-                            aggregatedInPercentage.contextValues.getLast(),
-                            aggregatedInPercentage.total * priceInCents
-                    ))
-                    .toList();
+            // no context keys selected means "no grouping" - just show the metric-level total, without a further breakdown
+            List<CostOverviewResponse.MetricToDistributionMap.NameToPrice> nameToPrices = request.contextKeysToGroupBy().isEmpty()
+                    ? List.of()
+                    : getTotalGroupedByContext(request.from(), request.to(), request.contextKeysToGroupBy(), metricName).stream()
+                            .map(aggregatedTotal -> new CostOverviewResponse.MetricToDistributionMap.NameToPrice(
+                                    formatContextLabel(request.contextKeysToGroupBy(), aggregatedTotal.contextValues()),
+                                    (aggregatedTotal.total() / totalForMetric) * priceInCents,
+                                    aggregatedTotal.contextValues()
+                            ))
+                            .toList();
             metricToDistributionMapList.add(new CostOverviewResponse.MetricToDistributionMap(metricName, nameToPrices));
 
         });
@@ -435,6 +434,19 @@ public class AggregatedMetricsRepository {
     }
 
     private record AggregatedTotal(List<String> contextValues, double total) {
+    }
+
+    /**
+     * Renders a grouped-by context tuple as a single label, e.g. {@code "team=platform, topic=orders"},
+     * so that grouping by multiple context keys stays distinguishable in the cost distribution response
+     * instead of collapsing to just the last key's value.
+     */
+    private static String formatContextLabel(List<String> contextKeys, List<String> contextValues) {
+        return IntStream.range(0, contextValues.size())
+                .mapToObj(i -> i < contextKeys.size()
+                        ? contextKeys.get(i) + "=" + contextValues.get(i)
+                        : contextValues.get(i))
+                .collect(Collectors.joining(", "));
     }
 
     private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName) {

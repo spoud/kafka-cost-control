@@ -1,0 +1,24 @@
+// Width-only breakpoints shared by every page's @media query.
+//
+// These deliberately do NOT mirror the app-shell's BreakpointObserver tier
+// (app.component.ts: isHandset, from CDK's Breakpoints.Handset), which is
+// orientation-aware:
+//   (max-width: 599.98px) and (orientation: portrait),
+//   (max-width: 959.98px) and (orientation: landscape)
+// So a ~700px landscape window has isHandset() true — mobile toolbar, over-mode
+// drawer — while the mixins below do not apply. That is intended: page content
+// should reflow on width alone, independent of how the shell chrome behaves.
+$breakpoint-handset: 599px;
+$breakpoint-compact: 899px;
+
+@mixin handset {
+    @media (max-width: $breakpoint-handset) {
+        @content;
+    }
+}
+
+@mixin compact {
+    @media (max-width: $breakpoint-compact) {
+        @content;
+    }
+}

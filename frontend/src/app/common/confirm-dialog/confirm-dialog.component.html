@@ -1,0 +1,26 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+<mat-dialog-content>
+    @if (data.contentTemplate) {
+        <ng-container
+            [ngTemplateOutlet]="data.contentTemplate"
+            [ngTemplateOutletContext]="data.templateContext"
+        ></ng-container>
+    } @else if (data.message) {
+        <p>{{ data.message }}</p>
+    }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <!-- Focus cancel, not confirm: every caller is destructive, and with focus on confirm a
+         stray Enter fires the action outright. Reprocess resets Kafka Streams consumer offsets
+         and forces a full restart, so the cost of an accidental keypress is high. -->
+    <button mat-stroked-button mat-dialog-close cdkFocusInitial>
+        {{ data.cancelLabel ?? 'Cancel' }}
+    </button>
+    <button
+        mat-flat-button
+        [color]="data.destructive ? 'warn' : 'primary'"
+        [mat-dialog-close]="true"
+    >
+        {{ data.confirmLabel ?? 'Confirm' }}
+    </button>
+</mat-dialog-actions>

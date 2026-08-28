@@ -5,7 +5,7 @@
     </button>
 </div>
 
-<div class="mat-elevation-z8">
+<app-data-table>
     <table mat-table [dataSource]="dataSource()" matSort>
         <ng-container matColumnDef="initialMetricName">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>Metric</th>
@@ -35,4 +35,4 @@
 
     <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons aria-label="Select page">
     </mat-paginator>
-</div>
+</app-data-table>

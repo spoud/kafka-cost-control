@@ -2,7 +2,7 @@
 <form [formGroup]="saveForm" (ngSubmit)="saveDialog()">
     <mat-dialog-content>
         <div>
-            <mat-form-field class="mr-1">
+            <mat-form-field class="mr-4">
                 <mat-label>Valid from</mat-label>
                 <input matInput [matDatepicker]="validFromPicker" formControlName="validFrom" />
                 <mat-datepicker-toggle
@@ -43,11 +43,11 @@
         <div formArrayName="context">
             @for (keyValuePair of keyValuePairs.controls; let i = $index; track keyValuePair) {
                 <div [formGroupName]="i">
-                    <mat-form-field class="mr-1">
+                    <mat-form-field class="mr-4">
                         <mat-label>Key</mat-label>
                         <input matInput formControlName="key" />
                     </mat-form-field>
-                    <mat-form-field class="mr-1">
+                    <mat-form-field class="mr-4">
                         <mat-label>Value</mat-label>
                         <input matInput formControlName="value" />
                     </mat-form-field>
@@ -72,7 +72,7 @@
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
-        <button mat-flat-button mat-dialog-close>Cancel</button>
+        <button mat-stroked-button mat-dialog-close>Cancel</button>
         <button mat-flat-button color="primary" [disabled]="saveForm.invalid">Save</button>
     </mat-dialog-actions>
 </form>

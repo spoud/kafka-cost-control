@@ -1,72 +1,203 @@
-<mat-toolbar color="primary">
-    <a routerLink="/home" class="mr-1">
-        <img ngSrc="assets/spoud.svg" width="53" height="54" alt="Kafka Cost Control Logo" />
-    </a>
-    <span>COST CONTROL</span>
-    <span class="spacer"></span>
-    <mat-button-toggle-group
-        class="theme-toggle mr-1"
-        [value]="themeMode()"
-        (change)="setThemeMode($event.value)"
-        hideSingleSelectionIndicator
-    >
-        <mat-button-toggle value="light" matTooltip="Light mode">
-            <mat-icon>light_mode</mat-icon>
-        </mat-button-toggle>
-        <mat-button-toggle value="system" matTooltip="Follow system setting">
-            <mat-icon>brightness_auto</mat-icon>
-        </mat-button-toggle>
-        <mat-button-toggle value="dark" matTooltip="Dark mode">
-            <mat-icon>dark_mode</mat-icon>
-        </mat-button-toggle>
-    </mat-button-toggle-group>
-    @if (isAuthenticated()) {
+@if (isHandset()) {
+    <mat-toolbar color="primary">
         <button
-            mat-button
-            class="user-icon"
-            aria-label="Logout"
-            matTooltip="Sign out"
-            (click)="signOut()"
+            mat-icon-button
+            aria-label="Toggle navigation menu"
+            matTooltip="Menu"
+            (click)="sidenav.toggle()"
         >
-            Sign out
-            <mat-icon>logout</mat-icon>
+            <mat-icon>menu</mat-icon>
         </button>
-    } @else {
-        <button
-            mat-button
-            class="user-icon"
-            aria-label="Login"
-            matTooltip="Sign in"
-            (click)="signIn()"
-        >
-            Sign in
-            <mat-icon>login</mat-icon>
-        </button>
-    }
-</mat-toolbar>
+        <a routerLink="/costs" class="logo-link mr-4">
+            <img ngSrc="assets/spoud.svg" width="36" height="36" alt="Kafka Cost Control Logo" />
+        </a>
+        <span>COST CONTROL</span>
+    </mat-toolbar>
+}
 
-<mat-sidenav-container>
-    <mat-sidenav [fixedInViewport]="true" [fixedTopGap]="64" mode="side" opened>
-        <mat-nav-list>
-            @for (link of navLinksSignal(); track link) {
-                <a
-                    mat-list-item
-                    [routerLink]="link.path"
-                    routerLinkActive
-                    #rla="routerLinkActive"
-                    [activated]="rla.isActive"
-                >
-                    @if (link.icon) {
-                        <mat-icon class="nav-icon">{{ link.icon }}</mat-icon>
+<mat-sidenav-container
+    [class.sidenav-collapsed]="collapsed() && !isHandset()"
+    [class.is-handset]="isHandset()"
+>
+    <mat-sidenav
+        #sidenav
+        [fixedInViewport]="true"
+        [fixedTopGap]="isHandset() ? 64 : 0"
+        [mode]="isHandset() ? 'over' : 'side'"
+        [opened]="!isHandset()"
+        [class.collapsed]="collapsed() && !isHandset()"
+    >
+        <div class="sidenav-content-wrapper">
+            <a
+                routerLink="/costs"
+                class="brand"
+                [matTooltip]="collapsed() && !isHandset() ? 'Cost Control' : ''"
+                matTooltipPosition="right"
+                (click)="isHandset() && sidenav.close()"
+            >
+                <img
+                    ngSrc="assets/spoud.svg"
+                    width="32"
+                    height="32"
+                    alt="Kafka Cost Control Logo"
+                    class="brand-logo"
+                />
+                @if (!collapsed() || isHandset()) {
+                    <span class="brand-title">COST CONTROL</span>
+                }
+            </a>
+
+            <mat-nav-list>
+                @for (link of primaryNavLinks(); track link) {
+                    <a
+                        mat-list-item
+                        [routerLink]="link.path"
+                        routerLinkActive
+                        #rla="routerLinkActive"
+                        [activated]="rla.isActive"
+                        [matTooltip]="collapsed() && !isHandset() ? link.label : ''"
+                        matTooltipPosition="right"
+                        (click)="isHandset() && sidenav.close()"
+                    >
+                        @if (link.icon) {
+                            <mat-icon matListItemIcon class="nav-icon">{{ link.icon }}</mat-icon>
+                        }
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">{{ link.label }}</span>
+                        }
+                    </a>
+                }
+            </mat-nav-list>
+
+            @if (adminNavLinks().length > 0) {
+                <mat-divider></mat-divider>
+                @if (!collapsed() || isHandset()) {
+                    <div class="nav-group-label">Admin</div>
+                }
+                <mat-nav-list>
+                    @for (link of adminNavLinks(); track link) {
+                        <a
+                            mat-list-item
+                            [routerLink]="link.path"
+                            routerLinkActive
+                            #rla="routerLinkActive"
+                            [activated]="rla.isActive"
+                            [matTooltip]="collapsed() && !isHandset() ? link.label : ''"
+                            matTooltipPosition="right"
+                            (click)="isHandset() && sidenav.close()"
+                        >
+                            @if (link.icon) {
+                                <mat-icon matListItemIcon class="nav-icon">{{
+                                    link.icon
+                                }}</mat-icon>
+                            }
+                            @if (!collapsed() || isHandset()) {
+                                <span matListItemTitle class="nav-label">{{ link.label }}</span>
+                            }
+                        </a>
                     }
-                    {{ link.label }}
-                </a>
+                </mat-nav-list>
             }
-        </mat-nav-list>
+
+            <div class="sidenav-spacer"></div>
+
+            <mat-divider></mat-divider>
+
+            <mat-nav-list class="account-nav-list">
+                @if (isAuthenticated()) {
+                    <a
+                        mat-list-item
+                        class="account-trigger"
+                        tabindex="0"
+                        (click)="accountMenuTrigger.openMenu()"
+                        (keydown.enter)="accountMenuTrigger.openMenu()"
+                        (keydown.space)="accountMenuTrigger.openMenu()"
+                        [matTooltip]="collapsed() && !isHandset() ? 'Account' : ''"
+                        matTooltipPosition="right"
+                    >
+                        <mat-icon matListItemIcon class="nav-icon">account_circle</mat-icon>
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">Account</span>
+                        }
+                        <span
+                            matListItemMeta
+                            class="menu-anchor"
+                            [matMenuTriggerFor]="userMenu"
+                            #accountMenuTrigger="matMenuTrigger"
+                        ></span>
+                    </a>
+                    <mat-menu #userMenu="matMenu" xPosition="after">
+                        <div class="menu-theme-toggle">
+                            <mat-icon>{{
+                                themeService.isDark() ? 'dark_mode' : 'light_mode'
+                            }}</mat-icon>
+                            <span>Dark mode</span>
+                            <mat-slide-toggle
+                                [checked]="themeService.isDark()"
+                                (change)="
+                                    themeService.setThemeMode($event.checked ? 'dark' : 'light')
+                                "
+                                aria-label="Toggle dark mode"
+                            ></mat-slide-toggle>
+                        </div>
+                        <mat-divider></mat-divider>
+                        <button mat-menu-item (click)="signOut()">
+                            <mat-icon>logout</mat-icon>
+                            <span>Sign out</span>
+                        </button>
+                    </mat-menu>
+                } @else {
+                    <button
+                        mat-list-item
+                        [matTooltip]="
+                            collapsed() && !isHandset()
+                                ? themeService.isDark()
+                                    ? 'Switch to light mode'
+                                    : 'Switch to dark mode'
+                                : ''
+                        "
+                        matTooltipPosition="right"
+                        (click)="toggleDarkMode()"
+                    >
+                        <mat-icon matListItemIcon class="nav-icon">{{
+                            themeService.isDark() ? 'dark_mode' : 'light_mode'
+                        }}</mat-icon>
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">{{
+                                themeService.isDark() ? 'Dark mode' : 'Light mode'
+                            }}</span>
+                        }
+                    </button>
+                    <button
+                        mat-list-item
+                        [matTooltip]="collapsed() && !isHandset() ? 'Sign in' : ''"
+                        matTooltipPosition="right"
+                        (click)="signIn()"
+                    >
+                        <mat-icon matListItemIcon class="nav-icon">login</mat-icon>
+                        @if (!collapsed() || isHandset()) {
+                            <span matListItemTitle class="nav-label">Sign in</span>
+                        }
+                    </button>
+                }
+            </mat-nav-list>
+
+            @if (!isHandset()) {
+                <button
+                    class="collapse-toggle"
+                    aria-label="Toggle sidebar width"
+                    [matTooltip]="collapsed() ? 'Expand menu' : 'Collapse menu'"
+                    matTooltipPosition="right"
+                    (click)="toggleCollapsed()"
+                >
+                    <mat-icon fontSet="material-symbols-outlined">{{
+                        collapsed() ? 'left_panel_open' : 'left_panel_close'
+                    }}</mat-icon>
+                </button>
+            }
+        </div>
     </mat-sidenav>
     <mat-sidenav-content>
-        <mat-tab-nav-panel #tabPanel>
-            <router-outlet></router-outlet>
-        </mat-tab-nav-panel>
+        <router-outlet></router-outlet>
     </mat-sidenav-content>
 </mat-sidenav-container>

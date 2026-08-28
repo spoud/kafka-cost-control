@@ -96,3 +96,11 @@ quarkus:
         level: WARN
   container-image:
     build: true
+
+"%dev":
+  cc:
+    aggregation-window-size: PT1H
+    olap:
+      # on by default in dev so the OLAP-backed queries (metricContextKeys, the cost-overview
+      # Group By) have data without needing a /api/v1/kafka-stream/reprocess first
+      enabled: true

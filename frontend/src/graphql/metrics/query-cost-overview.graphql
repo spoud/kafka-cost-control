@@ -5,6 +5,7 @@ query costOverview ($request: CostOverviewRequestInput!) {
             nameToPriceList {
                 name
                 price
+                contextValues
             }
         }
     }

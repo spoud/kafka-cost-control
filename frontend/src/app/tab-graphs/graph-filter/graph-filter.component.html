@@ -24,4 +24,8 @@
         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
         <mat-date-range-picker #picker></mat-date-range-picker>
     </mat-form-field>
+    <app-date-range-quick-select
+        [selectedRange]="selectedDateRange()"
+        (rangeSelected)="applyDateRange($event)"
+    ></app-date-range-quick-select>
 </form>

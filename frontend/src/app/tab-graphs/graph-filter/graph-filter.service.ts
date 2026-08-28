@@ -1,6 +1,10 @@
 import { computed, inject, Injectable, resource, ResourceRef, Signal } from '@angular/core';
 import { firstValueFrom, map } from 'rxjs';
-import { MetricContextKeysGQL, MetricHistoryGQL, MetricNamesGQL } from '../../../generated/graphql/sdk';
+import {
+    MetricContextKeysGQL,
+    MetricHistoryGQL,
+    MetricNamesGQL,
+} from '../../../generated/graphql/sdk';
 import { MetricHistory, MetricNameEntity } from '../../../generated/graphql/types';
 import { GraphFilter } from '../tab-graphs.component';
 
@@ -38,8 +42,10 @@ export class GraphFilterService {
                 return {
                     from: { instant: _filter.from },
                     to: { instant: _filter.to || new Date() },
-                    metricNames: _filter.metricName || [],
-                    groupByContextKeys: _filter.groupByContext || [],
+                    // both are declared [String!]! by the query. metricName is a single value, so
+                    // wrap it rather than relying on GraphQL coercing a lone scalar into a list.
+                    metricNames: _filter.metricName ? [_filter.metricName] : [],
+                    groupByContextKeys: _filter.groupByContext ?? [],
                 };
             },
             loader: ({ params }): Promise<MetricHistory[] | undefined> =>

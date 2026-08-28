@@ -7,6 +7,7 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
 import { PercentPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { DataTableComponent } from '../../common/data-table/data-table.component';
 
 @Component({
     selector: 'app-cost-table',
@@ -17,6 +18,7 @@ import { MatIcon } from '@angular/material/icon';
         PercentPipe,
         MatButtonModule,
         MatIcon,
+        DataTableComponent,
     ],
     templateUrl: './cost-table.component.html',
     styleUrl: './cost-table.component.scss',

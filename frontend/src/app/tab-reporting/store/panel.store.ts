@@ -1,5 +1,12 @@
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { Panel } from '../panel.type';
+import { isPanel, Panel } from '../panel.type';
+import {
+    isUnknownArray,
+    readPersisted,
+    reviveDate,
+    writePersisted,
+} from '../../common/persisted-state';
+import { toContextKeys } from '../../common/context-keys';
 import { v4 as uuidv4 } from 'uuid';
 import { computed, effect, Signal } from '@angular/core';
 import {
@@ -13,41 +20,46 @@ import {
 import { GraphFilter } from '../../tab-graphs/tab-graphs.component';
 
 const PANEL_KEY = 'kcc_panels';
+/** Bump when Panel changes in a way values written by an older build cannot satisfy. */
+const PERSISTED_VERSION = 1;
+
+/**
+ * Repairs a stored panel: `from`/`to` are Dates in the type but ISO strings once they have been
+ * through localStorage, and `groupByContext` may be a bare string on anything saved while the
+ * filter form was emitting its raw control value.
+ */
+function revivePanel(panel: Panel): Panel {
+    return {
+        ...panel,
+        from: reviveDate(panel.from),
+        to: panel.to === undefined ? undefined : reviveDate(panel.to),
+        groupByContext: toContextKeys(panel.groupByContext),
+    };
+}
 
 type PanelState = {
-    availablePanels: Array<Panel>;
+    /**
+     * The panel the user is currently editing. A freshly added panel is unconfigured — no metric,
+     * no context, default title — so it opens straight into its options rather than landing on
+     * the board as an empty card the user then has to find the settings button for.
+     */
+    editingPanelId: string | null;
+};
+
+const initialState: PanelState = {
+    editingPanelId: null,
 };
 
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_FROM = new Date(new Date(new Date().getTime() - ONE_WEEK).setUTCHours(0, 0, 0, 0));
 
-const initialState: PanelState = {
-    availablePanels: [
-        {
-            id: '1a',
-            title: 'Bar Chart',
-            description: 'A stacked bar chart',
-            type: 'StackedBar',
-            from: DEFAULT_FROM,
-            groupByContext: [],
-        },
-        {
-            id: '1b',
-            title: 'Area Chart',
-            description: 'A stacked area chart',
-            type: 'Line',
-            from: DEFAULT_FROM,
-            groupByContext: [],
-        },
-        {
-            id: '2',
-            title: 'Pie Chart',
-            type: 'Pie',
-            from: DEFAULT_FROM,
-            groupByContext: [],
-        },
-    ],
-};
+function defaultPanel(): Omit<Panel, 'id'> {
+    return {
+        title: 'New panel',
+        type: 'StackedBar',
+        from: new Date(new Date(new Date().getTime() - ONE_WEEK).setUTCHours(0, 0, 0, 0)),
+        groupByContext: [],
+    };
+}
 
 export const PanelStore = signalStore(
     { providedIn: 'root' },
@@ -55,28 +67,40 @@ export const PanelStore = signalStore(
     withEntities<Panel>(),
     withHooks({
         onInit(store) {
-            const jsonPanels = localStorage.getItem(PANEL_KEY);
-            if (jsonPanels) {
-                patchState(store, addEntities(JSON.parse(jsonPanels)));
+            // Hydration is defensive on purpose: this is a root-provided store, so anything thrown
+            // here happens during construction and takes the whole Reporting route down with no
+            // in-app way back. See common/persisted-state.
+            const storedPanels = readPersisted(PANEL_KEY, PERSISTED_VERSION, isUnknownArray);
+            if (storedPanels) {
+                // filtered per item so one unusable panel costs the user that panel, not the board
+                patchState(store, addEntities(storedPanels.filter(isPanel).map(revivePanel)));
             }
             effect(() => {
                 // every time store entities (panels) change we save them to localStorage
                 // we ignore eChartsInstance when serializing, this gets set again when eCharts instantiates
                 const serializable = store
-                    .entities() // TOOD I'm not even sure if that's correct atm
+                    .entities()
                     .map(panel => ({ ...panel, eChartsInstance: undefined }));
-                localStorage.setItem(PANEL_KEY, JSON.stringify(serializable));
+                writePersisted(PANEL_KEY, PERSISTED_VERSION, serializable);
             });
         },
     }),
     withMethods(store => ({
-        addPanel(panel: Panel): void {
-            patchState(store, addEntity({ ...panel, id: uuidv4() }));
+        addPanel(): string {
+            const id = uuidv4();
+            patchState(store, addEntity({ ...defaultPanel(), id }), { editingPanelId: id });
+            return id;
+        },
+        startEditing(id: string): void {
+            patchState(store, { editingPanelId: id });
+        },
+        stopEditing(): void {
+            patchState(store, { editingPanelId: null });
         },
         updatePanel(id: string, panel: Partial<Panel>): void {
             patchState(store, updateEntity({ id: id, changes: panel }));
         },
-        movePanelRight(id: string): void {
+        movePanelDown(id: string): void {
             const index = store.entities().findIndex(panel => panel.id === id);
             if (index === -1 || index === store.entities().length - 1) {
                 return;
@@ -88,7 +112,7 @@ export const PanelStore = signalStore(
             ];
             patchState(store, removeAllEntities(), addEntities(newPanels));
         },
-        movePanelLeft(id: string): void {
+        movePanelUp(id: string): void {
             const index = store.entities().findIndex(panel => panel.id === id);
             if (index === -1 || index === 0) {
                 return;
@@ -102,11 +126,20 @@ export const PanelStore = signalStore(
         },
         removePanel(id: string): void {
             patchState(store, removeEntity(id));
+            if (store.editingPanelId() === id) {
+                patchState(store, { editingPanelId: null });
+            }
         },
-        filter(id: Signal<string>): Signal<GraphFilter> {
+        filter(id: Signal<string>): Signal<GraphFilter | undefined> {
             return computed(
                 () => {
+                    // Removing a panel invalidates this computed while the chart that owns it may
+                    // still read it in the same flush, so the lookup can miss. historyResource
+                    // already treats an undefined filter as "nothing to fetch".
                     const panel = store.entityMap()[id()];
+                    if (!panel) {
+                        return undefined;
+                    }
                     return {
                         from: panel.from,
                         to: panel.to,

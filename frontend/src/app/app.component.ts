@@ -1,9 +1,9 @@
-import { Component, computed, DOCUMENT, effect, inject, signal, Signal } from '@angular/core';
+import { Component, computed, inject, Signal, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
-import { MatButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
@@ -20,12 +20,21 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
-import { MatListItem, MatNavList } from '@angular/material/list';
+import {
+    MatListItem,
+    MatListItemIcon,
+    MatListItemMeta,
+    MatListItemTitle,
+    MatNavList,
+} from '@angular/material/list';
+import { MatDivider } from '@angular/material/divider';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { NgOptimizedImage } from '@angular/common';
-
-type ThemeMode = 'light' | 'system' | 'dark';
+import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
+import { ThemeService } from './services/theme.service';
 
 echarts.use([
     LineChart,
@@ -46,18 +55,24 @@ echarts.use([
     imports: [
         RouterLink,
         RouterLinkActive,
-        MatTabsModule,
         MatToolbar,
         MatIcon,
-        MatButton,
+        MatIconButton,
+        MatMenu,
+        MatMenuItem,
+        MatMenuTrigger,
         MatTooltip,
         MatSidenavContainer,
         MatSidenavContent,
         MatSidenav,
         MatNavList,
         MatListItem,
+        MatListItemIcon,
+        MatListItemTitle,
+        MatListItemMeta,
+        MatDivider,
+        MatSlideToggle,
         RouterOutlet,
-        MatButtonToggleModule,
         NgOptimizedImage,
     ],
     providers: [provideEchartsCore({ echarts })],
@@ -65,10 +80,19 @@ echarts.use([
 export class AppComponent {
     private _dialog = inject(MatDialog);
     private _authService = inject(BasicAuthServiceService);
-    private document = inject(DOCUMENT);
-    private readonly THEME_MODE_KEY = 'theme-mode';
-    private readonly DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
-    private readonly systemDark = signal<boolean>(window.matchMedia(this.DARK_MEDIA_QUERY).matches);
+    private _breakpointObserver = inject(BreakpointObserver);
+    protected readonly themeService = inject(ThemeService);
+
+    private readonly SIDENAV_COLLAPSED_KEY = 'sidenav-collapsed';
+
+    constructor() {
+        this.isAuthenticated = this._authService.authenticated();
+    }
+
+    isHandset: Signal<boolean> = toSignal(
+        this._breakpointObserver.observe(Breakpoints.Handset).pipe(map(result => result.matches)),
+        { initialValue: this._breakpointObserver.isMatched(Breakpoints.Handset) }
+    );
 
     isAuthenticated: Signal<boolean>;
     navLinksSignal: Signal<NavLink[]> = computed(() => {
@@ -78,23 +102,20 @@ export class AppComponent {
         }
         return list.sort((a, b) => a.sortOrder - b.sortOrder);
     });
-    themeMode = signal<ThemeMode>(this.loadThemeMode());
-
-    constructor() {
-        this.isAuthenticated = this._authService.authenticated();
-
-        const prefersColorSchemeDark = window.matchMedia(this.DARK_MEDIA_QUERY);
-        prefersColorSchemeDark.addEventListener('change', e => this.systemDark.set(e.matches));
-
-        effect(() => {
-            const mode = this.themeMode();
-            const isDark = mode === 'dark' || (mode === 'system' && this.systemDark());
-            this.document.body.classList.toggle('dark', isDark);
-        });
-    }
+    primaryNavLinks: Signal<NavLink[]> = computed(() =>
+        this.navLinksSignal().filter(link => link.group === 'primary')
+    );
+    adminNavLinks: Signal<NavLink[]> = computed(() =>
+        this.navLinksSignal().filter(link => link.group === 'admin')
+    );
+    collapsed = signal<boolean>(localStorage.getItem(this.SIDENAV_COLLAPSED_KEY) === 'true');
 
     signOut(): void {
         this._authService.signOut();
+    }
+
+    toggleDarkMode(): void {
+        this.themeService.setThemeMode(this.themeService.isDark() ? 'light' : 'dark');
     }
 
     signIn(): void {
@@ -105,14 +126,9 @@ export class AppComponent {
         });
     }
 
-    setThemeMode(mode: ThemeMode): void {
-        this.themeMode.set(mode);
-        localStorage.setItem(this.THEME_MODE_KEY, mode);
-    }
-
-    private loadThemeMode(): ThemeMode {
-        const stored = localStorage.getItem(this.THEME_MODE_KEY);
-        if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-        return 'system';
+    toggleCollapsed(): void {
+        const next = !this.collapsed();
+        this.collapsed.set(next);
+        localStorage.setItem(this.SIDENAV_COLLAPSED_KEY, String(next));
     }
 }

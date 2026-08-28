@@ -91,3 +91,8 @@ docker-compose.override.yaml
 devenv.lock
 devenv.nix
 devenv.yaml
+
+/CLAUDE.md
+
+# working notes, not shared
+/TASKS.md

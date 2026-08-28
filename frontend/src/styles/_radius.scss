@@ -1,0 +1,14 @@
+// Elevation & radius conventions: flat cards at rest, soft shadow on hover/focus.
+:root {
+    --radius-sm: 8px;
+    --radius-md: 12px;
+
+    --elevation-resting: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --elevation-raised: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+// Dark surfaces need darker, more opaque shadows to read as elevation at all.
+.dark {
+    --elevation-resting: 0 1px 2px rgba(0, 0, 0, 0.24);
+    --elevation-raised: 0 4px 12px rgba(0, 0, 0, 0.36);
+}
