@@ -52,7 +52,7 @@
     "@graphql-codegen/typescript-apollo-angular": "^5.0.1",
     "@graphql-codegen/typescript-operations": "^6.1.6",
     "@types/file-saver-es": "^2.0.3",
-    "angular-eslint": "22.1.0",
+    "angular-eslint": "22.2.0",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
