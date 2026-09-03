@@ -32,6 +32,12 @@ mp:
         schema:
           registry:
             url: ${kafka.schema.registry.url}
+        # Required by Quarkus for the Avro-typed channels below, but never actually used: the
+        # real serializer is Confluent's, driven by schema.registry.url above. Verified
+        # empirically (garbage/unreachable value still works) - fixed placeholder, not a URL.
+        apicurio:
+          registry:
+            url: unused
 
     outgoing:
       pricing-rules-out:
