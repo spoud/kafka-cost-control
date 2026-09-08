@@ -37,7 +37,7 @@ mp:
         # empirically (garbage/unreachable value still works) - fixed placeholder, not a URL.
         apicurio:
           registry:
-            url: unused
+            url: http://apicurio.invalid/
 
     outgoing:
       pricing-rules-out:
