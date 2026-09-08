@@ -134,9 +134,7 @@
                             <span>Dark mode</span>
                             <mat-slide-toggle
                                 [checked]="themeService.isDark()"
-                                (change)="
-                                    themeService.setThemeMode($event.checked ? 'dark' : 'light')
-                                "
+                                (change)="themeService.setDark($event.checked)"
                                 aria-label="Toggle dark mode"
                             ></mat-slide-toggle>
                         </div>

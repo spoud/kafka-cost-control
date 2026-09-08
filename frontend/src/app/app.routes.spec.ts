@@ -35,3 +35,23 @@ describe('default route', () => {
         expect(typeof wildcard?.redirectTo).toBe('function');
     });
 });
+
+/**
+ * /graphs was renamed to /explore and /home was removed. Both would otherwise fall through to
+ * the wildcard, which resolves per-user — sending a signed-in visitor following an old /graphs
+ * link to Cost Overview instead of the page that link meant.
+ */
+describe('legacy routes', () => {
+    it('sends /graphs to Explore, whoever is asking', () => {
+        const graphs = routes.find(r => r.path === 'graphs');
+        expect(graphs?.redirectTo).toBe('explore');
+    });
+
+    it('declares the legacy redirects before the catch-alls', () => {
+        const indexOf = (path: string) => routes.findIndex(r => r.path === path);
+
+        expect(indexOf('graphs')).toBeLessThan(indexOf(''));
+        expect(indexOf('home')).toBeLessThan(indexOf(''));
+        expect(indexOf('')).toBeLessThan(indexOf('**'));
+    });
+});

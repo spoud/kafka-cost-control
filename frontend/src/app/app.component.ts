@@ -115,7 +115,7 @@ export class AppComponent {
     }
 
     toggleDarkMode(): void {
-        this.themeService.setThemeMode(this.themeService.isDark() ? 'light' : 'dark');
+        this.themeService.setDark(!this.themeService.isDark());
     }
 
     signIn(): void {

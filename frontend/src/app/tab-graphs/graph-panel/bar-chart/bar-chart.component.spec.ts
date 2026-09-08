@@ -16,17 +16,8 @@ function datasetOf(metricsData: MetricHistory[]): unknown[][] {
 
 describe('BarChartComponent dataset', () => {
     beforeEach(() => {
-        // ThemeService reads prefers-color-scheme in its constructor and jsdom has no matchMedia
-        window.matchMedia = ((query: string) => ({
-            matches: false,
-            media: query,
-            onchange: null,
-            addEventListener: () => undefined,
-            removeEventListener: () => undefined,
-            addListener: () => undefined,
-            removeListener: () => undefined,
-            dispatchEvent: () => false,
-        })) as unknown as typeof window.matchMedia;
+        // No matchMedia stub needed: ThemeService optional-chains it, so it falls back to light
+        // under jsdom, which is what these assertions expect.
         TestBed.resetTestingModule();
     });
 

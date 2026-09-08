@@ -17,6 +17,12 @@ echarts.use([SankeyChart]);
  * each other. The canvas grows with the data instead of collapsing the data to fit the canvas. */
 const PIXELS_PER_NODE = 26;
 const MIN_CHART_HEIGHT = 600;
+/**
+ * Not a layout preference — a canvas taller than roughly 32k px is one the browser declines to
+ * draw at all, turning a crowded diagram into a blank one. Context keys are categorical, so
+ * reaching even this is unlikely; it is here so the failure is cramped rather than empty.
+ */
+const MAX_CHART_HEIGHT = 20000;
 
 /**
  * Distinct colour per node. The shared 8-colour chart palette repeats every 8 entries, which on a
@@ -190,7 +196,10 @@ export class SankeyComponent {
 
     /** Tall enough that every node in the busiest column has room for its label. */
     chartHeight = computed(() =>
-        Math.max(MIN_CHART_HEIGHT, this.model().busiestColumn * PIXELS_PER_NODE)
+        Math.min(
+            MAX_CHART_HEIGHT,
+            Math.max(MIN_CHART_HEIGHT, this.model().busiestColumn * PIXELS_PER_NODE)
+        )
     );
 
     sankeyOptions = computed<EChartsCoreOption>(() => {

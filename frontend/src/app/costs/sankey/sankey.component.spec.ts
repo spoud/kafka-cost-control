@@ -35,12 +35,8 @@ function build(entryCount: number) {
 
 describe('SankeyComponent', () => {
     beforeEach(() => {
-        window.matchMedia = ((query: string) => ({
-            matches: false,
-            media: query,
-            addEventListener: () => undefined,
-            removeEventListener: () => undefined,
-        })) as unknown as typeof window.matchMedia;
+        // No matchMedia stub needed: ThemeService optional-chains it, so it falls back to light
+        // under jsdom, which is the palette these assertions expect.
         TestBed.resetTestingModule();
     });
 
