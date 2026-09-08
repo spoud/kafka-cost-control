@@ -13,7 +13,7 @@ cc:
     database:
       # File-backed rather than the in-memory default (jdbc:duckdb:), so OLAP data survives a
       # restart. Grouped under /tmp/cc with the Kafka Streams state dir so `rm -rf /tmp/cc` gives
-      # a clean slate; that also creates the directory, which DuckDB will not do itself.
+      # a clean slate. OlapInfra creates the directory, since DuckDB will not.
       # Deployments override this via CC_OLAP_DATABASE_URL.
       url: "jdbc:duckdb:/tmp/cc/local.db"
   admin-password: admin
@@ -35,9 +35,9 @@ mp:
         schema:
           registry:
             url: ${kafka.schema.registry.url}
-        # Required by Quarkus for the Avro-typed channels below, but never actually used: the
-        # real serializer is Confluent's, driven by schema.registry.url above. Verified
-        # empirically (garbage/unreachable value still works) - fixed placeholder, not a URL.
+        # Required by Quarkus for the Avro-typed channels below, but not used at runtime: the
+        # serializer in play is Confluent's, driven by schema.registry.url above. A reserved
+        # .invalid host makes it obvious nothing is meant to resolve this.
         apicurio:
           registry:
             url: http://apicurio.invalid/

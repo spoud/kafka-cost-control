@@ -10,9 +10,9 @@
     }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-    <!-- Focus cancel, not confirm: every caller is destructive, and with focus on confirm a
-         stray Enter fires the action outright. Reprocess resets Kafka Streams consumer offsets
-         and forces a full restart, so the cost of an accidental keypress is high. -->
+    <!-- Focus cancel, not confirm: this dialog exists to make someone stop and read, and with
+         focus on confirm a stray Enter fires the action outright. Cancel is the safe default
+         whatever the action is, so it stays initial focus regardless of `destructive`. -->
     <button mat-stroked-button mat-dialog-close cdkFocusInitial>
         {{ data.cancelLabel ?? 'Cancel' }}
     </button>

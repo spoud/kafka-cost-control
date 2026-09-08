@@ -28,10 +28,6 @@ export type Panel = {
     groupByContext: string[];
 
     eChartsInstance?: EChartsType;
-
-    // display, currently unused
-    rows?: number;
-    columns?: number;
 };
 
 // Typed as Type<unknown> rather than left to inference: otherwise TypeScript tries to unify the

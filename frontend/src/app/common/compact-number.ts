@@ -1,5 +1,5 @@
 /**
- * Axis ticks and tooltips get compact numbers — 1k rather than 1000 — because a stacked byte
+ * Axis ticks and tooltips get compact numbers — 1K rather than 1000 — because a stacked byte
  * series easily reaches ten digits, and full-length ticks either overlap or push the plot area
  * so far right that the chart stops using its width.
  *
@@ -23,7 +23,7 @@ export function formatCompact(value: number | null | undefined): string {
     return Math.abs(value) < 1000 ? precise.format(value) : compact.format(value);
 }
 
-/** Percentages in normalized mode: one decimal is plenty, and the sign is never useful. */
+/** Percentages in normalized mode, where one decimal is as much precision as the axis can show. */
 export function formatPercent(value: number | null | undefined): string {
     if (value === null || value === undefined || !Number.isFinite(value)) {
         return '—';

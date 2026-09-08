@@ -4,7 +4,7 @@
 
 .sankey-chart {
     border: 1px solid var(--mat-sys-outline-variant);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
 }
 
 .sankey-controls {
@@ -15,7 +15,7 @@
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-2);
+    border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--mat-sys-surface) 85%, transparent);
 }
 

@@ -84,12 +84,30 @@ public class OlapInfra {
         try {
             if (connection == null || connection.isClosed()) {
                 Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
+                createParentDirectory(olapConfig.databaseUrl());
                 connection = DriverManager.getConnection(olapConfig.databaseUrl());
             }
             return Optional.of(connection);
         } catch (Exception e) {
             Log.warn("Failed to get read-write connection to OLAP database", e);
             return Optional.empty();
+        }
+    }
+
+    /**
+     * DuckDB will not create a missing parent directory - it fails with "Cannot open file". Since
+     * the failure above is only logged, the app would come up healthy with OLAP silently dead, and
+     * the symptom is empty OLAP-backed queries rather than anything pointing here. Creating the
+     * directory keeps a file-backed URL from depending on something else having made it first.
+     */
+    private static void createParentDirectory(String databaseUrl) throws IOException {
+        String path = databaseUrl.substring("jdbc:duckdb:".length());
+        if (path.isBlank() || path.startsWith(":")) {
+            return; // in-memory (":memory:" or no path at all)
+        }
+        Path parent = Path.of(path).getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
     }
 
