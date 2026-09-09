@@ -600,10 +600,14 @@ public class AggregatedMetricsRepository {
      *
      * @param startDate Start time of the query range. If null, defaults to 30 days ago.
      * @param endDate End time of the query range. If null, defaults to now.
-     * @param metricName Set of metric names to filter by. If empty, includes all metrics.
+     * @param metricName Set of metric names to filter by. If empty, includes all metrics — which
+     *                   are still kept apart rather than summed together, since they are not the
+     *                   same kind of quantity.
      * @param groupByContextKey The context key to group by. Must be a valid JSON key in the context field.
-     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, then the bucket width will be between 1 and 24 hours, depending on the size of the time range. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
-     * @return A collection of MetricHistoryTO objects, each representing a unique value of the specified context key, containing lists of timestamps and corresponding aggregated metric values.
+     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, the width scales with the range so a series stays at roughly {@link #TARGET_BUCKETS_PER_SERIES} points. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
+     * @return A collection of MetricHistoryTO objects, one per context value when a single metric
+     *         was asked for, otherwise one per metric and context value pair, each containing
+     *         lists of timestamps and corresponding aggregated metric values.
      */
     public Collection<MetricHistoryTO> getHistoryGrouped(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricName, String groupByContextKey, @Nullable Long timeBucketWidthHours) {
         return olapInfra.getConnection().map((conn) -> {
@@ -627,20 +631,32 @@ public class AggregatedMetricsRepository {
                     ? DSL.field("INTERVAL %d HOUR".formatted(defaultBucketWidthHours(finalStartDate, finalEndDate)))
                     : DSL.field("INTERVAL %d SECONDS".formatted(Math.min(3600 * timeBucketWidthHours, Duration.between(finalStartDate, finalEndDate).toSeconds())));
             var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
+            // Grouped by metric as well as by context, never across metrics. Summing metrics
+            // together adds quantities that are not the same kind of thing - retained_bytes is a
+            // stock, which is why cc.metrics.aggregations reduces it with max, while the request
+            // and response byte counts are flows reduced with sum. Adding them produced a number
+            // with no meaning: a tenant with no request bytes at all still reported 3.4e14.
             var dslQuery = dslContext
-                    .select(contextField, tb, totalValue)
+                    .select(a.INITIAL_METRIC_NAME, contextField, tb, totalValue)
                     .from(a)
                     .where(condition)
-                    .groupBy(contextField, tb);
+                    .groupBy(a.INITIAL_METRIC_NAME, contextField, tb)
+                    .orderBy(a.INITIAL_METRIC_NAME, contextField, tb);
 
             Log.debugf("Executing query: %s", dslQuery);
 
+            // One metric asked for means the metric is already the chart's subject, so the series
+            // is named by its context value alone. Otherwise the name has to carry both, or series
+            // for different metrics would be indistinguishable in a legend.
+            boolean singleMetric = metricName.size() == 1;
             var fetchResult = dslQuery.fetch();
-            Map<String, MetricHistoryTO> metrics = new HashMap<>();
+            Map<String, MetricHistoryTO> metrics = new LinkedHashMap<>();
             fetchResult.forEach(record -> {
                 var contextValue = record.get(contextField).data();
-                var metricHistory = metrics.computeIfAbsent(contextValue, k -> new MetricHistoryTO(
-                        contextValue,
+                var metric = record.get(a.INITIAL_METRIC_NAME);
+                var seriesName = singleMetric ? contextValue : metric + " · " + contextValue;
+                var metricHistory = metrics.computeIfAbsent(seriesName, k -> new MetricHistoryTO(
+                        seriesName,
                         Map.of(groupByContextKey, contextValue),
                         new ArrayList<>(),
                         new ArrayList<>()

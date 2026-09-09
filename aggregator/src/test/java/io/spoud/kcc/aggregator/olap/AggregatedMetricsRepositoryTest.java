@@ -443,6 +443,52 @@ class AggregatedMetricsRepositoryTest {
     }
 
     /**
+     * Grouping without naming a metric used to sum every metric into one number per context value.
+     * That adds quantities that are not the same kind of thing — retained_bytes is a stock, which
+     * is why cc.metrics.aggregations reduces it with max, while the byte counters are flows.
+     */
+    @Test
+    @DisplayName("Grouping without a metric splits by metric instead of summing across them")
+    void groupedHistoryNeverSumsAcrossMetrics() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+        var ctx = Map.of("app", "kcc");
+
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_in").setValue(2).setContext(ctx).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_retained").setValue(5).setContext(ctx).build());
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start, end, Set.of(), "app");
+
+        // one series per metric, not a single "kcc" series holding 7
+        assertThat(history).hasSize(2);
+        assertThat(history.stream().map(MetricHistoryTO::getName))
+                .containsExactlyInAnyOrder("bytes_in · kcc", "bytes_retained · kcc");
+        assertThat(history.stream().map(MetricHistoryTO::getValues).flatMap(Collection::stream))
+                .containsExactlyInAnyOrder(2.0, 5.0);
+    }
+
+    @Test
+    @DisplayName("Naming a single metric keeps the series named by context value alone")
+    void groupedHistoryKeepsBareNamesForASingleMetric() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_in").setValue(2).setContext(Map.of("app", "kcc")).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_retained").setValue(5).setContext(Map.of("app", "kcc")).build());
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start, end, Set.of("bytes_in"), "app");
+
+        assertThat(history).extracting(MetricHistoryTO::getName).containsExactly("kcc");
+        assertThat(history.iterator().next().getValues()).containsExactly(2.0);
+    }
+
+    /**
      * A panel with no group-by chosen asks for history without a breakdown. That has to come back
      * as one bucketed series per metric — the raw per-entity alternative was 958 series and 158k
      * points for a single week, which is what made the Reporting board hang.
