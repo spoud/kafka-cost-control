@@ -79,7 +79,12 @@ export class GraphFilterComponent {
             if (!this.form.value.metricName && metricNames.length > 0) {
                 this.form.patchValue({ metricName: metricNames[0].metricName });
             }
-            if (!this.form.value.groupByContext && contextKeys.length > 0) {
+            // `pristine` rather than just an empty value: '' is now what the "None" option sets, so
+            // an empty control no longer means "untouched" and defaulting on it alone would
+            // overwrite a deliberate choice. patchValue leaves the control pristine, user input
+            // does not.
+            const groupBy = this.form.get('groupByContext');
+            if (groupBy && groupBy.pristine && !groupBy.value && contextKeys.length > 0) {
                 this.form.patchValue({ groupByContext: contextKeys[0] });
             }
         });
@@ -92,7 +97,10 @@ export class GraphFilterComponent {
         );
         effect(() => {
             const filter = values();
-            if (filter.metricName && filter.groupByContext) {
+            // Only the metric is required. Group-by is genuinely optional - "None" means the
+            // un-broken-down total - and gating on it too meant clearing the key could never be
+            // emitted, so the control could be changed but never actually cleared.
+            if (filter.metricName) {
                 // normalized on the way out so consumers never see the control's raw string -
                 // writing that onto a Panel is what made configured panels fail their own
                 // hydration guard and disappear on the next reload

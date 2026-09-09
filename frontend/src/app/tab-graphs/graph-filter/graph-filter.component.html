@@ -10,6 +10,9 @@
     <mat-form-field>
         <mat-label>Group by context</mat-label>
         <mat-select formControlName="groupByContext">
+            <!-- Without an empty option this control is a one-way door: pick a key once and there
+                 is no way back to an un-broken-down total. '' normalizes to [] via toContextKeys. -->
+            <mat-option value="">None (total)</mat-option>
             @for (key of graphFilterService.contextKeys(); track key) {
                 <mat-option [value]="key">{{ key }}</mat-option>
             }
