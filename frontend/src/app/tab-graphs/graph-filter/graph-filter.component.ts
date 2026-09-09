@@ -64,20 +64,26 @@ export class GraphFilterComponent {
             effectRef.destroy();
         });
 
-        // Default metric name / group-by context to the first available option once they've
-        // loaded, so the dashboard isn't empty waiting on a manual selection.
+        // Fill in what has not been chosen yet, once the options have loaded, so nothing sits
+        // waiting on a manual selection.
         //
-        // Only when the host did not supply a filter. A Reporting panel always supplies one, and
-        // filling blanks there means merely *opening* a panel's settings rewrites its
-        // configuration and persists it - the user never chose that group-by key.
+        // The two controls are not treated alike, because their empty states do not mean the same
+        // thing. A metric is the subject of the chart, so there is no such thing as "no metric" -
+        // it only ever means "not configured yet", and it is filled wherever it is missing. A
+        // group-by is a breakdown, where empty is the meaningful "None (total)", so it is only
+        // filled for a host that supplied no filter at all: doing it for a Reporting panel would
+        // mean that merely *opening* a panel's settings rewrites and persists a grouping the user
+        // never chose.
         effect(() => {
-            if (this.existingFilter()) {
-                return;
-            }
             const metricNames = this.graphFilterService.metricNames();
             const contextKeys = this.graphFilterService.contextKeys();
+
             if (!this.form.value.metricName && metricNames.length > 0) {
                 this.form.patchValue({ metricName: metricNames[0].metricName });
+            }
+
+            if (this.existingFilter()) {
+                return;
             }
             // `pristine` rather than just an empty value: '' is now what the "None" option sets, so
             // an empty control no longer means "untouched" and defaulting on it alone would
