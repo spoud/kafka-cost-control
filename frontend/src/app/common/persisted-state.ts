@@ -1,20 +1,10 @@
 /**
- * Helpers for state we persist to localStorage.
+ * Helpers for state persisted to localStorage.
  *
- * Three things have bitten us here before, all of which take down a whole route rather than
- * degrading, because the stores that read this are `providedIn: 'root'` and hydrate during
- * construction — there is no in-app way back, the user has to clear localStorage by hand.
- *
- * 1. Unparseable JSON. Rare, but a half-written value or a hand-edited one throws.
- * 2. A value that parses fine but predates a shape change. A field added since it was written
- *    reads back as `undefined`, and the first template that treats it as an array or a Date
- *    throws.
- * 3. localStorage itself being unavailable. Accessing it throws outright when the browser is set
- *    to block site data, so even the read has to be guarded, not just the parse.
- *
- * So every read goes through a type guard, every access is guarded, and every write is wrapped in
- * a version envelope: bumping the version on a breaking shape change discards old values in one
- * line, instead of growing another retroactive per-field check.
+ * Reads must not throw: the stores using this are `providedIn: 'root'` and hydrate during
+ * construction, so anything thrown takes down the whole route. Every read goes through a type
+ * guard, every storage access is guarded, and every write carries a version so a breaking shape
+ * change can discard old values by bumping it.
  */
 
 interface Envelope {
@@ -35,14 +25,14 @@ function discard(key: string): null {
     try {
         localStorage.removeItem(key);
     } catch {
-        // nothing to do: the value stays, and the caller already treats it as absent
+        // storage blocked; the caller already treats the value as absent
     }
     return null;
 }
 
 /**
- * Read a persisted value, returning null — never throwing — if it is missing, unreadable,
- * written by an incompatible version, or no longer the expected shape.
+ * Read a persisted value. Returns null, never throws, if it is missing, unreadable, written by an
+ * incompatible version, or no longer the expected shape.
  */
 export function readPersisted<T>(
     key: string,
@@ -78,16 +68,12 @@ export function readPersisted<T>(
     return isValid(parsed) ? parsed : discard(key);
 }
 
-/**
- * Write a value with its version, so a later shape change can recognise and discard it. Failing to
- * persist is not worth taking the page down for — a full quota or blocked storage costs the user
- * the restore on next visit, nothing more.
- */
+/** Write a value with its version, so a later shape change can recognise and discard it. */
 export function writePersisted(key: string, version: number, data: unknown): void {
     try {
         localStorage.setItem(key, JSON.stringify({ v: version, data } satisfies Envelope));
     } catch {
-        // quota exceeded, or storage blocked entirely
+        // quota exceeded, or storage blocked
     }
 }
 

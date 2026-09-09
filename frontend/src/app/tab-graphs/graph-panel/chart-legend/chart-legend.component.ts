@@ -9,7 +9,7 @@ export interface ChartLegendItem {
     name: string;
     color: string;
     selected: boolean;
-    /** Series total. Not rendered, but it is what the 'value' sort orders by. */
+    /** Series total; what the 'value' sort orders by. */
     total: number;
 }
 

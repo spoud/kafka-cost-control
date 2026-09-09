@@ -442,11 +442,6 @@ class AggregatedMetricsRepositoryTest {
         assertThat(metricCount).isEqualTo(2);
     }
 
-    /**
-     * Grouping without naming a metric used to sum every metric into one number per context value.
-     * That adds quantities that are not the same kind of thing — retained_bytes is a stock, which
-     * is why cc.metrics.aggregations reduces it with max, while the byte counters are flows.
-     */
     @Test
     @DisplayName("Grouping without a metric splits by metric instead of summing across them")
     void groupedHistoryNeverSumsAcrossMetrics() {
@@ -462,7 +457,6 @@ class AggregatedMetricsRepositoryTest {
 
         var history = repo.getHistoryGrouped(start, end, Set.of(), "app");
 
-        // one series per metric, not a single "kcc" series holding 7
         assertThat(history).hasSize(2);
         assertThat(history.stream().map(MetricHistoryTO::getName))
                 .containsExactlyInAnyOrder("bytes_in · kcc", "bytes_retained · kcc");
@@ -488,16 +482,10 @@ class AggregatedMetricsRepositoryTest {
         assertThat(history.iterator().next().getValues()).containsExactly(2.0);
     }
 
-    /**
-     * A panel with no group-by chosen asks for history without a breakdown. That has to come back
-     * as one bucketed series per metric — the raw per-entity alternative was 958 series and 158k
-     * points for a single week, which is what made the Reporting board hang.
-     */
     @Test
     @DisplayName("History without a group-by totals per metric rather than per entity")
     void historyTotalsReturnsOneBucketedSeriesPerMetric() {
         var start = Instant.now().truncatedTo(ChronoUnit.HOURS).minus(Duration.ofHours(6));
-        // two metrics, several entities each, several rows per hour
         for (int hour = 0; hour < 6; hour++) {
             for (var metric : List.of("metric1", "metric2")) {
                 for (var entity : List.of("user-a", "user-b", "user-c")) {
@@ -520,7 +508,6 @@ class AggregatedMetricsRepositoryTest {
         assertThat(totals).extracting(MetricHistoryTO::getName)
                 .containsExactlyInAnyOrder("metric1", "metric2");
         totals.forEach(series -> {
-            // one point per hourly bucket, not one per row - the three entities are summed
             assertThat(series.getTimes()).hasSize(6);
             assertThat(series.getValues()).allMatch(v -> v == 3.0);
         });
@@ -545,19 +532,12 @@ class AggregatedMetricsRepositoryTest {
         assertThat(totals).extracting(MetricHistoryTO::getName).containsExactly("metric2");
     }
 
-    /**
-     * A report is read as a shape, so a series should carry about the same number of points
-     * however long the range is. The width used to be capped at 24 hours, which meant that past
-     * ~24 days the point count grew with the range instead — a year came back as 365 points per
-     * series, multiplied by every value of the grouped-by context key.
-     */
     @Test
     @DisplayName("Default bucket width holds a series at a roughly constant number of points")
     void defaultBucketWidthKeepsPointCountConstant() {
         assertThat(bucketsOver(Duration.ofDays(1))).isEqualTo(24);
         assertThat(bucketsOver(Duration.ofDays(7))).isEqualTo(24);
         assertThat(bucketsOver(Duration.ofDays(24))).isEqualTo(24);
-        // these are the ranges the 24-hour cap used to blow up on
         assertThat(bucketsOver(Duration.ofDays(90))).isEqualTo(24);
         assertThat(bucketsOver(Duration.ofDays(365))).isEqualTo(24);
     }

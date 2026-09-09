@@ -46,16 +46,13 @@ export const routes: Routes = [
                 m => m.UnauthorizedComponent
             ),
     },
-    // Renamed/removed pages, kept so existing links and bookmarks still land somewhere sensible.
-    // Without these they fall through to '**', which resolves per-user - so a signed-in visitor
-    // following an old /graphs link would arrive at Cost Overview rather than the page they meant.
-    // Must stay above the catch-alls below: routes match in order.
+    // Renamed/removed pages. Must stay above the catch-alls below: routes match in order.
     {
         path: 'graphs',
         redirectTo: 'explore',
     },
     {
-        // /home is gone rather than renamed, so the landing rule is the honest answer here.
+        // removed rather than renamed, so it follows the landing rule
         path: 'home',
         redirectTo: () => landingRoute(),
     },

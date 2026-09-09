@@ -17,11 +17,7 @@ echarts.use([SankeyChart]);
  * each other. The canvas grows with the data instead of collapsing the data to fit the canvas. */
 const PIXELS_PER_NODE = 26;
 const MIN_CHART_HEIGHT = 600;
-/**
- * Not a layout preference — a canvas taller than roughly 32k px is one the browser declines to
- * draw at all, turning a crowded diagram into a blank one. Context keys are categorical, so
- * reaching even this is unlikely; it is here so the failure is cramped rather than empty.
- */
+/** Upper bound: browsers refuse to render a canvas beyond roughly 32k px. */
 const MAX_CHART_HEIGHT = 20000;
 
 /**

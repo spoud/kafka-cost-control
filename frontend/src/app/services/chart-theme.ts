@@ -3,12 +3,9 @@ import * as echarts from 'echarts/core';
 export const CHART_THEME_LIGHT = 'kcc-light';
 export const CHART_THEME_DARK = 'kcc-dark';
 
-// One categorical palette per theme, in a fixed slot order, so series stay distinguishable and no
-// chart component hand-picks colors from ThemeService.isDark(). Slot 1 is the app's brand teal
-// (see src/styles/_theme-colors.scss); slots 2-8 are spread across other hues rather than more
-// teal/blue-gray tones, and the dark variants are lightened to hold up on a dark surface.
-// Exported so components can build a custom legend that mirrors the same
-// index-based color assignment ECharts uses internally (series/data index -> slot).
+// Categorical palette per theme, in a fixed slot order. Slot 1 is the brand teal (see
+// src/styles/_theme-colors.scss). Exported so a custom legend can mirror the same index-based
+// assignment ECharts uses internally (series/data index -> slot).
 export const CHART_COLORS_LIGHT = [
     '#109AAF',
     '#eb6834',

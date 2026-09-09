@@ -94,12 +94,7 @@ public class OlapInfra {
         }
     }
 
-    /**
-     * DuckDB will not create a missing parent directory - it fails with "Cannot open file". Since
-     * the failure above is only logged, the app would come up healthy with OLAP silently dead, and
-     * the symptom is empty OLAP-backed queries rather than anything pointing here. Creating the
-     * directory keeps a file-backed URL from depending on something else having made it first.
-     */
+    /** Creates the parent directory of a file-backed database URL; DuckDB does not create it. */
     private static void createParentDirectory(String databaseUrl) throws IOException {
         String path = databaseUrl.substring("jdbc:duckdb:".length());
         if (path.isBlank() || path.startsWith(":")) {

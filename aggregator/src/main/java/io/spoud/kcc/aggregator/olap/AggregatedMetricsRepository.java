@@ -527,21 +527,12 @@ public class AggregatedMetricsRepository {
         return getHistoryGrouped(startDate, endDate, names, groupByContextKey, null);
     }
 
-    /**
-     * How many points one series should have when the caller does not ask for a specific bucket
-     * width. A report is read as a shape, so the useful number is a constant rather than something
-     * that scales with the range.
-     */
+    /** Points per series produced by {@link #defaultBucketWidthHours}. */
     static final int TARGET_BUCKETS_PER_SERIES = 24;
 
     /**
-     * Bucket width that keeps a series at roughly {@link #TARGET_BUCKETS_PER_SERIES} points however
-     * long the range is, floored at an hour because that is the resolution the data arrives at.
-     * <p>
-     * The previous form capped the width at 24 hours, so up to ~24 days it produced 24 buckets and
-     * beyond that the point count grew with the range instead of the width doing so — a year came
-     * back as 365 points per series, and a busy group-by multiplied that by every context value.
-     * Ranges of 24 days or less are unaffected: the width they got before is the width this returns.
+     * Bucket width holding a series at {@link #TARGET_BUCKETS_PER_SERIES} points for any range,
+     * never below one hour.
      */
     static long defaultBucketWidthHours(Instant startDate, Instant endDate) {
         long rangeHours = Duration.between(startDate, endDate).toHours();
@@ -549,15 +540,7 @@ public class AggregatedMetricsRepository {
         return Math.max(1, perBucket);
     }
 
-    /**
-     * One time-bucketed series per metric, for callers that want history without a breakdown.
-     * <p>
-     * The alternative — {@link #getHistory} — reads every raw row in the range and yields a series
-     * per entity, which for a week of a real installation was 958 series and 158k points (~5 MB,
-     * 2.5s). That is not a chart anyone can read, and a Reporting panel with no group-by chosen
-     * requested exactly it. Totalling per metric is the answer that question actually has, and it
-     * is bounded by {@link #TARGET_BUCKETS_PER_SERIES}.
-     */
+    /** Time-bucketed total per metric, for history without a context breakdown. */
     public Collection<MetricHistoryTO> getHistoryTotals(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricNames) {
         return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
@@ -600,14 +583,12 @@ public class AggregatedMetricsRepository {
      *
      * @param startDate Start time of the query range. If null, defaults to 30 days ago.
      * @param endDate End time of the query range. If null, defaults to now.
-     * @param metricName Set of metric names to filter by. If empty, includes all metrics — which
-     *                   are still kept apart rather than summed together, since they are not the
-     *                   same kind of quantity.
+     * @param metricName Set of metric names to filter by. If empty, includes all metrics, kept as separate series.
      * @param groupByContextKey The context key to group by. Must be a valid JSON key in the context field.
-     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, the width scales with the range so a series stays at roughly {@link #TARGET_BUCKETS_PER_SERIES} points. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
-     * @return A collection of MetricHistoryTO objects, one per context value when a single metric
-     *         was asked for, otherwise one per metric and context value pair, each containing
-     *         lists of timestamps and corresponding aggregated metric values.
+     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, {@link #defaultBucketWidthHours} is used. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
+     * @return A collection of MetricHistoryTO objects, one per context value for a single metric,
+     *         otherwise one per metric and context value pair, each containing lists of timestamps
+     *         and corresponding aggregated metric values.
      */
     public Collection<MetricHistoryTO> getHistoryGrouped(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricName, String groupByContextKey, @Nullable Long timeBucketWidthHours) {
         return olapInfra.getConnection().map((conn) -> {
@@ -631,11 +612,8 @@ public class AggregatedMetricsRepository {
                     ? DSL.field("INTERVAL %d HOUR".formatted(defaultBucketWidthHours(finalStartDate, finalEndDate)))
                     : DSL.field("INTERVAL %d SECONDS".formatted(Math.min(3600 * timeBucketWidthHours, Duration.between(finalStartDate, finalEndDate).toSeconds())));
             var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
-            // Grouped by metric as well as by context, never across metrics. Summing metrics
-            // together adds quantities that are not the same kind of thing - retained_bytes is a
-            // stock, which is why cc.metrics.aggregations reduces it with max, while the request
-            // and response byte counts are flows reduced with sum. Adding them produced a number
-            // with no meaning: a tenant with no request bytes at all still reported 3.4e14.
+            // Grouped by metric as well as by context: different metrics are different quantities
+            // (see cc.metrics.aggregations) and must not be summed into one series.
             var dslQuery = dslContext
                     .select(a.INITIAL_METRIC_NAME, contextField, tb, totalValue)
                     .from(a)
@@ -645,9 +623,7 @@ public class AggregatedMetricsRepository {
 
             Log.debugf("Executing query: %s", dslQuery);
 
-            // One metric asked for means the metric is already the chart's subject, so the series
-            // is named by its context value alone. Otherwise the name has to carry both, or series
-            // for different metrics would be indistinguishable in a legend.
+            // With one metric the series name is just the context value; otherwise it carries both.
             boolean singleMetric = metricName.size() == 1;
             var fetchResult = dslQuery.fetch();
             Map<String, MetricHistoryTO> metrics = new LinkedHashMap<>();

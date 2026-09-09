@@ -1,10 +1,6 @@
 /**
- * Axis ticks and tooltips get compact numbers — 1K rather than 1000 — because a stacked byte
- * series easily reaches ten digits, and full-length ticks either overlap or push the plot area
- * so far right that the chart stops using its width.
- *
- * Deliberately SI-compact rather than byte units (KB/MB): the axis already carries the unit
- * name, so the suffix only has to convey magnitude.
+ * Compact number formatting for axis ticks and tooltips. SI-compact rather than byte units, since
+ * the axis already carries the unit name.
  */
 const compact = new Intl.NumberFormat(undefined, {
     notation: 'compact',
@@ -18,8 +14,7 @@ export function formatCompact(value: number | null | undefined): string {
     if (value === null || value === undefined || !Number.isFinite(value)) {
         return '—';
     }
-    // below a thousand the compact form is just the number, and rounding to 1 decimal there
-    // would hide differences the user can otherwise see
+    // below a thousand the compact form adds nothing, and would round away real differences
     return Math.abs(value) < 1000 ? precise.format(value) : compact.format(value);
 }
 

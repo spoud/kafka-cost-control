@@ -18,10 +18,7 @@ public class MetricsService {
 
     public List<MetricHistoryTO> getHistory(Set<String> metricNames, Set<String> groupByContextKeys, Instant from, Instant to) {
         if (groupByContextKeys == null || groupByContextKeys.isEmpty()) {
-            // No breakdown asked for, so answer with the total per metric over time. This used to
-            // read every raw row and return a series per entity - 958 series and 158k points for a
-            // single week of a real installation, ~5 MB - which no chart could render and which a
-            // Reporting panel requested merely by existing before it was configured.
+            // No breakdown asked for: one bucketed total per metric.
             return List.copyOf(aggregatedMetricsRepository.getHistoryTotals(from, to, metricNames));
         } else {
             String groupByContextKey = groupByContextKeys.stream().findFirst().get(); // only support one atm

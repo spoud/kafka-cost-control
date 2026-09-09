@@ -64,16 +64,8 @@ export class GraphFilterComponent {
             effectRef.destroy();
         });
 
-        // Fill in what has not been chosen yet, once the options have loaded, so nothing sits
-        // waiting on a manual selection.
-        //
-        // The two controls are not treated alike, because their empty states do not mean the same
-        // thing. A metric is the subject of the chart, so there is no such thing as "no metric" -
-        // it only ever means "not configured yet", and it is filled wherever it is missing. A
-        // group-by is a breakdown, where empty is the meaningful "None (total)", so it is only
-        // filled for a host that supplied no filter at all: doing it for a Reporting panel would
-        // mean that merely *opening* a panel's settings rewrites and persists a grouping the user
-        // never chose.
+        // Default the metric wherever it is missing; default the group-by only when no filter was
+        // supplied, since empty is a valid group-by ("None") and a panel must keep the one it has.
         effect(() => {
             const metricNames = this.graphFilterService.metricNames();
             const contextKeys = this.graphFilterService.contextKeys();
@@ -85,10 +77,7 @@ export class GraphFilterComponent {
             if (this.existingFilter()) {
                 return;
             }
-            // `pristine` rather than just an empty value: '' is now what the "None" option sets, so
-            // an empty control no longer means "untouched" and defaulting on it alone would
-            // overwrite a deliberate choice. patchValue leaves the control pristine, user input
-            // does not.
+            // pristine, not just empty: '' is also what "None" sets.
             const groupBy = this.form.get('groupByContext');
             if (groupBy && groupBy.pristine && !groupBy.value && contextKeys.length > 0) {
                 this.form.patchValue({ groupByContext: contextKeys[0] });
@@ -103,9 +92,7 @@ export class GraphFilterComponent {
         );
         effect(() => {
             const filter = values();
-            // Only the metric is required. Group-by is genuinely optional - "None" means the
-            // un-broken-down total - and gating on it too meant clearing the key could never be
-            // emitted, so the control could be changed but never actually cleared.
+            // Metric only: an empty group-by is the valid "None" and must be emittable.
             if (filter.metricName) {
                 // normalized on the way out so consumers never see the control's raw string -
                 // writing that onto a Panel is what made configured panels fail their own

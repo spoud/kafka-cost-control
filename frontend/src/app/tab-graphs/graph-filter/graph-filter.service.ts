@@ -42,8 +42,7 @@ export class GraphFilterService {
                 return {
                     from: { instant: _filter.from },
                     to: { instant: _filter.to || new Date() },
-                    // both are declared [String!]! by the query. metricName is a single value, so
-                    // wrap it rather than relying on GraphQL coercing a lone scalar into a list.
+                    // both are declared [String!]! by the query
                     metricNames: _filter.metricName ? [_filter.metricName] : [],
                     groupByContextKeys: _filter.groupByContext ?? [],
                 };
