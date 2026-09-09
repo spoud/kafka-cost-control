@@ -528,6 +528,73 @@ public class AggregatedMetricsRepository {
     }
 
     /**
+     * How many points one series should have when the caller does not ask for a specific bucket
+     * width. A report is read as a shape, so the useful number is a constant rather than something
+     * that scales with the range.
+     */
+    static final int TARGET_BUCKETS_PER_SERIES = 24;
+
+    /**
+     * Bucket width that keeps a series at roughly {@link #TARGET_BUCKETS_PER_SERIES} points however
+     * long the range is, floored at an hour because that is the resolution the data arrives at.
+     * <p>
+     * The previous form capped the width at 24 hours, so up to ~24 days it produced 24 buckets and
+     * beyond that the point count grew with the range instead of the width doing so — a year came
+     * back as 365 points per series, and a busy group-by multiplied that by every context value.
+     * Ranges of 24 days or less are unaffected: the width they got before is the width this returns.
+     */
+    static long defaultBucketWidthHours(Instant startDate, Instant endDate) {
+        long rangeHours = Duration.between(startDate, endDate).toHours();
+        long perBucket = (rangeHours + TARGET_BUCKETS_PER_SERIES - 1) / TARGET_BUCKETS_PER_SERIES;
+        return Math.max(1, perBucket);
+    }
+
+    /**
+     * One time-bucketed series per metric, for callers that want history without a breakdown.
+     * <p>
+     * The alternative — {@link #getHistory} — reads every raw row in the range and yields a series
+     * per entity, which for a week of a real installation was 958 series and 158k points (~5 MB,
+     * 2.5s). That is not a chart anyone can read, and a Reporting panel with no group-by chosen
+     * requested exactly it. Totalling per metric is the answer that question actually has, and it
+     * is bounded by {@link #TARGET_BUCKETS_PER_SERIES}.
+     */
+    public Collection<MetricHistoryTO> getHistoryTotals(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricNames) {
+        return olapInfra.getConnection().map((conn) -> {
+            var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
+            var finalEndDate = endDate == null ? Instant.now() : endDate;
+
+            DSLContext dslContext = DSL.using(conn);
+            AggregatedData a = AGGREGATED_DATA.as("a");
+
+            Condition condition = a.START_TIME.ge(finalStartDate.atOffset(ZoneOffset.UTC))
+                    .and(a.END_TIME.le(finalEndDate.atOffset(ZoneOffset.UTC)));
+            if (!metricNames.isEmpty()) {
+                condition = condition.and(a.INITIAL_METRIC_NAME.in(metricNames));
+            }
+
+            var bucketWidth = DSL.field("INTERVAL %d HOUR".formatted(defaultBucketWidthHours(finalStartDate, finalEndDate)));
+            var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
+            var totalValue = DSL.sum(a.VALUE);
+
+            Map<String, MetricHistoryTO> metrics = new LinkedHashMap<>();
+            dslContext.select(a.INITIAL_METRIC_NAME, tb, totalValue)
+                    .from(a)
+                    .where(condition)
+                    .groupBy(a.INITIAL_METRIC_NAME, tb)
+                    .orderBy(a.INITIAL_METRIC_NAME, tb)
+                    .fetch()
+                    .forEach(record -> {
+                        var metricName = record.get(a.INITIAL_METRIC_NAME);
+                        var series = metrics.computeIfAbsent(metricName, k -> new MetricHistoryTO(
+                                metricName, Map.of(), new ArrayList<>(), new ArrayList<>()));
+                        series.getTimes().add(record.get(tb).toInstant());
+                        series.getValues().add(record.get(totalValue).doubleValue());
+                    });
+            return metrics.values();
+        }).orElse(Collections.emptyList());
+    }
+
+    /**
      * Get aggregated metric history, grouped by a context key, with optional grouping by time buckets within the time range.
      * Note that not grouping by time buckets is equivalent to setting the bucket width to the entire time range.
      *
@@ -556,10 +623,8 @@ public class AggregatedMetricsRepository {
 
             var contextField = DSL.coalesce(DSL.jsonValue(a.CONTEXT, groupByContextKey), DSL.val("unknown")).as("context_value");
             var totalValue = DSL.sum(a.VALUE);
-            var timespanWidth = Duration.between(finalStartDate, finalEndDate).toDays();
-            // if we do not group by hour, create one big bucket for the entire timespan
             var bucketWidth = timeBucketWidthHours == null
-                    ? DSL.field("INTERVAL %d HOUR".formatted(Math.min(24, Math.max(1, timespanWidth))))
+                    ? DSL.field("INTERVAL %d HOUR".formatted(defaultBucketWidthHours(finalStartDate, finalEndDate)))
                     : DSL.field("INTERVAL %d SECONDS".formatted(Math.min(3600 * timeBucketWidthHours, Duration.between(finalStartDate, finalEndDate).toSeconds())));
             var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
             var dslQuery = dslContext

@@ -442,6 +442,108 @@ class AggregatedMetricsRepositoryTest {
         assertThat(metricCount).isEqualTo(2);
     }
 
+    /**
+     * A panel with no group-by chosen asks for history without a breakdown. That has to come back
+     * as one bucketed series per metric — the raw per-entity alternative was 958 series and 158k
+     * points for a single week, which is what made the Reporting board hang.
+     */
+    @Test
+    @DisplayName("History without a group-by totals per metric rather than per entity")
+    void historyTotalsReturnsOneBucketedSeriesPerMetric() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS).minus(Duration.ofHours(6));
+        // two metrics, several entities each, several rows per hour
+        for (int hour = 0; hour < 6; hour++) {
+            for (var metric : List.of("metric1", "metric2")) {
+                for (var entity : List.of("user-a", "user-b", "user-c")) {
+                    repo.insertRow(randomDatapoint()
+                            .setInitialMetricName(metric)
+                            .setName(entity)
+                            .setValue(1.0)
+                            .setStartTime(start.plus(Duration.ofHours(hour)))
+                            .setEndTime(start.plus(Duration.ofHours(hour + 1)))
+                            .build());
+                }
+            }
+        }
+
+        repo.flushToDb();
+
+        var totals = repo.getHistoryTotals(start, start.plus(Duration.ofHours(6)), Set.of());
+
+        assertThat(totals).hasSize(2);
+        assertThat(totals).extracting(MetricHistoryTO::getName)
+                .containsExactlyInAnyOrder("metric1", "metric2");
+        totals.forEach(series -> {
+            // one point per hourly bucket, not one per row - the three entities are summed
+            assertThat(series.getTimes()).hasSize(6);
+            assertThat(series.getValues()).allMatch(v -> v == 3.0);
+        });
+    }
+
+    @Test
+    @DisplayName("History totals honour the metric name filter")
+    void historyTotalsFilterByMetricName() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS).minus(Duration.ofHours(2));
+        for (var metric : List.of("metric1", "metric2")) {
+            repo.insertRow(randomDatapoint()
+                    .setInitialMetricName(metric)
+                    .setStartTime(start)
+                    .setEndTime(start.plus(Duration.ofHours(1)))
+                    .build());
+        }
+
+        repo.flushToDb();
+
+        var totals = repo.getHistoryTotals(start, start.plus(Duration.ofHours(2)), Set.of("metric2"));
+
+        assertThat(totals).extracting(MetricHistoryTO::getName).containsExactly("metric2");
+    }
+
+    /**
+     * A report is read as a shape, so a series should carry about the same number of points
+     * however long the range is. The width used to be capped at 24 hours, which meant that past
+     * ~24 days the point count grew with the range instead — a year came back as 365 points per
+     * series, multiplied by every value of the grouped-by context key.
+     */
+    @Test
+    @DisplayName("Default bucket width holds a series at a roughly constant number of points")
+    void defaultBucketWidthKeepsPointCountConstant() {
+        assertThat(bucketsOver(Duration.ofDays(1))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(7))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(24))).isEqualTo(24);
+        // these are the ranges the 24-hour cap used to blow up on
+        assertThat(bucketsOver(Duration.ofDays(90))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(365))).isEqualTo(24);
+    }
+
+    @Test
+    @DisplayName("Ranges of 24 days or less keep exactly the width they had before")
+    void defaultBucketWidthUnchangedForShortRanges() {
+        for (int days = 1; days <= 24; days++) {
+            long previous = Math.min(24, Math.max(1, days));
+            assertThat(widthOver(Duration.ofDays(days)))
+                    .as("bucket width in hours for a %d day range", days)
+                    .isEqualTo(previous);
+        }
+    }
+
+    @Test
+    @DisplayName("Bucket width never drops below the hourly resolution of the data")
+    void defaultBucketWidthFloorsAtOneHour() {
+        assertThat(widthOver(Duration.ofHours(1))).isEqualTo(1);
+        assertThat(widthOver(Duration.ofMinutes(30))).isEqualTo(1);
+        assertThat(widthOver(Duration.ZERO)).isEqualTo(1);
+    }
+
+    private static long widthOver(Duration range) {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        return AggregatedMetricsRepository.defaultBucketWidthHours(start, start.plus(range));
+    }
+
+    private static long bucketsOver(Duration range) {
+        return range.toHours() / widthOver(range);
+    }
+
     private static final Random random = new Random();
 
     private AggregatedDataWindowed.Builder randomDatapoint() {

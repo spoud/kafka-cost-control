@@ -3,14 +3,12 @@ package io.spoud.kcc.aggregator.service;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
-import io.spoud.kcc.aggregator.olap.MetricEO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -20,22 +18,11 @@ public class MetricsService {
 
     public List<MetricHistoryTO> getHistory(Set<String> metricNames, Set<String> groupByContextKeys, Instant from, Instant to) {
         if (groupByContextKeys == null || groupByContextKeys.isEmpty()) {
-            return aggregatedMetricsRepository.getHistory(from, to, metricNames).stream()
-                    .collect(Collectors.groupingBy(MetricEO::name))
-                    .entrySet().stream().map(entry -> {
-                        List<Instant> times = new ArrayList<>(entry.getValue().size());
-                        List<Double> values = new ArrayList<>(entry.getValue().size());
-                        entry.getValue().forEach(metricEO -> {
-                            times.add(metricEO.start());
-                            values.add(metricEO.value());
-                        });
-                        return MetricHistoryTO.builder()
-                                .name(entry.getKey())
-                                .context(Map.of())
-                                .times(times)
-                                .values(values)
-                                .build();
-                    }).toList();
+            // No breakdown asked for, so answer with the total per metric over time. This used to
+            // read every raw row and return a series per entity - 958 series and 158k points for a
+            // single week of a real installation, ~5 MB - which no chart could render and which a
+            // Reporting panel requested merely by existing before it was configured.
+            return List.copyOf(aggregatedMetricsRepository.getHistoryTotals(from, to, metricNames));
         } else {
             String groupByContextKey = groupByContextKeys.stream().findFirst().get(); // only support one atm
             return aggregatedMetricsRepository.getHistoryGrouped(from, to, metricNames, groupByContextKey).stream().toList();
