@@ -107,6 +107,11 @@ export class TabGraphsComponent {
 
     historyData = this.graphFilterService.historyResource(this.filter);
 
+    /** A finished request that returned nothing, as opposed to one still in flight. */
+    protected readonly noData = computed(
+        () => !this.historyData.isLoading() && (this.historyData.value()?.length ?? 0) === 0
+    );
+
     constructor() {
         effect(() => {
             const filter = this.filter();

@@ -9,7 +9,14 @@
         <mat-icon>description</mat-icon>
         Generate CSV report for all metrics for selected context and date range
     </a>
-    <app-graph-panel [metricsData]="historyData.value() || []" [range]="selectedRange()" />
+    @if (noData()) {
+        <app-empty-state
+            icon="search_off"
+            message="No data for this metric in the selected range."
+        ></app-empty-state>
+    } @else {
+        <app-graph-panel [metricsData]="historyData.value() || []" [range]="selectedRange()" />
+    }
 } @else {
     <app-empty-state
         icon="bar_chart"
