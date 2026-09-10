@@ -24,7 +24,7 @@
     "@angular/platform-browser": "^22.1.4",
     "@angular/router": "^22.1.4",
     "@apollo/client": "^4.2.12",
-    "@ngrx/signals": "^21.1.1",
+    "@ngrx/signals": "^22.0.0",
     "apollo-angular": "^14.2.0",
     "echarts": "^6.1.0",
     "file-saver-es": "^2.0.5",
