@@ -59,7 +59,8 @@ export class OthersComponent {
                 })
             )
             .subscribe({
-                next: result => console.log('Reprocessing result', result),
+                next: () =>
+                    this._snackBar.open('Reprocessing requested', 'close', { duration: 5000 }),
                 error: (err: Error) => {
                     return this._snackBar.open('Processing failed: ' + err.message, 'close');
                 },

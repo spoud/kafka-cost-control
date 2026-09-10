@@ -7,6 +7,24 @@
  * change can discard old values by bumping it.
  */
 
+/** localStorage.getItem, returning null rather than throwing when storage is blocked. */
+export function readRaw(key: string): string | null {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+/** localStorage.setItem, doing nothing rather than throwing when storage is blocked. */
+export function writeRaw(key: string, value: string): void {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // quota exceeded, or storage blocked
+    }
+}
+
 interface Envelope {
     v: number;
     data: unknown;

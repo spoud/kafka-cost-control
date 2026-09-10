@@ -35,6 +35,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { ThemeService } from './services/theme.service';
+import { readRaw, writeRaw } from './common/persisted-state';
 
 echarts.use([
     LineChart,
@@ -108,7 +109,7 @@ export class AppComponent {
     adminNavLinks: Signal<NavLink[]> = computed(() =>
         this.navLinksSignal().filter(link => link.group === 'admin')
     );
-    collapsed = signal<boolean>(localStorage.getItem(this.SIDENAV_COLLAPSED_KEY) === 'true');
+    collapsed = signal<boolean>(readRaw(this.SIDENAV_COLLAPSED_KEY) === 'true');
 
     signOut(): void {
         this._authService.signOut();
@@ -119,16 +120,12 @@ export class AppComponent {
     }
 
     signIn(): void {
-        const dialogRef = this._dialog.open(SignInDialogComponent);
-
-        dialogRef.afterClosed().subscribe({
-            next: result => console.log('Sign in dialog closed', result),
-        });
+        this._dialog.open(SignInDialogComponent);
     }
 
     toggleCollapsed(): void {
         const next = !this.collapsed();
         this.collapsed.set(next);
-        localStorage.setItem(this.SIDENAV_COLLAPSED_KEY, String(next));
+        writeRaw(this.SIDENAV_COLLAPSED_KEY, String(next));
     }
 }

@@ -1,5 +1,6 @@
 import { computed, DOCUMENT, effect, inject, Injectable, signal } from '@angular/core';
 import { CHART_THEME_DARK, CHART_THEME_LIGHT, registerChartThemes } from './chart-theme';
+import { readRaw, writeRaw } from '../common/persisted-state';
 
 const THEME_MODE_KEY = 'theme-mode';
 const DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
@@ -14,12 +15,7 @@ function prefersDark(): boolean {
  * 'system' written by an earlier build — counts as unset.
  */
 function loadIsDark(): boolean {
-    let stored: string | null = null;
-    try {
-        stored = localStorage.getItem(THEME_MODE_KEY);
-    } catch {
-        // storage blocked
-    }
+    const stored = readRaw(THEME_MODE_KEY);
     if (stored === 'dark' || stored === 'light') {
         return stored === 'dark';
     }
@@ -49,10 +45,6 @@ export class ThemeService {
 
     setDark(dark: boolean): void {
         this.isDark.set(dark);
-        try {
-            localStorage.setItem(THEME_MODE_KEY, dark ? 'dark' : 'light');
-        } catch {
-            // storage blocked; the theme still applies for this session
-        }
+        writeRaw(THEME_MODE_KEY, dark ? 'dark' : 'light');
     }
 }
