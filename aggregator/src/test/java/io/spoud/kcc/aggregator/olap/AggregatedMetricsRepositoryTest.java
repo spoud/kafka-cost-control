@@ -505,7 +505,7 @@ class AggregatedMetricsRepositoryTest {
 
         repo.flushToDb();
 
-        var totals = repo.getHistoryTotals(start, start.plus(Duration.ofHours(6)), Set.of());
+        var totals = repo.getHistoryGrouped(start, start.plus(Duration.ofHours(6)), Set.of(), null);
 
         assertThat(totals).hasSize(2);
         assertThat(totals).extracting(MetricHistoryTO::getName)
@@ -530,7 +530,7 @@ class AggregatedMetricsRepositoryTest {
 
         repo.flushToDb();
 
-        var totals = repo.getHistoryTotals(start, start.plus(Duration.ofHours(2)), Set.of("metric2"));
+        var totals = repo.getHistoryGrouped(start, start.plus(Duration.ofHours(2)), Set.of("metric2"), null);
 
         assertThat(totals).extracting(MetricHistoryTO::getName).containsExactly("metric2");
     }

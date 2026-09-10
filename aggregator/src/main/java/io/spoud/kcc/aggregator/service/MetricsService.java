@@ -18,8 +18,9 @@ public class MetricsService {
 
     public List<MetricHistoryTO> getHistory(Set<String> metricNames, Set<String> groupByContextKeys, Instant from, Instant to) {
         if (groupByContextKeys == null || groupByContextKeys.isEmpty()) {
-            // No breakdown asked for: one bucketed total per metric.
-            return List.copyOf(aggregatedMetricsRepository.getHistoryTotals(from, to, metricNames));
+            // No breakdown asked for: the same query without the context grouping, i.e. one
+            // bucketed total per metric.
+            return List.copyOf(aggregatedMetricsRepository.getHistoryGrouped(from, to, metricNames, null));
         } else {
             String groupByContextKey = groupByContextKeys.stream().findFirst().get(); // only support one atm
             return aggregatedMetricsRepository.getHistoryGrouped(from, to, metricNames, groupByContextKey).stream().toList();

@@ -6,7 +6,7 @@ import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { BarChartComponent } from './bar-chart/bar-chart.component';
 import { PieChartComponent } from './pie-chart/pie-chart.component';
 import { MetricHistory } from '../../../generated/graphql/types';
-import { DateRange } from '../../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRange } from '../../common/date-range';
 
 @Component({
     selector: 'app-graph-panel',

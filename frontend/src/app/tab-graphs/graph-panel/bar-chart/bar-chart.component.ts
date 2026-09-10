@@ -19,7 +19,7 @@ import {
 import { applyLegendClick } from '../legend-selection';
 import { ChartActions } from '../chart-actions';
 import { formatCompact, formatPercent } from '../../../common/compact-number';
-import { DateRange } from '../../../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRange } from '../../../common/date-range';
 
 export type BarOrLine = 'bar' | 'line';
 

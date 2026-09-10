@@ -20,5 +20,12 @@ export interface ChartActions {
 }
 
 export function isChartActions(value: unknown): value is ChartActions {
-    return !!value && typeof (value as ChartActions).exportToCsv === 'function';
+    const candidate = value as ChartActions | null;
+    // showLegend is checked too: it is the one non-optional signal, and the panel menu calls it
+    // without further guarding.
+    return (
+        !!candidate &&
+        typeof candidate.exportToCsv === 'function' &&
+        typeof candidate.showLegend === 'function'
+    );
 }

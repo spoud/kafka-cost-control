@@ -1,44 +1,16 @@
 import { Component, input, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-
-export interface DateRange {
-    from: Date;
-    to: Date;
-}
+import { DateRange, endOfDay, isSameDay, startOfDay } from '../date-range';
 
 interface DateRangePreset {
     label: string;
     range(): DateRange;
 }
 
-function startOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
-}
-
-/**
- * The last instant of `date`'s day. The date picker yields midnight, and a range is read
- * inclusively, so a `to` taken straight from it excludes the whole day the user selected.
- */
-export function endOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setHours(23, 59, 59, 999);
-    return d;
-}
-
 // Counted inclusively of today, so a preset spans exactly as many calendar days as its
 // label says: "Last 7 days" is daysAgo(6) through end of today.
 function daysAgo(days: number): Date {
     return startOfDay(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-    return (
-        a.getFullYear() === b.getFullYear() &&
-        a.getMonth() === b.getMonth() &&
-        a.getDate() === b.getDate()
-    );
 }
 
 @Component({

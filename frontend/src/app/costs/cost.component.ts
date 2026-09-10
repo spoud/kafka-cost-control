@@ -37,11 +37,8 @@ import { CostTableComponent } from './cost-table/cost-table.component';
 import { AbsPipe } from '../common/abs.pipe';
 import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.service';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
-import {
-    DateRange,
-    DateRangeQuickSelectComponent,
-    endOfDay,
-} from '../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRangeQuickSelectComponent } from '../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRange, endOfDay } from '../common/date-range';
 import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';

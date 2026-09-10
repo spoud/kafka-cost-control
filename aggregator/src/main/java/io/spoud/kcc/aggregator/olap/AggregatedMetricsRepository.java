@@ -522,50 +522,10 @@ public class AggregatedMetricsRepository {
         return perBucket.compareTo(aggregationWindow) > 0 ? perBucket : aggregationWindow;
     }
 
-    private static Duration min(Duration a, Duration b) {
-        return a.compareTo(b) <= 0 ? a : b;
-    }
-
     /** The {@code time_bucket} expression grouping rows into {@code width} from {@code start}. */
     private static Field<OffsetDateTime> timeBucket(Duration width, Field<OffsetDateTime> startTime, Instant start) {
         var interval = DSL.field("INTERVAL %d SECOND".formatted(Math.max(1, width.toSeconds())));
         return DSL.function("time_bucket", OffsetDateTime.class, interval, startTime, DSL.val(start)).as("time_bucket");
-    }
-
-    /** Time-bucketed total per metric, for history without a context breakdown. */
-    public Collection<MetricHistoryTO> getHistoryTotals(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricNames) {
-        return olapInfra.getConnection().map((conn) -> {
-            var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
-            var finalEndDate = endDate == null ? Instant.now() : endDate;
-
-            DSLContext dslContext = DSL.using(conn);
-            AggregatedData a = AGGREGATED_DATA.as("a");
-
-            Condition condition = a.START_TIME.ge(finalStartDate.atOffset(ZoneOffset.UTC))
-                    .and(a.END_TIME.le(finalEndDate.atOffset(ZoneOffset.UTC)));
-            if (!metricNames.isEmpty()) {
-                condition = condition.and(a.INITIAL_METRIC_NAME.in(metricNames));
-            }
-
-            var tb = timeBucket(defaultBucketWidth(finalStartDate, finalEndDate, costControlConfig.aggregationWindowSize()), a.START_TIME, finalStartDate);
-            var totalValue = DSL.sum(a.VALUE);
-
-            Map<String, MetricHistoryTO> metrics = new LinkedHashMap<>();
-            dslContext.select(a.INITIAL_METRIC_NAME, tb, totalValue)
-                    .from(a)
-                    .where(condition)
-                    .groupBy(a.INITIAL_METRIC_NAME, tb)
-                    .orderBy(a.INITIAL_METRIC_NAME, tb)
-                    .fetch()
-                    .forEach(record -> {
-                        var metricName = record.get(a.INITIAL_METRIC_NAME);
-                        var series = metrics.computeIfAbsent(metricName, k -> new MetricHistoryTO(
-                                metricName, Map.of(), new ArrayList<>(), new ArrayList<>()));
-                        series.getTimes().add(record.get(tb).toInstant());
-                        series.getValues().add(record.get(totalValue).doubleValue());
-                    });
-            return metrics.values();
-        }).orElse(Collections.emptyList());
     }
 
     /**
@@ -575,13 +535,13 @@ public class AggregatedMetricsRepository {
      * @param startDate Start time of the query range. If null, defaults to 30 days ago.
      * @param endDate End time of the query range. If null, defaults to now.
      * @param metricName Set of metric names to filter by. If empty, includes all metrics, kept as separate series.
-     * @param groupByContextKey The context key to group by. Must be a valid JSON key in the context field.
-     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, {@link #defaultBucketWidthHours} is used. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
+     * @param groupByContextKey The context key to group by, or null for no context breakdown. Must be a valid JSON key in the context field.
+     * @param timeBucketWidthHours Optional width of time buckets in hours. If null, {@link #defaultBucketWidth} is used. If bucketing by time window is not desired, set it to the hours between startDate and endDate.
      * @return A collection of MetricHistoryTO objects, one per context value for a single metric,
      *         otherwise one per metric and context value pair, each containing lists of timestamps
      *         and corresponding aggregated metric values.
      */
-    public Collection<MetricHistoryTO> getHistoryGrouped(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricName, String groupByContextKey, @Nullable Long timeBucketWidthHours) {
+    public Collection<MetricHistoryTO> getHistoryGrouped(@Nullable Instant startDate, @Nullable Instant endDate, Set<String> metricName, @Nullable String groupByContextKey, @Nullable Long timeBucketWidthHours) {
         return olapInfra.getConnection().map((conn) -> {
             var finalStartDate = startDate == null ? Instant.now().minus(Duration.ofDays(30)) : startDate;
             var finalEndDate = endDate == null ? Instant.now() : endDate;
@@ -597,21 +557,26 @@ public class AggregatedMetricsRepository {
                 condition = condition.and(a.INITIAL_METRIC_NAME.in(metricName));
             }
 
-            var contextField = DSL.coalesce(DSL.jsonValue(a.CONTEXT, groupByContextKey), DSL.val("unknown")).as("context_value");
+            var contextField = groupByContextKey == null ? null
+                    : DSL.coalesce(DSL.jsonValue(a.CONTEXT, groupByContextKey), DSL.val("unknown")).as("context_value");
             var totalValue = DSL.sum(a.VALUE);
             var range = Duration.between(finalStartDate, finalEndDate);
-            var bucketWidth = timeBucketWidthHours == null
+            var requested = timeBucketWidthHours == null ? null : Duration.ofHours(timeBucketWidthHours);
+            var bucketWidth = requested == null
                     ? defaultBucketWidth(finalStartDate, finalEndDate, costControlConfig.aggregationWindowSize())
-                    : min(Duration.ofHours(timeBucketWidthHours), range);
+                    : (requested.compareTo(range) <= 0 ? requested : range);
             var tb = timeBucket(bucketWidth, a.START_TIME, finalStartDate);
-            // Grouped by metric as well as by context: different metrics are different quantities
+            // Always grouped by metric: different metrics are different quantities
             // (see cc.metrics.aggregations) and must not be summed into one series.
+            var grouping = contextField == null
+                    ? new Field<?>[]{a.INITIAL_METRIC_NAME, tb}
+                    : new Field<?>[]{a.INITIAL_METRIC_NAME, contextField, tb};
             var dslQuery = dslContext
-                    .select(a.INITIAL_METRIC_NAME, contextField, tb, totalValue)
+                    .select(totalValue).select(grouping)
                     .from(a)
                     .where(condition)
-                    .groupBy(a.INITIAL_METRIC_NAME, contextField, tb)
-                    .orderBy(a.INITIAL_METRIC_NAME, contextField, tb);
+                    .groupBy(grouping)
+                    .orderBy(grouping);
 
             Log.debugf("Executing query: %s", dslQuery);
 
@@ -620,12 +585,13 @@ public class AggregatedMetricsRepository {
             var fetchResult = dslQuery.fetch();
             Map<String, MetricHistoryTO> metrics = new LinkedHashMap<>();
             fetchResult.forEach(record -> {
-                var contextValue = record.get(contextField).data();
                 var metric = record.get(a.INITIAL_METRIC_NAME);
-                var seriesName = singleMetric ? contextValue : metric + " · " + contextValue;
+                var contextValue = contextField == null ? null : record.get(contextField).data();
+                var seriesName = contextValue == null ? metric
+                        : singleMetric ? contextValue : metric + " · " + contextValue;
                 var metricHistory = metrics.computeIfAbsent(seriesName, k -> new MetricHistoryTO(
                         seriesName,
-                        Map.of(groupByContextKey, contextValue),
+                        contextValue == null ? Map.of() : Map.of(groupByContextKey, contextValue),
                         new ArrayList<>(),
                         new ArrayList<>()
                 ));

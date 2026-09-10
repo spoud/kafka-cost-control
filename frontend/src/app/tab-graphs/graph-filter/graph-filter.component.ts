@@ -7,11 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSelectModule } from '@angular/material/select';
 import { GraphFilterService } from './graph-filter.service';
-import {
-    DateRange,
-    DateRangeQuickSelectComponent,
-    endOfDay,
-} from '../../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRangeQuickSelectComponent } from '../../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRange, endOfDay } from '../../common/date-range';
 import { toContextKeyControl, toContextKeys } from '../../common/context-keys';
 
 @Component({
