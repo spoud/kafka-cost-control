@@ -40,6 +40,7 @@ import { PageHeaderComponent } from '../common/page-header/page-header.component
 import {
     DateRange,
     DateRangeQuickSelectComponent,
+    endOfDay,
 } from '../common/date-range-quick-select/date-range-quick-select.component';
 import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
@@ -247,7 +248,7 @@ export class CostComponent {
     calculate() {
         const request: CostOverviewRequestInput = {
             from: this.costs.value.from,
-            to: this.costs.value.to,
+            to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
             kafkaStorageCents: (this.costs.value.kafkaStorage ?? 0) * 100,
             kafkaNetworkReadCents: (this.costs.value.kafkaNetworkRead ?? 0) * 100,
             kafkaNetworkWriteCents: (this.costs.value.kafkaNetworkWrite ?? 0) * 100,

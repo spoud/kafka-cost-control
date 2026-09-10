@@ -17,7 +17,11 @@ function startOfDay(date: Date): Date {
     return d;
 }
 
-function endOfDay(date: Date): Date {
+/**
+ * The last instant of `date`'s day. The date picker yields midnight, and a range is read
+ * inclusively, so a `to` taken straight from it excludes the whole day the user selected.
+ */
+export function endOfDay(date: Date): Date {
     const d = new Date(date);
     d.setHours(23, 59, 59, 999);
     return d;

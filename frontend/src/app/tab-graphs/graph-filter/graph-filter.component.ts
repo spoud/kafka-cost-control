@@ -10,6 +10,7 @@ import { GraphFilterService } from './graph-filter.service';
 import {
     DateRange,
     DateRangeQuickSelectComponent,
+    endOfDay,
 } from '../../common/date-range-quick-select/date-range-quick-select.component';
 import { toContextKeyControl, toContextKeys } from '../../common/context-keys';
 
@@ -99,6 +100,7 @@ export class GraphFilterComponent {
                 // hydration guard and disappear on the next reload
                 this.graphFilter.emit({
                     ...filter,
+                    to: filter.to ? endOfDay(filter.to) : filter.to,
                     groupByContext: toContextKeys(filter.groupByContext),
                 });
             }
