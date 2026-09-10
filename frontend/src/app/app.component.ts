@@ -29,7 +29,7 @@ import {
 } from '@angular/material/list';
 import { MatDivider } from '@angular/material/divider';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
+import { landingPath, NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
 import { NgOptimizedImage } from '@angular/common';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -110,6 +110,10 @@ export class AppComponent {
         this.navLinksSignal().filter(link => link.group === 'admin')
     );
     collapsed = signal<boolean>(readRaw(this.SIDENAV_COLLAPSED_KEY) === 'true');
+
+    // The logo follows the same rule as the router's default route. Hardcoding /costs sent an
+    // anonymous visitor who clicked it to the "Sign in required" page, since /costs is guarded.
+    protected readonly homeLink = computed(() => landingPath(this.isAuthenticated()));
 
     signOut(): void {
         this._authService.signOut();

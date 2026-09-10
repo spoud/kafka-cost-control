@@ -75,8 +75,12 @@ export const routes: Routes = [
  * the "Sign in required" page — an error page as the app's front door. Explore is public and
  * shows real data, so it is the right landing for anyone not signed in.
  */
+export function landingPath(authenticated: boolean): string {
+    return authenticated ? '/costs' : '/explore';
+}
+
 function landingRoute(): string {
-    return inject(BasicAuthServiceService).authenticated()() ? '/costs' : '/explore';
+    return landingPath(inject(BasicAuthServiceService).authenticated()());
 }
 
 export interface Link {

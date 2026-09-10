@@ -160,12 +160,15 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
                         next: _ => {
                             this.loadContextData();
                             this._snackBar.open(
-                                `Successfully deleted context data with regex "${element.regex}".`
+                                `Successfully deleted context data with regex "${element.regex}".`,
+                                'close',
+                                { duration: 5000 }
                             );
                         },
                         error: err => {
                             this._snackBar.open(
-                                `Error while deleting context data. Reason: ${err}`
+                                `Error while deleting context data. Reason: ${err}`,
+                                'close'
                             );
                         },
                     });

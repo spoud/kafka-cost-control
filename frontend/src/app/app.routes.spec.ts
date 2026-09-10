@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ApolloTestingModule } from 'apollo-angular/testing';
-import { routes } from './app.routes';
+import { landingPath, routes } from './app.routes';
 import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 
 /**
@@ -33,6 +33,20 @@ describe('default route', () => {
     it('applies the same rule to unknown URLs', () => {
         const wildcard = routes.find(r => r.path === '**');
         expect(typeof wildcard?.redirectTo).toBe('function');
+    });
+});
+
+/**
+ * Anything that sends a user somewhere by default shares this rule, so a guarded page can never
+ * become the destination for someone who cannot open it. The shell's logo uses it too.
+ */
+describe('landingPath', () => {
+    it('sends an anonymous visitor to a public page', () => {
+        expect(landingPath(false)).toBe('/explore');
+    });
+
+    it('sends a signed-in user to Cost Overview', () => {
+        expect(landingPath(true)).toBe('/costs');
     });
 });
 

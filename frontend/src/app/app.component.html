@@ -8,7 +8,7 @@
         >
             <mat-icon>menu</mat-icon>
         </button>
-        <a routerLink="/costs" class="logo-link mr-4">
+        <a [routerLink]="homeLink()" class="logo-link mr-4">
             <img ngSrc="assets/spoud.svg" width="36" height="36" alt="Kafka Cost Control Logo" />
         </a>
         <span>COST CONTROL</span>
@@ -29,7 +29,7 @@
     >
         <div class="sidenav-content-wrapper">
             <a
-                routerLink="/costs"
+                [routerLink]="homeLink()"
                 class="brand"
                 [matTooltip]="collapsed() && !isHandset() ? 'Cost Control' : ''"
                 matTooltipPosition="right"

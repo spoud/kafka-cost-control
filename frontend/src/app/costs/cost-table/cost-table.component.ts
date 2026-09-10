@@ -37,14 +37,13 @@ export class CostTableComponent implements AfterViewInit {
         if (!this.lastRequest()) {
             return [];
         }
-        if (this.lastRequest()?.contextKeysToGroupBy?.length === 0) {
+        // Testing the array rather than its length: the field is optional, and `undefined?.length
+        // === 0` is false, which fell through to spreading undefined.
+        const groupByKeys = this.lastRequest()?.contextKeysToGroupBy;
+        if (!groupByKeys?.length) {
             return [...this.fixedColStart, ...this.fixedColEnd];
         }
-        return [
-            ...this.fixedColStart,
-            ...this.lastRequest()!.contextKeysToGroupBy!,
-            ...this.fixedColEnd,
-        ];
+        return [...this.fixedColStart, ...groupByKeys, ...this.fixedColEnd];
     });
 
     dataSource = computed(() => {
