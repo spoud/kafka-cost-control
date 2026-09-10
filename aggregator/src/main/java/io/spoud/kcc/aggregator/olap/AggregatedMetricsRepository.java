@@ -14,7 +14,6 @@ import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.graphql.data.TableResponse;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
-import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.olap.domain.tables.AggregatedData;
 import io.spoud.kcc.olap.domain.tables.records.AggregatedDataRecord;
@@ -42,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static io.spoud.kcc.olap.domain.Tables.AGGREGATED_DATA;
 import static org.jooq.impl.DSL.sum;
@@ -293,25 +291,6 @@ public class AggregatedMetricsRepository {
                         metric -> getHistoryGrouped(finalStartDate, finalEndDate, Set.of(metric), groupByContextKey, bucketWidth)
                 ));
         return metricToAggregatedValue;
-    }
-
-    public Map<String, Double> getAggregatedValue(Instant startDate, Instant endDate, Set<String> names) {
-        List<MetricEO> history = getHistory(startDate, endDate, names);
-
-        Map<String, List<Double>> collect = history.stream().collect(Collectors.toMap(
-                MetricEO::initialMetricName,
-                x -> List.of(x.value()),
-                (a, b) -> Stream.concat(a.stream(), b.stream()).toList()
-        ));
-
-        return collect.entrySet().stream().collect(
-                Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> e.getValue()
-                                .stream()
-                                .reduce(0d, MetricReducer.AggregationType.SUM::combine)
-                )
-        );
     }
 
     Map<String, Function<CostOverviewRequest, Integer>> metricToProvidedValue = Map.of(
