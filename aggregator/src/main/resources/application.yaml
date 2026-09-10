@@ -11,11 +11,8 @@ cc:
   olap:
     enabled: false
     database:
-      # File-backed rather than the in-memory default (jdbc:duckdb:), so OLAP data survives a
-      # restart. Grouped under /tmp/cc with the Kafka Streams state dir so `rm -rf /tmp/cc` gives
-      # a clean slate. OlapInfra creates the directory, since DuckDB will not.
-      # Deployments override this via CC_OLAP_DATABASE_URL.
-      url: "jdbc:duckdb:/tmp/cc/local.db"
+      # technically this is already the default, but let's be explicit
+      url: "jdbc:duckdb:"
   admin-password: admin
   metrics:
     aggregations:
@@ -68,7 +65,7 @@ quarkus:
     application-id: ${kafka.application.id}
     topics: ${cc.topics.raw-data},${cc.topics.context-data},${cc.topics.pricing-rules},${cc.topics.aggregated}
     state:
-      dir: /tmp/cc/my-streams
+      dir: /tmp/my-streams
     default:
       key:
         serde: org.apache.kafka.common.serialization.Serdes$StringSerde
@@ -106,10 +103,20 @@ quarkus:
   container-image:
     build: true
 
+# Dev only. Defaults above are left at their production values; everything local lives here, so
+# `quarkus.profile=dev` is the only thing that moves them.
 "%dev":
   cc:
     aggregation-window-size: PT1H
     olap:
-      # on by default in dev so the OLAP-backed queries (metricContextKeys, the cost-overview
-      # Group By) have data without needing a /api/v1/kafka-stream/reprocess first
+      # on in dev so the OLAP-backed queries (metricContextKeys, the cost-overview Group By) have
+      # data without a /api/v1/kafka-stream/reprocess first
       enabled: true
+      database:
+        # file-backed so it survives a restart, under /tmp/cc with the state dir below so
+        # `rm -rf /tmp/cc` is a clean slate
+        url: "jdbc:duckdb:/tmp/cc/local.db"
+  quarkus:
+    kafka-streams:
+      state:
+        dir: /tmp/cc/my-streams
