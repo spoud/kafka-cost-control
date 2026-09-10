@@ -2,6 +2,7 @@ package io.spoud.kcc.aggregator.olap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AggregatedMetricsRepositoryTest {
 
     private static final OlapConfigProperties testOlapConfig = FakeOlapConfig.builder().build();
+    private static final CostControlConfigProperties testCostConfig = TestConfigProperties.builder().build();
     AggregatedMetricsRepository repo;
     OlapInfra olapInfra;
 
@@ -33,7 +35,7 @@ class AggregatedMetricsRepositoryTest {
         MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()), olapInfra);
 
         olapInfra.init();
-        repo = new AggregatedMetricsRepository(testOlapConfig, olapInfra, metricNameRepository);
+        repo = new AggregatedMetricsRepository(testOlapConfig, testCostConfig, olapInfra, metricNameRepository);
     }
 
     @DisplayName("DB memory limit respects given constraint")
@@ -65,6 +67,7 @@ class AggregatedMetricsRepositoryTest {
                 .build();
         OlapInfra localOlapInfa = new OlapInfra(fakeOlapConfig);
         var repo = new AggregatedMetricsRepository(fakeOlapConfig,
+                testCostConfig,
                 localOlapInfa,
                 null);
         localOlapInfa.init();
@@ -554,16 +557,27 @@ class AggregatedMetricsRepositoryTest {
     }
 
     @Test
-    @DisplayName("Bucket width never drops below the hourly resolution of the data")
-    void defaultBucketWidthFloorsAtOneHour() {
+    @DisplayName("Bucket width never drops below the window the rows were aggregated into")
+    void defaultBucketWidthFloorsAtTheAggregationWindow() {
         assertThat(widthOver(Duration.ofHours(1))).isEqualTo(1);
         assertThat(widthOver(Duration.ofMinutes(30))).isEqualTo(1);
         assertThat(widthOver(Duration.ZERO)).isEqualTo(1);
+
+        // a finer window keeps the finer resolution rather than rounding up to an hour
+        assertThat(widthOver(Duration.ofHours(2), Duration.ofMinutes(15)))
+                .isEqualTo(Duration.ofMinutes(15));
+        // a coarser one is never subdivided below the rows that exist
+        assertThat(widthOver(Duration.ofHours(2), Duration.ofDays(1)))
+                .isEqualTo(Duration.ofDays(1));
     }
 
     private static long widthOver(Duration range) {
+        return widthOver(range, Duration.ofHours(1)).toHours();
+    }
+
+    private static Duration widthOver(Duration range, Duration aggregationWindow) {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
-        return AggregatedMetricsRepository.defaultBucketWidthHours(start, start.plus(range));
+        return AggregatedMetricsRepository.defaultBucketWidth(start, start.plus(range), aggregationWindow);
     }
 
     private static long bucketsOver(Duration range) {

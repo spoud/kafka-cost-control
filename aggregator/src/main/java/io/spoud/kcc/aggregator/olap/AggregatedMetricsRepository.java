@@ -7,6 +7,7 @@ import io.quarkus.logging.Log;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
+import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
@@ -53,16 +54,18 @@ public class AggregatedMetricsRepository {
     };
 
     private final OlapConfigProperties olapConfig;
+    private final CostControlConfigProperties costControlConfig;
     private final OlapInfra olapInfra;
     private final BlockingQueue<AggregatedDataWindowed> rowBuffer;
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final Set<String> contextKeys = new ConcurrentHashSet<>();
 
-    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, OlapInfra olapInfra, MetricNameRepository metricNameRepository) {
+    public AggregatedMetricsRepository(OlapConfigProperties olapConfig, CostControlConfigProperties costControlConfig, OlapInfra olapInfra, MetricNameRepository metricNameRepository) {
         Log.info("Initializing AggregatedMetricsRepository");
         var startTime = Instant.now();
         this.olapConfig = olapConfig;
+        this.costControlConfig = costControlConfig;
         this.rowBuffer = new ArrayBlockingQueue<>(olapConfig.databaseMaxBufferedRows());
         this.olapInfra = olapInfra;
         this.metricNameRepository = metricNameRepository;
@@ -527,17 +530,27 @@ public class AggregatedMetricsRepository {
         return getHistoryGrouped(startDate, endDate, names, groupByContextKey, null);
     }
 
-    /** Points per series produced by {@link #defaultBucketWidthHours}. */
+    /** Points per series produced by {@link #defaultBucketWidth}. */
     static final int TARGET_BUCKETS_PER_SERIES = 24;
 
     /**
      * Bucket width holding a series at {@link #TARGET_BUCKETS_PER_SERIES} points for any range,
-     * never below one hour.
+     * never finer than {@code aggregationWindow}, which is the resolution the rows were written at.
      */
-    static long defaultBucketWidthHours(Instant startDate, Instant endDate) {
-        long rangeHours = Duration.between(startDate, endDate).toHours();
-        long perBucket = (rangeHours + TARGET_BUCKETS_PER_SERIES - 1) / TARGET_BUCKETS_PER_SERIES;
-        return Math.max(1, perBucket);
+    static Duration defaultBucketWidth(Instant startDate, Instant endDate, Duration aggregationWindow) {
+        var range = Duration.between(startDate, endDate);
+        var perBucket = range.dividedBy(TARGET_BUCKETS_PER_SERIES);
+        return perBucket.compareTo(aggregationWindow) > 0 ? perBucket : aggregationWindow;
+    }
+
+    private static Duration min(Duration a, Duration b) {
+        return a.compareTo(b) <= 0 ? a : b;
+    }
+
+    /** The {@code time_bucket} expression grouping rows into {@code width} from {@code start}. */
+    private static Field<OffsetDateTime> timeBucket(Duration width, Field<OffsetDateTime> startTime, Instant start) {
+        var interval = DSL.field("INTERVAL %d SECOND".formatted(Math.max(1, width.toSeconds())));
+        return DSL.function("time_bucket", OffsetDateTime.class, interval, startTime, DSL.val(start)).as("time_bucket");
     }
 
     /** Time-bucketed total per metric, for history without a context breakdown. */
@@ -555,8 +568,7 @@ public class AggregatedMetricsRepository {
                 condition = condition.and(a.INITIAL_METRIC_NAME.in(metricNames));
             }
 
-            var bucketWidth = DSL.field("INTERVAL %d HOUR".formatted(defaultBucketWidthHours(finalStartDate, finalEndDate)));
-            var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
+            var tb = timeBucket(defaultBucketWidth(finalStartDate, finalEndDate, costControlConfig.aggregationWindowSize()), a.START_TIME, finalStartDate);
             var totalValue = DSL.sum(a.VALUE);
 
             Map<String, MetricHistoryTO> metrics = new LinkedHashMap<>();
@@ -608,10 +620,11 @@ public class AggregatedMetricsRepository {
 
             var contextField = DSL.coalesce(DSL.jsonValue(a.CONTEXT, groupByContextKey), DSL.val("unknown")).as("context_value");
             var totalValue = DSL.sum(a.VALUE);
+            var range = Duration.between(finalStartDate, finalEndDate);
             var bucketWidth = timeBucketWidthHours == null
-                    ? DSL.field("INTERVAL %d HOUR".formatted(defaultBucketWidthHours(finalStartDate, finalEndDate)))
-                    : DSL.field("INTERVAL %d SECONDS".formatted(Math.min(3600 * timeBucketWidthHours, Duration.between(finalStartDate, finalEndDate).toSeconds())));
-            var tb = DSL.function("time_bucket", OffsetDateTime.class, bucketWidth, a.START_TIME, DSL.val(finalStartDate)).as("time_bucket");
+                    ? defaultBucketWidth(finalStartDate, finalEndDate, costControlConfig.aggregationWindowSize())
+                    : min(Duration.ofHours(timeBucketWidthHours), range);
+            var tb = timeBucket(bucketWidth, a.START_TIME, finalStartDate);
             // Grouped by metric as well as by context: different metrics are different quantities
             // (see cc.metrics.aggregations) and must not be summed into one series.
             var dslQuery = dslContext
