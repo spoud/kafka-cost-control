@@ -154,13 +154,15 @@ class AssistantLiveTest {
      */
     private ChatService privateModeChatService() {
         return new ChatService(privateModeConfig, olapConfig,
-                new SchemaDescriber(repository, privateModeConfig), toolRegistry, llmClients);
+                new SchemaDescriber(repository, privateModeConfig, metricNameRepository), toolRegistry, llmClients);
     }
 
     @Inject
     io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository repository;
     @Inject
     io.spoud.kcc.aggregator.olap.OlapConfigProperties olapConfig;
+    @Inject
+    io.spoud.kcc.aggregator.repository.MetricNameRepository metricNameRepository;
     @Inject
     ToolRegistry toolRegistry;
     @Inject
