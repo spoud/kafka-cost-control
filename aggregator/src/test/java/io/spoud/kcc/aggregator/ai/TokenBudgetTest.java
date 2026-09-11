@@ -20,6 +20,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TokenBudgetTest {
 
+    /** Answers outright on the given call, asking for tools before that. */
+    private static LlmClient answersOnCall(int finalCall, int tokensPerCall, AtomicInteger calls) {
+        return (systemPrompt, history, tools) -> {
+            int n = calls.incrementAndGet();
+            return n >= finalCall
+                    ? new LlmMessage.Assistant("the answer", List.of(), null, tokensPerCall)
+                    : new LlmMessage.Assistant("",
+                            List.of(new LlmMessage.ToolCall("id", "list_metrics", Map.of())),
+                            null, tokensPerCall);
+        };
+    }
+
     /** Never stops asking for tools, so only a limit can end the loop. */
     private static LlmClient alwaysCallsTools(int tokensPerCall, AtomicInteger calls) {
         return (systemPrompt, history, tools) -> {
@@ -94,5 +106,26 @@ class TokenBudgetTest {
         runLoop(config, alwaysCallsTools(0, calls));
 
         assertThat(calls.get()).isEqualTo(3);
+    }
+
+    /**
+     * The ceiling exists to stop the next call, not to grade the answer already in hand. Checking
+     * it before the answer was collected marked a complete reply partial whenever its final round
+     * trip happened to cross the line.
+     */
+    @Test
+    @DisplayName("An answer that arrives on the call crossing the ceiling is still complete")
+    void doesNotDowngradeAFinishedAnswer() throws Exception {
+        var config = new TestAiConfig();
+        config.maxToolIterations = 10;
+        config.maxTokensPerQuestion = 1000;
+        var calls = new AtomicInteger();
+
+        // 600 a call: the second both crosses the ceiling and carries the final answer
+        ChatAnswer answer = runLoop(config, answersOnCall(2, 600, calls));
+
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(answer.text()).isEqualTo("the answer");
+        assertThat(answer.complete()).isTrue();
     }
 }

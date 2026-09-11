@@ -15,6 +15,9 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class SchemaDescriber {
 
+    /** Longest metric or context-key name echoed into the system prompt. */
+    private static final int MAX_NAME_LENGTH = 120;
+
     private final AggregatedMetricsRepository repository;
     private final AiConfigProperties aiConfig;
 
@@ -155,8 +158,25 @@ public class SchemaDescriber {
         }
         return values.stream()
                 .sorted()
-                .map(v -> "  - " + v)
+                .map(v -> "  - " + asIdentifier(v))
                 .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * Metric and context-key names go into the system prompt, which is the highest-trust position
+     * in the conversation, and both are user-authored: a context key is whatever someone typed
+     * into a context-data rule. A name carrying newlines could close the list and append its own
+     * instructions.
+     * <p>
+     * These are identifiers, so collapsing whitespace and capping the length loses nothing real
+     * while removing the ability to write new prompt structure. Tool results, which can legitimately
+     * contain arbitrary text, are fenced instead — see {@code ToolRegistry.asUntrustedData}.
+     */
+    private static String asIdentifier(String name) {
+        String flattened = name.replaceAll("\\s+", " ").trim();
+        return flattened.length() > MAX_NAME_LENGTH
+                ? flattened.substring(0, MAX_NAME_LENGTH) + "…"
+                : flattened;
     }
 
     /**
