@@ -42,6 +42,24 @@ public class SqlGuard {
 
     private static final Pattern WORD = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
+    /**
+     * Stands in for a blanked literal. Not whitespace, and not a word character, so the keyword and
+     * LIMIT scans ignore it while {@link #validateTableTargets} can still see that a literal was
+     * there.
+     */
+    private static final char LITERAL_MARK = '\u0001';
+
+    /** Ends the table list of a FROM clause. */
+    private static final Set<String> CLAUSE_ENDERS = Set.of(
+            "SELECT", "WHERE", "GROUP", "ORDER", "HAVING", "LIMIT", "OFFSET",
+            "UNION", "INTERSECT", "EXCEPT", "ON", "USING", "WINDOW", "QUALIFY");
+
+    /**
+     * The only functions allowed to produce a table. These compute rows rather than reading them
+     * from anywhere, so they cannot reach outside the database.
+     */
+    private static final Set<String> SAFE_TABLE_FUNCTIONS = Set.of("RANGE", "GENERATE_SERIES", "UNNEST");
+
     /** Thrown when SQL fails validation. The message is safe to show the model so it can retry. */
     public static class RejectedException extends RuntimeException {
         public RejectedException(String message) {
@@ -72,6 +90,8 @@ public class SqlGuard {
             throw new RejectedException("Only SELECT and WITH queries are allowed. This query is read-only access.");
         }
 
+        validateTableTargets(stripped);
+
         String forbidden = findForbiddenWord(cleaned);
         if (forbidden != null) {
             throw new RejectedException(
@@ -85,6 +105,83 @@ public class SqlGuard {
             executable = executable + " LIMIT " + maxRows;
         }
         return executable;
+    }
+
+    /**
+     * Restricts what may stand where a table goes. DuckDB resolves a bare string there as a file
+     * path (a "replacement scan"), so {@code FROM '/etc/hosts'} reads that file without naming any
+     * function the keyword scan could catch. A table position may therefore only hold a subquery,
+     * an identifier, or one of {@link #SAFE_TABLE_FUNCTIONS}.
+     * <p>
+     * Allow-listing this one position rather than denying known-bad functions is deliberate: the
+     * set of functions that can reach a filesystem grows with every DuckDB release, but the set of
+     * things that may legitimately name a table does not.
+     *
+     * @param marked SQL with comments removed and literals replaced by {@link #LITERAL_MARK}
+     */
+    private void validateTableTargets(String marked) {
+        int i = 0;
+        int n = marked.length();
+        boolean inFromClause = false;
+        boolean expectTarget = false;
+        int depth = 0;
+
+        while (i < n) {
+            char c = marked.charAt(i);
+
+            if (Character.isWhitespace(c)) {
+                i++;
+            } else if (c == '(') {
+                depth++;
+                expectTarget = false; // a derived table: its own FROM is checked on the way through
+                i++;
+            } else if (c == ')') {
+                depth--;
+                i++;
+            } else if (c == ',') {
+                expectTarget = inFromClause && depth == 0;
+                i++;
+            } else if (c == LITERAL_MARK) {
+                if (expectTarget) {
+                    throw new RejectedException(
+                            "A quoted string cannot name a table. Query the tables described in the schema instead.");
+                }
+                while (i < n && marked.charAt(i) == LITERAL_MARK) {
+                    i++;
+                }
+            } else if (c == '"') {
+                expectTarget = false; // quoted identifier, i.e. a real table name
+                i++;
+                while (i < n && marked.charAt(i) != '"') {
+                    i++;
+                }
+                i++;
+            } else if (Character.isLetter(c) || c == '_') {
+                int start = i;
+                while (i < n && (Character.isLetterOrDigit(marked.charAt(i)) || marked.charAt(i) == '_')) {
+                    i++;
+                }
+                String word = marked.substring(start, i).toUpperCase(Locale.ROOT);
+
+                if (expectTarget) {
+                    if (isFollowedByOpenParen(marked, i) && !SAFE_TABLE_FUNCTIONS.contains(word)) {
+                        throw new RejectedException("'" + word
+                                + "' cannot be used to produce a table. Query the tables described in the schema instead.");
+                    }
+                    expectTarget = false;
+                }
+
+                if (word.equals("FROM") || word.equals("JOIN")) {
+                    inFromClause = true;
+                    expectTarget = true;
+                } else if (CLAUSE_ENDERS.contains(word)) {
+                    inFromClause = false;
+                    expectTarget = false;
+                }
+            } else {
+                i++;
+            }
+        }
     }
 
     /** A word preceded by '.' is a qualified reference ({@code t.set}), not a keyword. */
@@ -242,7 +339,7 @@ public class SqlGuard {
 
     private void appendLiteral(StringBuilder out, String sql, int start, int end, boolean blank) {
         if (blank) {
-            out.append(" ".repeat(end - start));
+            out.append(String.valueOf(LITERAL_MARK).repeat(end - start));
         } else {
             out.append(sql, start, end);
         }

@@ -1,11 +1,13 @@
 package io.spoud.kcc.aggregator.graphql;
 
 import io.quarkus.security.Authenticated;
+import io.quarkus.security.identity.SecurityIdentity;
 import io.spoud.kcc.aggregator.ai.ChatService;
 import io.spoud.kcc.aggregator.graphql.data.AssistantStatus;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
 import io.spoud.kcc.aggregator.graphql.data.ChatRequest;
 import jakarta.annotation.security.PermitAll;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -40,6 +42,23 @@ public class ChatResource {
 
     private final ChatService chatService;
 
+    @Inject
+    SecurityIdentity securityIdentity;
+
+    /**
+     * Conversation histories are keyed on this, never on the session id alone. The id is generated
+     * by the client, so without the principal any caller could pass someone else's id and read, or
+     * clear, their conversation.
+     */
+    static String conversationKey(String principalName, String sessionId) {
+        return (principalName == null ? "" : principalName) + '\u0000' + sessionId;
+    }
+
+    private String conversationKey(String sessionId) {
+        var principal = securityIdentity.getPrincipal();
+        return conversationKey(principal == null ? null : principal.getName(), sessionId);
+    }
+
     /**
      * Lets the UI hide the assistant when this deployment cannot answer. {@code @PermitAll}: it
      * exposes only whether a feature is on, and the nav decides before knowing anything else.
@@ -61,7 +80,8 @@ public class ChatResource {
         if (request == null) {
             return ChatAnswer.error("No question was supplied.");
         }
-        return chatService.ask(request.sessionId(), request.message(), request.priorTurnsOrZero());
+        return chatService.ask(
+                conversationKey(request.sessionId()), request.message(), request.priorTurnsOrZero());
     }
 
     @DELETE
@@ -70,7 +90,7 @@ public class ChatResource {
     @Description("Forget the conversation history for one session.")
     public @NonNull Boolean clearChat(
             @Name("sessionId") @PathParam("sessionId") @NonNull String sessionId) {
-        chatService.clear(sessionId);
+        chatService.clear(conversationKey(sessionId));
         return true;
     }
 }

@@ -46,4 +46,20 @@ class ChatResourceTest {
         assertThat(body).contains("disabled");
         assertThat(body).doesNotContain("no data");
     }
+
+    /**
+     * Session ids come from the client, so the principal has to be part of the key. Without it,
+     * passing someone else's id would read - or clear - their conversation.
+     */
+    @Test
+    void conversationsAreKeyedPerUserNotPerSessionIdAlone() {
+        String shared = "same-session-id";
+
+        assertThat(ChatResource.conversationKey("alice", shared))
+                .isNotEqualTo(ChatResource.conversationKey("bob", shared));
+        assertThat(ChatResource.conversationKey("alice", shared))
+                .isEqualTo(ChatResource.conversationKey("alice", shared));
+        // and the id alone is never the key
+        assertThat(ChatResource.conversationKey("alice", shared)).isNotEqualTo(shared);
+    }
 }

@@ -1,5 +1,6 @@
 package io.spoud.kcc.aggregator.ai;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -203,5 +204,64 @@ class SqlGuardTest {
                 .isInstanceOf(SqlGuard.RejectedException.class);
         assertThatThrownBy(() -> guard.validate(null, MAX_ROWS))
                 .isInstanceOf(SqlGuard.RejectedException.class);
+    }
+
+    /**
+     * DuckDB resolves a bare string in table position as a file path, so these read files without
+     * naming any function a keyword scan could catch.
+     */
+    @Test
+    @DisplayName("A quoted string can never name a table")
+    void rejectsReplacementScans() {
+        assertThatThrownBy(() -> guard.validate("SELECT * FROM '/etc/hosts'", 100))
+                .isInstanceOf(SqlGuard.RejectedException.class);
+        assertThatThrownBy(() -> guard.validate("SELECT * FROM 'data.csv'", 100))
+                .isInstanceOf(SqlGuard.RejectedException.class);
+        // second position of a comma-separated table list
+        assertThatThrownBy(() -> guard.validate("SELECT * FROM aggregated_data, '/etc/hosts'", 100))
+                .isInstanceOf(SqlGuard.RejectedException.class);
+        // and inside a derived table
+        assertThatThrownBy(() -> guard.validate("SELECT * FROM (SELECT * FROM '/etc/hosts')", 100))
+                .isInstanceOf(SqlGuard.RejectedException.class);
+        // and on the right-hand side of a join
+        assertThatThrownBy(() -> guard.validate("SELECT * FROM aggregated_data JOIN 'evil.csv' ON 1=1", 100))
+                .isInstanceOf(SqlGuard.RejectedException.class);
+    }
+
+    /**
+     * The set of DuckDB functions that can reach a filesystem grows with each release, so the
+     * table position is allow-listed rather than these being denied one by one.
+     */
+    @Test
+    @DisplayName("Only computed-row functions may produce a table")
+    void rejectsUnknownTableFunctions() {
+        for (String sql : new String[] {
+                "SELECT * FROM read_ndjson('/etc/hosts')",
+                "SELECT * FROM read_xlsx('x.xlsx')",
+                "SELECT * FROM st_read('x.shp')",
+                "SELECT * FROM sniff_csv('x.csv')",
+                "SELECT * FROM duckdb_settings()",
+                "SELECT * FROM parquet_metadata('x.parquet')" }) {
+            assertThatThrownBy(() -> guard.validate(sql, 100))
+                    .as(sql)
+                    .isInstanceOf(SqlGuard.RejectedException.class);
+        }
+        assertThat(guard.validate("SELECT * FROM range(1, 10)", 100)).contains("range");
+    }
+
+    @Test
+    @DisplayName("Ordinary queries are unaffected by the table-position check")
+    void acceptsLegitimateTableReferences() {
+        for (String sql : new String[] {
+                "SELECT * FROM aggregated_data",
+                "WITH t AS (SELECT * FROM aggregated_data) SELECT * FROM t",
+                "SELECT * FROM (SELECT * FROM aggregated_data) x",
+                "SELECT a.name FROM aggregated_data a JOIN aggregated_data b ON a.id = b.id",
+                "SELECT * FROM aggregated_data a, aggregated_data b",
+                // a literal anywhere other than table position is still fine
+                "SELECT json_extract_string(context, 'tenant') FROM aggregated_data",
+                "SELECT * FROM aggregated_data WHERE name IN ('x','y') LIMIT 10" }) {
+            assertThatCode(() -> guard.validate(sql, 100)).as(sql).doesNotThrowAnyException();
+        }
     }
 }
