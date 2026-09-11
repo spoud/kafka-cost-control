@@ -1,3 +1,19 @@
+type AssistantStatus {
+  available: Boolean!
+  reason: String
+}
+
+type ChatAnswer {
+  columns: [String!]!
+  complete: Boolean!
+  contextLost: Boolean!
+  error: String
+  generatedSql: [String!]!
+  rows: [[String]!]!
+  text: String!
+  truncated: Boolean!
+}
+
 type ContextDataEntity {
   context(
     "Get entry/entries for a certain key/s"
@@ -56,6 +72,10 @@ type MetricToDistributionMap {
 
 "Mutation root"
 type Mutation {
+  "Ask a natural-language question about the aggregated metrics data."
+  chat(request: ChatRequestInput): ChatAnswer!
+  "Forget the conversation history for one session."
+  clearChat(sessionId: String!): Boolean!
   deleteContextData(request: ContextDataDeleteRequestInput): ContextDataEntity
   deletePricingRule(request: PricingRuleDeleteRequestInput): PricingRuleEntity
   reprocess(
@@ -83,6 +103,7 @@ type PricingRuleEntity {
 
 "Query root"
 type Query {
+  assistantStatus: AssistantStatus!
   calculateTable(request: CostOverviewRequestInput): TableResponse!
   contextData: [ContextDataEntity!]!
   contextTest(testString: String): [ContextTestResponse!]!
@@ -134,6 +155,15 @@ input ContextDataSaveRequestInput {
   validFrom: DateTime
   "ISO-8601"
   validUntil: DateTime
+}
+
+input ChatRequestInput {
+  "The question to answer."
+  message: String!
+  "How many earlier questions the client is showing for this session."
+  priorTurns: Int
+  "Client-generated conversation id; history is kept per session."
+  sessionId: String!
 }
 
 input CostOverviewRequestInput {

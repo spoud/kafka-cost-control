@@ -13,6 +13,24 @@ cc:
     database:
       # technically this is already the default, but let's be explicit
       url: "jdbc:duckdb:"
+  ai:
+    # Natural-language querying of the OLAP data. Requires cc.olap.enabled=true as well,
+    # since every question is ultimately answered from the DuckDB table.
+    enabled: false
+    # Model writes the SQL but never sees the results; only the schema shape leaves the network.
+    # Answers become tables rather than prose.
+    private-mode: false
+
+    # The entire configuration surface for choosing a model. Defaults to a local Ollama.
+    base-url: ${CC_AI_BASE_URL:http://localhost:11434/v1}
+    model: ${CC_AI_MODEL:qwen3.8:27b}
+    # Placeholder, not empty: an empty string converts to null and fails startup validation.
+    api-key: ${CC_AI_API_KEY:not-configured}
+    # Few-second defaults are too short: a local model loads into memory, then does tool calls.
+    request-timeout: ${CC_AI_REQUEST_TIMEOUT:PT10M}
+    # Tokens one question may spend across all its round trips; 0 removes the ceiling. The other
+    # limits bound how many calls and how long each query runs, not what a question costs.
+    max-tokens-per-question: ${CC_AI_MAX_TOKENS_PER_QUESTION:200000}
   admin-password: admin
   metrics:
     aggregations:
@@ -102,6 +120,26 @@ quarkus:
         level: WARN
   container-image:
     build: true
+  # One client for every vendor: they all speak the OpenAI chat-completions protocol, so changing
+  # provider is a base URL rather than a dependency. Set cc.ai.base-url to one of:
+  #
+  #   http://localhost:11434/v1                          Ollama, local, no key
+  #   https://api.openai.com/v1                          OpenAI
+  #   https://api.anthropic.com/v1/                      Anthropic; no prompt caching there
+  #   https://generativelanguage.googleapis.com/v1beta/openai/   Gemini
+  #   https://openrouter.ai/api/v1                       OpenRouter
+  #
+  # The model must support tool calling; the assistant cannot answer without it.
+  langchain4j:
+    openai:
+      base-url: ${cc.ai.base-url}
+      api-key: ${cc.ai.api-key}
+      timeout: ${cc.ai.request-timeout}
+      chat-model:
+        model-name: ${cc.ai.model}
+      # Off: prompts carry metric and context names, results can carry topic names.
+      log-requests: false
+      log-responses: false
 
 # Dev only. Defaults above are left at their production values; everything local lives here, so
 # `quarkus.profile=dev` is the only thing that moves them.
@@ -116,6 +154,9 @@ quarkus:
         # file-backed so it survives a restart, under /tmp/cc with the state dir below so
         # `rm -rf /tmp/cc` is a clean slate
         url: "jdbc:duckdb:/tmp/cc/local.db"
+    ai:
+      # Works out of the box against a local Ollama; no key needed.
+      enabled: true
   quarkus:
     kafka-streams:
       state:

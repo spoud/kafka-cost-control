@@ -1,0 +1,138 @@
+.assistant {
+    display: flex;
+    flex-direction: column;
+    // Fill the viewport below the page header so the composer stays pinned to the bottom
+    // and only the transcript scrolls.
+    height: calc(100vh - 180px);
+    min-height: 320px;
+}
+
+.transcript {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-2) 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.message {
+    display: flex;
+    justify-content: flex-start;
+
+    &--user {
+        justify-content: flex-end;
+    }
+}
+
+.bubble {
+    max-width: min(720px, 85%);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--mat-sys-surface-container-low);
+    color: var(--mat-sys-on-surface);
+
+    .message--user & {
+        background: var(--mat-sys-secondary-container);
+        color: var(--mat-sys-on-secondary-container);
+    }
+
+    &--error {
+        background: var(--mat-sys-error-container);
+        color: var(--mat-sys-on-error-container);
+    }
+
+    &--thinking {
+        min-width: 160px;
+    }
+}
+
+.text {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+// Same shape for every inline note: an icon, a gap, and a line of small text.
+// One shape for every inline note: icon, gap, a line of small text.
+.error-line,
+.note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font: var(--mat-sys-body-small);
+}
+
+.note {
+    margin-top: var(--space-2);
+    color: var(--mat-sys-on-surface-variant);
+}
+
+// Wide result tables scroll inside the bubble rather than widening the page.
+.table-scroll {
+    margin-top: var(--space-3);
+    overflow-x: auto;
+}
+
+.result {
+    border-collapse: collapse;
+    font: var(--mat-sys-body-small);
+    white-space: nowrap;
+
+    th,
+    td {
+        padding: var(--space-1) var(--space-3);
+        text-align: left;
+        border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    th {
+        font-weight: 600;
+        color: var(--mat-sys-on-surface-variant);
+    }
+}
+
+.row-count {
+    margin: var(--space-2) 0 0;
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.truncated {
+    color: var(--mat-sys-error);
+}
+
+.sql-toggle {
+    margin-top: var(--space-2);
+    font: var(--mat-sys-label-small);
+}
+
+.sql {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--mat-sys-surface-container-highest);
+    color: var(--mat-sys-on-surface-variant);
+    font-family: monospace;
+    font-size: 0.75rem;
+    // Long queries scroll inside the block rather than widening the page.
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.composer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+}
+
+.composer-field {
+    flex: 1;
+}

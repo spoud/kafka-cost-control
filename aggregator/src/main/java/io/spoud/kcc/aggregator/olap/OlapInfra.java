@@ -106,6 +106,26 @@ public class OlapInfra {
         }
     }
 
+    /**
+     * A connection sharing the same DuckDB instance but with its own transaction context.
+     * <p>
+     * Must use {@link org.duckdb.DuckDBConnection#duplicate()}: with the in-memory URL
+     * ({@code jdbc:duckdb:}) a fresh {@link DriverManager} connection opens a different, empty
+     * database and callers would silently query nothing.
+     *
+     * @return a connection the caller owns and must close, or empty if OLAP is off
+     */
+    public Optional<Connection> duplicateConnection() {
+        return getConnection().flatMap(conn -> {
+            try {
+                return Optional.of(((org.duckdb.DuckDBConnection) conn).duplicate());
+            } catch (SQLException e) {
+                Log.warn("Failed to duplicate OLAP connection", e);
+                return Optional.empty();
+            }
+        });
+    }
+
     private void createTableIfNotExists(Connection connection) throws SQLException {
         try (var statement = connection.createStatement()) {
             var initSqlStream = OlapInfra.class.getClassLoader().getResourceAsStream("olap-schema.sql");

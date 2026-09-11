@@ -41,6 +41,18 @@ spec:
                 secretKeyRef:
                   name: kafka-cost-control-secret
                   key: CC_ADMIN_PASSWORD
+            # AI assistant, off by default. No model is set here: that is a per-environment
+            # choice. To enable, set CC_AI_ENABLED=true plus CC_AI_BASE_URL (any OpenAI-compatible
+            # endpoint, e.g. http://ollama:11434/v1 in-cluster - a Service name, not localhost)
+            # and CC_AI_MODEL. The model must support tool calling.
+            - name: CC_AI_ENABLED
+              value: "false"
+            - name: CC_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-cost-control-secret
+                  key: CC_AI_API_KEY
+                  optional: true
           envFrom:
             - secretRef:
                 name: kafka-cost-control-secret
