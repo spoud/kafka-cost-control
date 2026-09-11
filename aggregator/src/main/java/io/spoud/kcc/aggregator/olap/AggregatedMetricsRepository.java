@@ -219,11 +219,22 @@ public class AggregatedMetricsRepository {
                 .orElse(new HashSet<>());
     }
 
+    /**
+     * Distinct values of one JSON key.
+     * <p>
+     * The key is a bind parameter, not interpolated: a context key is whatever someone typed into
+     * a context-data rule, and real ones contain hyphens - {@code app-id}, {@code cost-unit}. The
+     * previous form built the SQL with String.format, which forced an identifier check strict
+     * enough to reject those, so the only keys this could read were the ones that happened to look
+     * like identifiers. Binding removes both the injection risk and the restriction.
+     */
     private Set<String> getAllJsonKeyValues(String column, String key) {
-        ensureIdentifierIsSafe(key);
+        ensureIdentifierIsSafe(column);
         return olapInfra.getConnection()
                 .map(conn -> {
-                    try (var statement = conn.prepareStatement("SELECT DISTINCT %s->>'%s' FROM aggregated_data".formatted(column, key))) {
+                    try (var statement = conn.prepareStatement(
+                            "SELECT DISTINCT json_extract_string(%s, ?) FROM aggregated_data".formatted(column))) {
+                        statement.setString(1, "$." + key);
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);

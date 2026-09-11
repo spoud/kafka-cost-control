@@ -1,5 +1,6 @@
 package io.spoud.kcc.aggregator.ai;
 
+import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import java.util.Comparator;
@@ -197,7 +198,16 @@ public class SchemaDescriber {
         var valuesByKey = new LinkedHashMap<String, List<String>>();
         int chars = 0;
         for (String key : sorted) {
-            var values = repository.getAllContextValues(key).stream().sorted().toList();
+            // buildSystemPrompt runs for every question, so anything thrown here takes the whole
+            // assistant down rather than costing one key's values. A key that cannot be read falls
+            // back to the tool, which reports its own error to the model.
+            List<String> values;
+            try {
+                values = repository.getAllContextValues(key).stream().sorted().toList();
+            } catch (RuntimeException e) {
+                Log.warnf(e, "Could not list values for context key '%s'; omitting them from the prompt", key);
+                continue;
+            }
             for (String v : values) {
                 chars += v.length() + 1;
             }

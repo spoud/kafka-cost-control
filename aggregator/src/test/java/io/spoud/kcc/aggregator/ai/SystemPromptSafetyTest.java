@@ -147,4 +147,29 @@ class SystemPromptSafetyTest {
         // and the gauge rule must not name a metric from a different vendor's deployment
         assertThat(prompt).doesNotContain("confluent_kafka_server_retained_bytes");
     }
+
+    /**
+     * Real context keys contain hyphens — `app-id`, `cost-unit`. Inlining their values made the
+     * prompt call getAllContextValues for every key, and buildSystemPrompt runs for every
+     * question, so one unreadable key took the whole assistant down rather than costing that key's
+     * values. This is the regression that broke the demo environment.
+     */
+    @Test
+    @DisplayName("One unreadable context key does not take down the whole prompt")
+    void survivesAKeyWhoseValuesCannotBeRead() {
+        AggregatedMetricsRepository repository = Mockito.mock(AggregatedMetricsRepository.class);
+        Mockito.when(repository.getAllMetrics()).thenReturn(Set.of("m1"));
+        Mockito.when(repository.getAllContextKeys())
+                .thenReturn(new LinkedHashSet<>(List.of("app-id", "tenant")));
+        Mockito.when(repository.getAllContextValues("app-id"))
+                .thenThrow(new IllegalArgumentException("Invalid identifier"));
+        Mockito.when(repository.getAllContextValues("tenant"))
+                .thenReturn(new LinkedHashSet<>(Set.of("acme")));
+
+        String prompt = new SchemaDescriber(repository, new TestAiConfig(), metricNames())
+                .buildSystemPrompt();
+
+        // the readable key still contributes its values, and the prompt is produced at all
+        assertThat(prompt).contains("acme");
+    }
 }
