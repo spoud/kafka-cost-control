@@ -13,6 +13,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatTooltip } from '@angular/material/tooltip';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
+import { stripInlineMarkdown } from '../common/plain-text';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 import { LoadingIndicatorComponent } from '../common/loading-indicator/loading-indicator.component';
 import { ChatStore } from './store/chat.store';
@@ -98,7 +99,7 @@ export class AssistantComponent {
                         });
                     } else {
                         this.store.addAssistantMessage({
-                            text: answer.text,
+                            text: stripInlineMarkdown(answer.text),
                             generatedSql: [...(answer.generatedSql ?? [])],
                             columns: [...(answer.columns ?? [])],
                             rows: (answer.rows ?? []).map(row => [...row]),

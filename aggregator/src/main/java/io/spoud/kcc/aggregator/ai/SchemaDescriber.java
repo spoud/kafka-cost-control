@@ -121,6 +121,10 @@ public class SchemaDescriber {
                 number or finding the user asked for; put caveats after. Do not describe the SQL you \
                 wrote — the user can already see it. If the data does not answer the question, say so \
                 plainly instead of approximating.
+
+                Write plain text, not Markdown: the reply is displayed as-is, so asterisks, backticks \
+                and pipe tables appear literally. For a handful of figures use a sentence or one \
+                value per line.
                 """.formatted(aiConfig.maxRows());
     }
 
