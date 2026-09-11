@@ -1,7 +1,3 @@
-type CostOverviewResponse {
-  metricToDistributionMapList: [MetricToDistributionMap]
-}
-
 type ContextDataEntity {
   context(
     "Get entry/entries for a certain key/s"
@@ -24,6 +20,10 @@ type ContextTestResponse {
     key: [String]
   ): [Entry_String_String!]!
   entityType: EntityType!
+}
+
+type CostOverviewResponse {
+  metricToDistributionMapList: [MetricToDistributionMap]
 }
 
 type Entry_String_String {
@@ -68,6 +68,7 @@ type Mutation {
 }
 
 type NameToPrice {
+  contextValues: [String]
   name: String
   price: Float
 }
@@ -83,17 +84,12 @@ type PricingRuleEntity {
 "Query root"
 type Query {
   calculateTable(request: CostOverviewRequestInput): TableResponse!
-  costOverview(request: CostOverviewRequestInput): CostOverviewResponse!
   contextData: [ContextDataEntity!]!
-  contextTest(testString: String!): [ContextTestResponse!]!
+  contextTest(testString: String): [ContextTestResponse!]!
+  costOverview(request: CostOverviewRequestInput): CostOverviewResponse!
   currentUser: String!
   existingContextKeys: [String!]!
-  history(
-    from: DateTimeParameterInput!,
-    groupByContextKeys: [String]!,
-    metricNames: [String]!,
-    to: DateTimeParameterInput
-  ): [MetricHistory!]!
+  history(from: DateTimeParameterInput!, groupByContextKeys: [String]!, metricNames: [String]!, to: DateTimeParameterInput): [MetricHistory!]!
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
   pricingRules: [PricingRuleEntity!]!
@@ -125,18 +121,6 @@ scalar BigInteger
 "Scalar for DateTime"
 scalar DateTime
 
-input CostOverviewRequestInput {
-  contextKeysToGroupBy: [String]
-  "ISO-8601"
-  from: DateTime!
-  kafkaNetworkReadCents: Int
-  kafkaNetworkWriteCents: Int
-  kafkaStorageCents: Int
-  "ISO-8601"
-  to: DateTime
-  totalCents: Int
-}
-
 input ContextDataDeleteRequestInput {
   id: String!
 }
@@ -152,14 +136,26 @@ input ContextDataSaveRequestInput {
   validUntil: DateTime
 }
 
-input Entry_String_StringInput {
-  key: String
-  value: String
+input CostOverviewRequestInput {
+  contextKeysToGroupBy: [String]
+  "ISO-8601"
+  from: DateTime
+  kafkaNetworkReadCents: Int
+  kafkaNetworkWriteCents: Int
+  kafkaStorageCents: Int
+  "ISO-8601"
+  to: DateTime
+  totalCents: Int
 }
 
 input DateTimeParameterInput {
   "ISO-8601"
   instant: DateTime
+}
+
+input Entry_String_StringInput {
+  key: String
+  value: String
 }
 
 input PricingRuleDeleteRequestInput {

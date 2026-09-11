@@ -1,7 +1,52 @@
-<div class="section-header">
-    <div class="page-title">Cost Overview</div>
-    <div class="page-sub">Distribute provider invoices across applications and stages</div>
-</div>
+<app-page-header
+    title="Cost Overview"
+    subtitle="Distribute provider invoices across applications and stages."
+>
+    <ng-container actions>
+        @if (selectedConfigId(); as configId) {
+            <button mat-stroked-button color="primary" type="button" (click)="openSaveDialog()">
+                <mat-icon>save</mat-icon>
+                Save as new
+            </button>
+            <button mat-flat-button color="primary" type="button" (click)="updateSelectedConfig()">
+                <mat-icon>save</mat-icon>
+                Update "{{ selectedConfigName() }}"
+            </button>
+            <!-- Re-picking the same entry in the select cannot fire selectionChange, so reverting
+                 edits needs its own control rather than relying on the dropdown. -->
+            <button mat-stroked-button type="button" (click)="loadConfig(configId)">
+                <mat-icon>restore</mat-icon>
+                Revert
+            </button>
+            <button mat-stroked-button color="warn" type="button" (click)="deleteConfig(configId)">
+                <mat-icon>delete</mat-icon>
+                Delete
+            </button>
+        } @else {
+            <button mat-flat-button color="primary" type="button" (click)="openSaveDialog()">
+                <mat-icon>save</mat-icon>
+                Save
+            </button>
+        }
+        @if (savedConfigs().length > 0) {
+            <mat-form-field class="saved-configs-select" subscriptSizing="dynamic">
+                <mat-label>Load saved</mat-label>
+                <!-- [value] must be bound: without it MatSelect keeps its own selection, so
+                     re-picking the config already shown emits nothing (no way to revert edits)
+                     and a deleted config stays selected internally. -->
+                <mat-select
+                    [value]="selectedConfigId()"
+                    (selectionChange)="loadConfig($event.value)"
+                >
+                    <mat-select-trigger>{{ selectedConfigName() }}</mat-select-trigger>
+                    @for (config of savedConfigs(); track config.id) {
+                        <mat-option [value]="config.id">{{ config.name }}</mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
+        }
+    </ng-container>
+</app-page-header>
 
 <form [formGroup]="costs">
     <div class="card-row top-row">
@@ -21,6 +66,10 @@
                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                     <mat-date-range-picker #picker></mat-date-range-picker>
                 </mat-form-field>
+                <app-date-range-quick-select
+                    [selectedRange]="selectedDateRange()"
+                    (rangeSelected)="applyDateRange($event)"
+                ></app-date-range-quick-select>
             </mat-card-content>
         </mat-card>
 
@@ -133,18 +182,46 @@
             </mat-card-title>
         </mat-card-header>
         <mat-card-content>
-            <mat-chip-listbox
-                [value]="groupBy()"
-                (change)="groupBy.set($event.value)"
-                multiple
-                class="group-chips"
-            >
-                @for (key of graphFilterService.contextKeys(); track key) {
-                    <mat-chip-option [value]="key">{{ key }}</mat-chip-option>
-                }
-            </mat-chip-listbox>
+            @if (groupBy().length > 0) {
+                <span class="rule-hint"
+                    >Drag to reorder — the diagram below nests levels in this order.</span
+                >
+                <div
+                    cdkDropList
+                    cdkDropListOrientation="horizontal"
+                    class="group-chips group-chips-ordered"
+                    (cdkDropListDropped)="dropGroupByKey($event)"
+                >
+                    @for (key of groupBy(); track key) {
+                        <div class="group-chip-ordered" cdkDrag>
+                            <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+                            <span>{{ key }}</span>
+                            <button
+                                mat-icon-button
+                                (click)="removeGroupByKey(key)"
+                                [attr.aria-label]="'Remove ' + key"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+            @if (availableContextKeys().length > 0) {
+                <mat-chip-listbox (change)="addGroupByKey($event.value)" class="group-chips">
+                    @for (key of availableContextKeys(); track key) {
+                        <mat-chip-option [value]="key" [selected]="false">{{
+                            key
+                        }}</mat-chip-option>
+                    }
+                </mat-chip-listbox>
+            }
             @if (graphFilterService.contextKeys().length === 0) {
                 <span class="rule-hint">Loading context keys…</span>
+            } @else if (groupBy().length > 2) {
+                <span class="rule-hint"
+                    >Tip: picking more than 1–2 keys can make the diagram below hard to read.</span
+                >
             }
         </mat-card-content>
     </mat-card>
@@ -159,7 +236,14 @@
         </mat-card-header>
         <mat-card-content class="results-content">
             <app-cost-table [inputData]="tableData()" [lastRequest]="lastRequest()" />
-            <app-sankey [inputData]="data()" [lastRequest]="lastRequest()" />
+            @if (groupBy().length === 0) {
+                <app-empty-state
+                    icon="account_tree"
+                    message="Pick at least one group-by key above to see how cost breaks down."
+                />
+            } @else {
+                <app-sankey [inputData]="data()" [lastRequest]="lastRequest()" />
+            }
         </mat-card-content>
     </mat-card>
 }

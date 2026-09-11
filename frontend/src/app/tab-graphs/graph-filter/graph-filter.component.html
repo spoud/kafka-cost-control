@@ -10,6 +10,8 @@
     <mat-form-field>
         <mat-label>Group by context</mat-label>
         <mat-select formControlName="groupByContext">
+            <!-- '' normalizes to [] via toContextKeys -->
+            <mat-option value="">None (total)</mat-option>
             @for (key of graphFilterService.contextKeys(); track key) {
                 <mat-option [value]="key">{{ key }}</mat-option>
             }
@@ -24,4 +26,8 @@
         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
         <mat-date-range-picker #picker></mat-date-range-picker>
     </mat-form-field>
+    <app-date-range-quick-select
+        [selectedRange]="selectedDateRange()"
+        (rangeSelected)="applyDateRange($event)"
+    ></app-date-range-quick-select>
 </form>

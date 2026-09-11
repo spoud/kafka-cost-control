@@ -1,14 +1,14 @@
 <h2 mat-dialog-title>Context Tester</h2>
 <mat-dialog-content>
     <form (ngSubmit)="testContext()" (reset)="reset()">
-        <mat-form-field class="form-full-width mr-1">
+        <mat-form-field class="form-full-width mr-4">
             <mat-label>Name of Topic / Principal</mat-label>
             <input name="testString" [(ngModel)]="testString" matInput />
         </mat-form-field>
-        <button mat-flat-button color="primary" class="mr-1" [disabled]="!testString || pending()">
+        <button mat-flat-button color="primary" class="mr-4" [disabled]="!testString || pending()">
             Test
         </button>
-        <button mat-flat-button type="reset">Reset</button>
+        <button mat-stroked-button type="reset">Reset</button>
     </form>
     @if (matchedTopicsContext() || matchedPrincipalContext()) {
         <mat-tab-group>
@@ -50,5 +50,5 @@
 </mat-dialog-content>
 <mat-divider />
 <mat-dialog-actions align="end">
-    <button mat-flat-button mat-dialog-close>Close</button>
+    <button mat-stroked-button mat-dialog-close>Close</button>
 </mat-dialog-actions>

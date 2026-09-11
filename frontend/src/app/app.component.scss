@@ -1,31 +1,231 @@
-nav {
-    background: white;
+@use '../styles/breakpoints' as breakpoints;
+
+// Single source of truth for both rail widths — mat-sidenav-content's margin-left below has
+// to track these exactly (see comment there), so a width change here can't drift out of sync
+// and leave a gap/overlap between the sidebar and the page content.
+$sidenav-width-expanded: 240px;
+$sidenav-width-collapsed: 50px;
+
+mat-sidenav-content {
+    // MatDrawerContainer's own margin-left recalculation (even with [autosize]) only
+    // reruns on Angular's own change-detection triggers, and our sidenav width change
+    // animates via CSS — so its inline style goes stale until *something else* forces
+    // another Angular tick. Drive the margin ourselves instead, in lockstep with the
+    // widths set on mat-sidenav below, so it never depends on that recalculation at all.
+    margin-left: $sidenav-width-expanded !important;
+    // Instant, not animated: Material's own .mat-drawer-transition class also puts a
+    // (much longer) transition on this property, and the two competing transitions
+    // combined with this app's frequent change-detection ticks meant the value could
+    // get stuck mid-animation indefinitely. Correctness beats a nice-to-have animation.
+    transition: none !important;
+    padding: var(--space-7) var(--space-9);
+
+    @include breakpoints.compact {
+        padding: var(--space-5) var(--space-6);
+    }
+
+    @include breakpoints.handset {
+        padding: var(--space-4);
+    }
 }
 
-mat-tab-nav-panel {
-    padding: 32px 64px;
-    display: block;
+mat-sidenav-container.sidenav-collapsed mat-sidenav-content {
+    margin-left: $sidenav-width-collapsed !important;
 }
 
-.spacer {
-    flex: 1 1 auto;
+mat-sidenav-container.is-handset mat-sidenav-content {
+    margin-left: 0 !important;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+}
+
+mat-sidenav {
+    width: $sidenav-width-expanded;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    transition: none !important;
+
+    &.collapsed {
+        width: $sidenav-width-collapsed;
+
+        .brand {
+            justify-content: center;
+        }
+
+        // Material reserves a fixed 16px trailing gap on every list item (for a label that,
+        // here, no longer exists) without reserving the same on the leading edge, so simply
+        // centering the row still leaves the icon closer to the left than the right. Drop
+        // that reserved gap so the row is symmetric before centering it.
+        a[mat-list-item],
+        button[mat-list-item] {
+            justify-content: center !important;
+            padding-inline: 0 !important;
+
+            // The title slot is empty here but still flex-grows to fill 100% of the row,
+            // leaving no free space for justify-content to center the icon into. Drop it out
+            // of the layout entirely so the icon is the only flex item left to center.
+            ::ng-deep .mdc-list-item__content {
+                display: none;
+            }
+        }
+    }
+}
+
+// Unlike a[mat-list-item], button[mat-list-item] (used for the "Sign in" action, which has
+// no route to link to) inherits the native <button> border/background — strip it back down
+// to look identical to the anchor-based rows around it.
+button[mat-list-item] {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sidenav-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    mat-nav-list {
+        flex: 0 0 auto;
+    }
+}
+
+// Every list item (nav links + account/settings/sign-in rows) projects its icon via
+// matListItemIcon and its label via matListItemTitle, but nothing in Material's own
+// defaults guarantees those two end up vertically centered with a consistent gap between
+// them — enforce both explicitly, once, for every row in the sidebar.
+::ng-deep mat-sidenav .mdc-list-item__content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
 }
 
 .nav-icon {
-    vertical-align: middle;
     color: var(--mat-sys-on-surface-variant);
 }
 
-.theme-toggle {
-    height: 36px;
+.nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-    .mat-button-toggle {
-        color: var(--mat-sys-on-primary-container);
-        background: transparent;
+.nav-group-label {
+    padding: var(--space-3) var(--space-4) var(--space-1);
+    font: var(--mat-sys-label-small);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    text-decoration: none;
+    flex: 0 0 auto;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+:host-context(.dark) .brand {
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+}
+
+.brand-logo {
+    flex: 0 0 auto;
+    background-color: var(--mat-sys-primary);
+    border-radius: var(--space-1);
+    padding: var(--space-1);
+}
+
+:host-context(.dark) .brand-logo {
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+}
+
+.brand-title {
+    font: var(--mat-sys-title-small);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidenav-spacer {
+    flex: 1 1 auto;
+}
+
+.account-nav-list {
+    flex: 0 0 auto;
+}
+
+.account-trigger {
+    position: relative;
+}
+
+// A zero-size anchor pinned to the row's own bottom-right corner (i.e. the rail's right edge,
+// in both collapsed and expanded widths), so the account menu opens as a flyout beside the
+// sidebar with its bottom edge lined up with the button's, instead of stacking directly on
+// top of the trigger row or floating with a gap below it.
+.menu-anchor {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    // Material's own trailing-meta-slot class reserves a 16px margin here by default (meant
+    // to space a visible meta control off from the row's edge) — zero it out so `right: 0`
+    // lands exactly on the row's true right edge instead of 16px short of it.
+    margin: 0 !important;
+}
+
+.menu-theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+
+    span {
+        flex: 1 1 auto;
+    }
+}
+
+// A lower-emphasis control than the nav/account rows above it (it's a sidebar display
+// setting, not a destination), so it's deliberately smaller — and, at rest, sits at the rail's
+// right edge (there's no label to its left to align with) rather than sharing the same left
+// inset as the icons above it. Collapsed, it's centered the same way those icons are.
+.collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    padding: var(--space-2) var(--space-4) var(--space-2) 0;
+    border: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
     }
 
-    .mat-button-toggle-checked {
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
+    &:hover,
+    &:focus-visible {
+        background: var(--mat-sys-surface-container-high);
     }
+}
+
+mat-sidenav.collapsed .collapse-toggle {
+    justify-content: center;
+    padding-right: 0;
 }

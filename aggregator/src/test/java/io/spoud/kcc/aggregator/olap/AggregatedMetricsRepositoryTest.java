@@ -2,6 +2,7 @@ package io.spoud.kcc.aggregator.olap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
+import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AggregatedMetricsRepositoryTest {
 
     private static final OlapConfigProperties testOlapConfig = FakeOlapConfig.builder().build();
+    private static final CostControlConfigProperties testCostConfig = TestConfigProperties.builder().build();
     AggregatedMetricsRepository repo;
     OlapInfra olapInfra;
 
@@ -33,7 +35,7 @@ class AggregatedMetricsRepositoryTest {
         MetricNameRepository metricNameRepository = new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()), olapInfra);
 
         olapInfra.init();
-        repo = new AggregatedMetricsRepository(testOlapConfig, olapInfra, metricNameRepository);
+        repo = new AggregatedMetricsRepository(testOlapConfig, testCostConfig, olapInfra, metricNameRepository);
     }
 
     @DisplayName("DB memory limit respects given constraint")
@@ -65,6 +67,7 @@ class AggregatedMetricsRepositoryTest {
                 .build();
         OlapInfra localOlapInfa = new OlapInfra(fakeOlapConfig);
         var repo = new AggregatedMetricsRepository(fakeOlapConfig,
+                testCostConfig,
                 localOlapInfa,
                 null);
         localOlapInfa.init();
@@ -440,6 +443,145 @@ class AggregatedMetricsRepositoryTest {
             Files.delete(exportPath);
         }
         assertThat(metricCount).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Grouping without a metric splits by metric instead of summing across them")
+    void groupedHistoryNeverSumsAcrossMetrics() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+        var ctx = Map.of("app", "kcc");
+
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_in").setValue(2).setContext(ctx).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_retained").setValue(5).setContext(ctx).build());
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start, end, Set.of(), "app");
+
+        assertThat(history).hasSize(2);
+        assertThat(history.stream().map(MetricHistoryTO::getName))
+                .containsExactlyInAnyOrder("bytes_in · kcc", "bytes_retained · kcc");
+        assertThat(history.stream().map(MetricHistoryTO::getValues).flatMap(Collection::stream))
+                .containsExactlyInAnyOrder(2.0, 5.0);
+    }
+
+    @Test
+    @DisplayName("Naming a single metric keeps the series named by context value alone")
+    void groupedHistoryKeepsBareNamesForASingleMetric() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        var end = start.plus(Duration.ofHours(1));
+
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_in").setValue(2).setContext(Map.of("app", "kcc")).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end)
+                .setInitialMetricName("bytes_retained").setValue(5).setContext(Map.of("app", "kcc")).build());
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start, end, Set.of("bytes_in"), "app");
+
+        assertThat(history).extracting(MetricHistoryTO::getName).containsExactly("kcc");
+        assertThat(history.iterator().next().getValues()).containsExactly(2.0);
+    }
+
+    @Test
+    @DisplayName("History without a group-by totals per metric rather than per entity")
+    void historyTotalsReturnsOneBucketedSeriesPerMetric() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS).minus(Duration.ofHours(6));
+        for (int hour = 0; hour < 6; hour++) {
+            for (var metric : List.of("metric1", "metric2")) {
+                for (var entity : List.of("user-a", "user-b", "user-c")) {
+                    repo.insertRow(randomDatapoint()
+                            .setInitialMetricName(metric)
+                            .setName(entity)
+                            .setValue(1.0)
+                            .setStartTime(start.plus(Duration.ofHours(hour)))
+                            .setEndTime(start.plus(Duration.ofHours(hour + 1)))
+                            .build());
+                }
+            }
+        }
+
+        repo.flushToDb();
+
+        var totals = repo.getHistoryGrouped(start, start.plus(Duration.ofHours(6)), Set.of(), null);
+
+        assertThat(totals).hasSize(2);
+        assertThat(totals).extracting(MetricHistoryTO::getName)
+                .containsExactlyInAnyOrder("metric1", "metric2");
+        totals.forEach(series -> {
+            assertThat(series.getTimes()).hasSize(6);
+            assertThat(series.getValues()).allMatch(v -> v == 3.0);
+        });
+    }
+
+    @Test
+    @DisplayName("History totals honour the metric name filter")
+    void historyTotalsFilterByMetricName() {
+        var start = Instant.now().truncatedTo(ChronoUnit.HOURS).minus(Duration.ofHours(2));
+        for (var metric : List.of("metric1", "metric2")) {
+            repo.insertRow(randomDatapoint()
+                    .setInitialMetricName(metric)
+                    .setStartTime(start)
+                    .setEndTime(start.plus(Duration.ofHours(1)))
+                    .build());
+        }
+
+        repo.flushToDb();
+
+        var totals = repo.getHistoryGrouped(start, start.plus(Duration.ofHours(2)), Set.of("metric2"), null);
+
+        assertThat(totals).extracting(MetricHistoryTO::getName).containsExactly("metric2");
+    }
+
+    @Test
+    @DisplayName("Default bucket width holds a series at a roughly constant number of points")
+    void defaultBucketWidthKeepsPointCountConstant() {
+        assertThat(bucketsOver(Duration.ofDays(1))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(7))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(24))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(90))).isEqualTo(24);
+        assertThat(bucketsOver(Duration.ofDays(365))).isEqualTo(24);
+    }
+
+    @Test
+    @DisplayName("Ranges of 24 days or less keep exactly the width they had before")
+    void defaultBucketWidthUnchangedForShortRanges() {
+        for (int days = 1; days <= 24; days++) {
+            long previous = Math.min(24, Math.max(1, days));
+            assertThat(widthOver(Duration.ofDays(days)))
+                    .as("bucket width in hours for a %d day range", days)
+                    .isEqualTo(previous);
+        }
+    }
+
+    @Test
+    @DisplayName("Bucket width never drops below the window the rows were aggregated into")
+    void defaultBucketWidthFloorsAtTheAggregationWindow() {
+        assertThat(widthOver(Duration.ofHours(1))).isEqualTo(1);
+        assertThat(widthOver(Duration.ofMinutes(30))).isEqualTo(1);
+        assertThat(widthOver(Duration.ZERO)).isEqualTo(1);
+
+        // a finer window keeps the finer resolution rather than rounding up to an hour
+        assertThat(widthOver(Duration.ofHours(2), Duration.ofMinutes(15)))
+                .isEqualTo(Duration.ofMinutes(15));
+        // a coarser one is never subdivided below the rows that exist
+        assertThat(widthOver(Duration.ofHours(2), Duration.ofDays(1)))
+                .isEqualTo(Duration.ofDays(1));
+    }
+
+    private static long widthOver(Duration range) {
+        return widthOver(range, Duration.ofHours(1)).toHours();
+    }
+
+    private static Duration widthOver(Duration range, Duration aggregationWindow) {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        return AggregatedMetricsRepository.defaultBucketWidth(start, start.plus(range), aggregationWindow);
+    }
+
+    private static long bucketsOver(Duration range) {
+        return range.toHours() / widthOver(range);
     }
 
     private static final Random random = new Random();

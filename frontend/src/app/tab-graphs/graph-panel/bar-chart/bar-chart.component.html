@@ -1,16 +1,52 @@
-<div id="toolbar">
-    <mat-checkbox
-        color="primary"
-        class="mb-1"
-        [checked]="normalized()"
-        (change)="normalized.set($event.checked)"
-    >
-        normalized
-    </mat-checkbox>
-    <button mat-raised-button color="secondary" (click)="exportToCsv()">
-        <mat-icon>description</mat-icon>
-        Export as CSV
-    </button>
-</div>
+@if (showToolbar()) {
+    <div class="chart-toolbar">
+        <button
+            mat-icon-button
+            type="button"
+            aria-label="Chart options"
+            [matMenuTriggerFor]="chartMenu"
+        >
+            <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #chartMenu="matMenu">
+            <button mat-menu-item type="button" (click)="normalized.set(!normalized())">
+                <mat-icon>{{ normalized() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                <span>Normalized</span>
+            </button>
+            @if (type() === 'line') {
+                <button mat-menu-item type="button" (click)="connectNulls.set(!connectNulls())">
+                    <mat-icon>{{
+                        connectNulls() ? 'check_box' : 'check_box_outline_blank'
+                    }}</mat-icon>
+                    <span>Connect gaps</span>
+                </button>
+            }
+            <button mat-menu-item type="button" (click)="showLegend.set(!showLegend())">
+                <mat-icon>{{ showLegend() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                <span>{{ showLegend() ? 'Hide legend' : 'Show legend' }}</span>
+            </button>
+            <button mat-menu-item type="button" (click)="exportToCsv()">
+                <mat-icon>description</mat-icon>
+                <span>Export as CSV</span>
+            </button>
+        </mat-menu>
+    </div>
+}
 
-<div echarts [options]="options()" [theme]="'default'" (chartInit)="onChartInit($event)"></div>
+<div class="chart-row">
+    <div
+        class="chart-canvas"
+        echarts
+        [options]="options()"
+        [theme]="themeService.chartTheme()"
+        (chartInit)="onChartInit($event)"
+    ></div>
+    @if (showLegend()) {
+        <app-chart-legend
+            [items]="legendItems()"
+            [sort]="legendSort()"
+            (sortChange)="legendSort.set($event)"
+            (toggleSeries)="toggleLegend($event)"
+        ></app-chart-legend>
+    }
+</div>

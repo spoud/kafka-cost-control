@@ -1,4 +1,6 @@
-<mat-card>
+<app-page-header title="Others" subtitle="Administrative actions."></app-page-header>
+
+<mat-card appearance="outlined">
     <mat-card-header>
         <mat-card-title>Reprocess</mat-card-title>
     </mat-card-header>
@@ -19,8 +21,6 @@
         </mat-form-field>
     </mat-card-content>
     <mat-card-actions>
-        <button mat-button mat-raised-button color="primary" (click)="openReprocessDialog()">
-            Reprocess
-        </button>
+        <button mat-flat-button color="primary" (click)="openReprocessDialog()">Reprocess</button>
     </mat-card-actions>
 </mat-card>

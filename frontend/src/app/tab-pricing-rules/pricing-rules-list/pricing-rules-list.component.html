@@ -1,31 +1,38 @@
-<table
-    mat-table
-    [dataSource]="dataSource"
-    (matSortChange)="announceSortChange($event)"
-    matSort
-    class="mat-elevation-z8"
->
-    <ng-container matColumnDef="creationTime">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Creation time</th>
-        <td mat-cell *matCellDef="let element">{{ element.creationTime }}</td>
-    </ng-container>
-    <ng-container matColumnDef="metricName">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Metric name</th>
-        <td mat-cell *matCellDef="let element">{{ element.metricName }}</td>
-    </ng-container>
-    <ng-container matColumnDef="baseCost">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Base cost</th>
-        <td mat-cell *matCellDef="let element">{{ element.baseCost }}</td>
-    </ng-container>
-    <ng-container matColumnDef="costFactor">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Cost factor</th>
-        <td mat-cell *matCellDef="let element">{{ element.costFactor }}</td>
-    </ng-container>
-    <ng-container matColumnDef="costFactorGb">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Cost factor in GB</th>
-        <td mat-cell *matCellDef="let element">{{ element | bytesToGb }}</td>
-    </ng-container>
+<app-page-header
+    title="Pricing Rules"
+    subtitle="Metric pricing rules used to compute costs."
+></app-page-header>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-</table>
+<app-data-table
+    [loading]="loading()"
+    [error]="error()"
+    [empty]="empty()"
+    emptyMessage="No pricing rules found."
+>
+    <table mat-table [dataSource]="dataSource" (matSortChange)="announceSortChange($event)" matSort>
+        <ng-container matColumnDef="creationTime">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Creation time</th>
+            <td mat-cell *matCellDef="let element">{{ element.creationTime }}</td>
+        </ng-container>
+        <ng-container matColumnDef="metricName">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Metric name</th>
+            <td mat-cell *matCellDef="let element">{{ element.metricName }}</td>
+        </ng-container>
+        <ng-container matColumnDef="baseCost">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Base cost</th>
+            <td mat-cell *matCellDef="let element">{{ element.baseCost }}</td>
+        </ng-container>
+        <ng-container matColumnDef="costFactor">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Cost factor</th>
+            <td mat-cell *matCellDef="let element">{{ element.costFactor }}</td>
+        </ng-container>
+        <ng-container matColumnDef="costFactorGb">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Cost factor in GB</th>
+            <td mat-cell *matCellDef="let element">{{ element | bytesToGb }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+    <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+</app-data-table>

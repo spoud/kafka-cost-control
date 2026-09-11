@@ -45,3 +45,31 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  kafka-init:
+    image: confluentinc/cp-kafka:8.3.0
+    depends_on:
+      - broker
+    restart: "no"
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        # cp-kafka 8.x images no longer ship `cub`, so poll the broker instead.
+        until kafka-topics --bootstrap-server broker:29092 --list >/dev/null 2>&1; do sleep 2; done
+        # Topics the aggregator's `quarkus.kafka-streams.topics` waits on before it will call
+        # KafkaStreams#start() (see aggregator/src/main/resources/application.yaml). On a clean
+        # broker none of these exist yet, and nothing else creates them, so Kafka Streams would
+        # otherwise be stuck in state CREATED forever.
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic metrics-raw-telegraf-env --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic context-data --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic pricing-rules --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic aggregated --partitions 1 --replication-factor 1
+        # retention.ms=-1 (never expire) on the raw topic: seed-data backdates each record's Kafka
+        # timestamp up to ~90 days into the past so Kafka Streams' zero-grace windowing buckets it
+        # correctly, but that same timestamp is what the broker's default 7-day log retention uses
+        # for cleanup - without this, most of a fresh `load` gets deleted before the aggregator
+        # ever consumes it. Applied via --alter rather than the create above, because `--create
+        # --if-not-exists` silently discards --config when the topic already exists (auto-created
+        # by a producer, or left over from an earlier run).
+        kafka-configs --bootstrap-server broker:29092 --alter --entity-type topics --entity-name metrics-raw-telegraf-env --add-config retention.ms=-1

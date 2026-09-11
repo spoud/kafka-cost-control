@@ -10,6 +10,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideGraphql } from './graphql-provider';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { APP_BASE_HREF, PlatformLocation } from '@angular/common';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 
 export const BROWSER_LOCALE = new InjectionToken<string>('BrowserLocale');
 
@@ -28,6 +29,10 @@ export const appConfig: ApplicationConfig = {
         {
             provide: BROWSER_LOCALE,
             useValue: Intl.DateTimeFormat().resolvedOptions().locale,
+        },
+        {
+            provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+            useValue: { appearance: 'outline' },
         },
     ],
 };

@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output } from '@angular/core';
+import { Component, computed, effect, inject, input, output, Signal } from '@angular/core';
 import { GraphFilter } from '../tab-graphs.component';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -7,10 +7,19 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSelectModule } from '@angular/material/select';
 import { GraphFilterService } from './graph-filter.service';
+import { DateRangeQuickSelectComponent } from '../../common/date-range-quick-select/date-range-quick-select.component';
+import { DateRange, endOfDay } from '../../common/date-range';
+import { toContextKeyControl, toContextKeys } from '../../common/context-keys';
 
 @Component({
     selector: 'app-graph-filter',
-    imports: [ReactiveFormsModule, MatFormFieldModule, MatDatepickerModule, MatSelectModule],
+    imports: [
+        ReactiveFormsModule,
+        MatFormFieldModule,
+        MatDatepickerModule,
+        MatSelectModule,
+        DateRangeQuickSelectComponent,
+    ],
     templateUrl: './graph-filter.component.html',
     styleUrl: './graph-filter.component.scss',
 })
@@ -22,6 +31,7 @@ export class GraphFilterComponent {
     graphFilter = output<GraphFilter>();
 
     form: FormGroup;
+    selectedDateRange: Signal<DateRange | null>;
 
     constructor() {
         const formBuilder = inject(FormBuilder);
@@ -44,21 +54,57 @@ export class GraphFilterComponent {
                     from: newValues.from,
                     to: newValues.to,
                     metricName: newValues.metricName,
-                    groupByContext: newValues.groupByContext,
+                    // the control binds one key; the filter carries a list
+                    groupByContext: toContextKeyControl(newValues.groupByContext),
                 });
             }
             // only do this once
             effectRef.destroy();
         });
 
+        // Default the metric wherever it is missing; default the group-by only when no filter was
+        // supplied, since empty is a valid group-by ("None") and a panel must keep the one it has.
+        effect(() => {
+            const metricNames = this.graphFilterService.metricNames();
+            const contextKeys = this.graphFilterService.contextKeys();
+
+            if (!this.form.value.metricName && metricNames.length > 0) {
+                this.form.patchValue({ metricName: metricNames[0].metricName });
+            }
+
+            if (this.existingFilter()) {
+                return;
+            }
+            // pristine, not just empty: '' is also what "None" sets.
+            const groupBy = this.form.get('groupByContext');
+            if (groupBy && groupBy.pristine && !groupBy.value && contextKeys.length > 0) {
+                this.form.patchValue({ groupByContext: contextKeys[0] });
+            }
+        });
+
         const values = toSignal(this.form.valueChanges.pipe(debounceTime(300)), {
             initialValue: this.form.value,
         });
+        this.selectedDateRange = computed(() =>
+            values().from && values().to ? { from: values().from, to: values().to } : null
+        );
         effect(() => {
             const filter = values();
-            if (filter.metricName && filter.groupByContext) {
-                this.graphFilter.emit(filter);
+            // Metric only: an empty group-by is the valid "None" and must be emittable.
+            if (filter.metricName) {
+                // normalized on the way out so consumers never see the control's raw string -
+                // writing that onto a Panel is what made configured panels fail their own
+                // hydration guard and disappear on the next reload
+                this.graphFilter.emit({
+                    ...filter,
+                    to: filter.to ? endOfDay(filter.to) : filter.to,
+                    groupByContext: toContextKeys(filter.groupByContext),
+                });
             }
         });
+    }
+
+    applyDateRange(range: DateRange): void {
+        this.form.patchValue({ from: range.from, to: range.to });
     }
 }

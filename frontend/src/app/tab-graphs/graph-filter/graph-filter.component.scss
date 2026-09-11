@@ -1,3 +1,10 @@
+form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-4);
+}
+
 .form-full-width {
-    width: 100%;
+    flex: 1 1 220px;
 }

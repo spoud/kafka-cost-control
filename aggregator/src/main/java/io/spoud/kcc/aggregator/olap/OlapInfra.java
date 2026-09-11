@@ -84,12 +84,25 @@ public class OlapInfra {
         try {
             if (connection == null || connection.isClosed()) {
                 Class.forName("org.duckdb.DuckDBDriver"); // force load the driver
+                createParentDirectory(olapConfig.databaseUrl());
                 connection = DriverManager.getConnection(olapConfig.databaseUrl());
             }
             return Optional.of(connection);
         } catch (Exception e) {
             Log.warn("Failed to get read-write connection to OLAP database", e);
             return Optional.empty();
+        }
+    }
+
+    /** Creates the parent directory of a file-backed database URL; DuckDB does not create it. */
+    private static void createParentDirectory(String databaseUrl) throws IOException {
+        String path = databaseUrl.substring("jdbc:duckdb:".length());
+        if (path.isBlank() || path.startsWith(":")) {
+            return; // in-memory (":memory:" or no path at all)
+        }
+        Path parent = Path.of(path).getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
     }
 

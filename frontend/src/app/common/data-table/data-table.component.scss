@@ -1,0 +1,18 @@
+.data-table {
+    background: var(--mat-sys-surface-container-low);
+    border-radius: var(--radius-md);
+    box-shadow: var(--elevation-resting);
+    overflow: hidden;
+}
+
+.data-table-error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    color: var(--mat-sys-error);
+}
+
+.data-table-content {
+    overflow-x: auto;
+}

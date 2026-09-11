@@ -32,6 +32,12 @@ mp:
         schema:
           registry:
             url: ${kafka.schema.registry.url}
+        # Required by Quarkus for the Avro-typed channels below, but not used at runtime: the
+        # serializer in play is Confluent's, driven by schema.registry.url above. A reserved
+        # .invalid host makes it obvious nothing is meant to resolve this.
+        apicurio:
+          registry:
+            url: http://apicurio.invalid/
 
     outgoing:
       pricing-rules-out:
@@ -96,3 +102,21 @@ quarkus:
         level: WARN
   container-image:
     build: true
+
+# Dev only. Defaults above are left at their production values; everything local lives here, so
+# `quarkus.profile=dev` is the only thing that moves them.
+"%dev":
+  cc:
+    aggregation-window-size: PT1H
+    olap:
+      # on in dev so the OLAP-backed queries (metricContextKeys, the cost-overview Group By) have
+      # data without a /api/v1/kafka-stream/reprocess first
+      enabled: true
+      database:
+        # file-backed so it survives a restart, under /tmp/cc with the state dir below so
+        # `rm -rf /tmp/cc` is a clean slate
+        url: "jdbc:duckdb:/tmp/cc/local.db"
+  quarkus:
+    kafka-streams:
+      state:
+        dir: /tmp/cc/my-streams
