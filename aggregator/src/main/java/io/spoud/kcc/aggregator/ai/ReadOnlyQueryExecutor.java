@@ -33,6 +33,12 @@ import java.util.concurrent.TimeoutException;
 @ApplicationScoped
 public class ReadOnlyQueryExecutor {
 
+    /**
+     * Concurrent model-authored queries. Small on purpose: these compete with metric ingest for
+     * the shared DuckDB instance, and a slow question is a better outcome than a slow write path.
+     */
+    private static final int MAX_CONCURRENT_QUERIES = 4;
+
     private final OlapInfra olapInfra;
     private final SqlGuard sqlGuard;
     private final AiConfigProperties aiConfig;
@@ -42,7 +48,12 @@ public class ReadOnlyQueryExecutor {
         this.olapInfra = olapInfra;
         this.sqlGuard = sqlGuard;
         this.aiConfig = aiConfig;
-        this.queryExecutor = Executors.newCachedThreadPool(r -> {
+        // Bounded, not cached: every running query holds a DuckDB connection against the same
+        // instance - and so the same memory limit - that ingest and /olap/export use. Queuing
+        // under load is better than letting concurrent questions reach the shared database. A
+        // query that waits too long for a slot still ends at the same queryTimeout as one that
+        // ran, since the timeout is measured on the caller.
+        this.queryExecutor = Executors.newFixedThreadPool(MAX_CONCURRENT_QUERIES, r -> {
             Thread t = new Thread(r, "ai-sql-query");
             t.setDaemon(true);
             return t;

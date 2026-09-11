@@ -39,7 +39,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @EnabledIfSystemProperty(named = "assistant.live", matches = "true")
 class AssistantLiveTest {
 
-    private static final String MODEL = System.getProperty("assistant.model", "Qwen3-Coder:latest");
+    /**
+     * Overridable with -Dassistant.model. The default matches cc.ai.model in application.yaml, so
+     * a machine set up for local development can run this without extra flags. Nothing in the
+     * default suite reaches a model: the whole class is gated on -Dassistant.live.
+     */
+    private static final String MODEL = System.getProperty("assistant.model", "qwen3.8:27b");
 
     public static class OllamaProfile implements QuarkusTestProfile {
         @Override
@@ -53,7 +58,7 @@ class AssistantLiveTest {
                     // the shipped configuration rather than bypassing it - which is how the
                     // misplaced Ollama timeout stayed hidden while this test passed.
                     "cc.ai.base-url", "http://localhost:11434/v1",
-                    "cc.ai.model", System.getProperty("assistant.model", "Qwen3-Coder:latest"));
+                    "cc.ai.model", System.getProperty("assistant.model", "qwen3.8:27b"));
             // Deliberately does NOT override quarkus.langchain4j.ollama.timeout. An earlier
             // version did, and that hid a real defect: application.yaml had the timeout nested
             // under chat-model, where it is silently ignored. The test passed, the app did not.
@@ -191,7 +196,7 @@ class AssistantLiveTest {
 
         @Override
         public String model() {
-            return "qwen2.5:7b";
+            return MODEL;
         }
 
         @Override

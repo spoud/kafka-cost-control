@@ -40,7 +40,7 @@ public interface AiConfigProperties {
 
     /** Model identifier, in whatever form the endpoint expects. Must support tool calling. */
     @WithName("model")
-    @WithDefault("qwen3-coder:latest")
+    @WithDefault("qwen3.8:27b")
     String model();
 
     /** API key for providers that need one. Ignored by those that do not, such as Ollama. */
