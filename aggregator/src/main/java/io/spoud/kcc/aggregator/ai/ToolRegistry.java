@@ -3,6 +3,11 @@ package io.spoud.kcc.aggregator.ai;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
+import io.spoud.kcc.aggregator.data.ContextDataEntity;
+import io.spoud.kcc.aggregator.data.PricingRuleEntity;
+import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
+import io.spoud.kcc.aggregator.repository.PricingRulesStreamRepository;
+import java.util.Comparator;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -28,15 +33,21 @@ public class ToolRegistry {
     private final AggregatedMetricsRepository repository;
     private final ReadOnlyQueryExecutor queryExecutor;
     private final AiConfigProperties aiConfig;
+    private final ContextDataStreamRepository contextDataRepository;
+    private final PricingRulesStreamRepository pricingRulesRepository;
 
     /** SQL the model ran during the current question, surfaced to the UI for transparency. */
     private final ThreadLocal<List<String>> executedSql = ThreadLocal.withInitial(ArrayList::new);
 
     public ToolRegistry(AggregatedMetricsRepository repository, ReadOnlyQueryExecutor queryExecutor,
-                        AiConfigProperties aiConfig) {
+                        AiConfigProperties aiConfig,
+                        ContextDataStreamRepository contextDataRepository,
+                        PricingRulesStreamRepository pricingRulesRepository) {
         this.repository = repository;
         this.queryExecutor = queryExecutor;
         this.aiConfig = aiConfig;
+        this.contextDataRepository = contextDataRepository;
+        this.pricingRulesRepository = pricingRulesRepository;
     }
 
     /** Reset the per-question SQL audit trail. Call before starting a question. */
@@ -104,6 +115,17 @@ public class ToolRegistry {
                         ? LlmMessage.ToolResult.error(call.id(),
                                 "list_context_values is unavailable in private mode.")
                         : LlmMessage.ToolResult.ok(call.id(), listContextValues(call));
+                // Both carry business data - a rule's context map holds tenant and application
+                // names - so private mode refuses them for the same reason it refuses
+                // list_context_values.
+                case "list_context_rules" -> aiConfig.privateMode()
+                        ? LlmMessage.ToolResult.error(call.id(),
+                                "list_context_rules is unavailable in private mode.")
+                        : LlmMessage.ToolResult.ok(call.id(), listContextRules());
+                case "list_pricing_rules" -> aiConfig.privateMode()
+                        ? LlmMessage.ToolResult.error(call.id(),
+                                "list_pricing_rules is unavailable in private mode.")
+                        : LlmMessage.ToolResult.ok(call.id(), listPricingRules());
                 case "run_sql" -> runSql(call);
                 case "cost_overview" -> LlmMessage.ToolResult.ok(call.id(), costOverview(call));
                 default -> LlmMessage.ToolResult.error(call.id(), "Unknown tool: " + call.name());
@@ -173,6 +195,53 @@ public class ToolRegistry {
                 --- BEGIN DATA ---
                 %s
                 --- END DATA ---""".formatted(body);
+    }
+
+    /**
+     * The context-data rules: which regex assigns which context to which entity. These explain
+     * *why* a topic carries the context it does, which the aggregated table cannot answer - it
+     * holds only the outcome.
+     * <p>
+     * Regexes and context values here are user-authored, so the result is fenced like any other
+     * stored data.
+     */
+    private String listContextRules() {
+        var rules = contextDataRepository.getContextObjects();
+        if (rules.isEmpty()) {
+            return "No context-data rules are configured.";
+        }
+        var body = rules.stream()
+                .sorted(Comparator.comparing(ContextDataEntity::entityType)
+                        .thenComparing(ContextDataEntity::regex))
+                .map(r -> {
+                    var validity = new StringBuilder();
+                    if (r.validFrom() != null) {
+                        validity.append(" from=").append(r.validFrom());
+                    }
+                    if (r.validUntil() != null) {
+                        validity.append(" until=").append(r.validUntil());
+                    }
+                    return "%s matching /%s/ -> %s%s".formatted(
+                            r.entityType(), r.regex(), r.context(), validity);
+                })
+                .collect(Collectors.joining("\n"));
+        return asUntrustedData(body);
+    }
+
+    /**
+     * The pricing rules behind every cost figure: cost = baseCost + costFactor * value, per metric.
+     * Lets the assistant explain a number rather than only produce one.
+     */
+    private String listPricingRules() {
+        var rules = pricingRulesRepository.getPricingRules();
+        if (rules.isEmpty()) {
+            return "No pricing rules are configured, so costs cannot be calculated.";
+        }
+        return rules.stream()
+                .sorted(Comparator.comparing(PricingRuleEntity::metricName))
+                .map(r -> "%s: cost = %s + %s * value".formatted(
+                        r.metricName(), r.baseCost(), r.costFactor()))
+                .collect(Collectors.joining("\n"));
     }
 
     private LlmMessage.ToolResult runSql(LlmMessage.ToolCall call) {

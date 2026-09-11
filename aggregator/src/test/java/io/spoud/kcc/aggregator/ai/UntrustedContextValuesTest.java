@@ -20,7 +20,7 @@ class UntrustedContextValuesTest {
     private static ToolRegistry registryReturning(Set<String> values) {
         AggregatedMetricsRepository repository = Mockito.mock(AggregatedMetricsRepository.class);
         Mockito.when(repository.getAllContextValues("application")).thenReturn(values);
-        return new ToolRegistry(repository, null, new TestAiConfig());
+        return new ToolRegistry(repository, null, new TestAiConfig(), null, null);
     }
 
     @Test

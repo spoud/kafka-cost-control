@@ -45,7 +45,7 @@ class TokenBudgetTest {
     }
 
     private static ToolRegistry stubRegistry(AiConfigProperties config) {
-        return new ToolRegistry(null, null, config) {
+        return new ToolRegistry(null, null, config, null, null) {
             @Override
             public LlmMessage.ToolResult invoke(LlmMessage.ToolCall call) {
                 return LlmMessage.ToolResult.ok(call.id(), "rows");

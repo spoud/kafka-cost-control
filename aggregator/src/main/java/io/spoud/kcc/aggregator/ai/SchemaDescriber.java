@@ -253,7 +253,18 @@ public class SchemaDescriber {
     public List<LlmTool> tools() {
         var tools = new java.util.ArrayList<>(alwaysAvailableTools());
         if (!aiConfig.privateMode()) {
+            // All three surface stored business data - rule context maps carry tenant and
+            // application names - so private mode withholds them together.
             tools.add(listContextValuesTool());
+            tools.add(LlmTool.noArgs("list_context_rules",
+                    "List the context-data rules: which regex matches which topics or principals, "
+                            + "and the context key-values it assigns. Use this to explain WHY an entity "
+                            + "carries the context it does - the aggregated table stores only the outcome, "
+                            + "not the rule that produced it."));
+            tools.add(LlmTool.noArgs("list_pricing_rules",
+                    "List the pricing rules behind every cost figure: per metric, "
+                            + "cost = baseCost + costFactor * value. Use this to explain how a cost was "
+                            + "derived, or to say which metrics have no pricing configured."));
         }
         return List.copyOf(tools);
     }
