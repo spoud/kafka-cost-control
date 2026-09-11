@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.Optional;
+import java.util.Objects;
 
 /**
  * Executes the tools declared by {@link SchemaDescriber}. Results are plain text bound for the
@@ -343,12 +345,12 @@ public class ToolRegistry {
         return String.valueOf(value);
     }
 
-    private java.util.Optional<String> optionalString(LlmMessage.ToolCall call, String name) {
+    private Optional<String> optionalString(LlmMessage.ToolCall call, String name) {
         Object value = call.input().get(name);
         if (value == null || String.valueOf(value).isBlank()) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
-        return java.util.Optional.of(String.valueOf(value));
+        return Optional.of(String.valueOf(value));
     }
 
     private Integer optionalInt(LlmMessage.ToolCall call, String name) {
@@ -373,7 +375,7 @@ public class ToolRegistry {
             return List.of();
         }
         if (value instanceof List<?> list) {
-            return list.stream().filter(java.util.Objects::nonNull).map(String::valueOf).toList();
+            return list.stream().filter(Objects::nonNull).map(String::valueOf).toList();
         }
         if (value instanceof Map<?, ?> map) {
             return ((Map<String, Object>) map).values().stream().map(String::valueOf).toList();

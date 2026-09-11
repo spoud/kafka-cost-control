@@ -78,7 +78,7 @@ public class LangChain4jLlmClient implements LlmClient {
     }
 
     /** Input plus output for one round trip. Zero when the provider reports no usage. */
-    private static int totalTokens(dev.langchain4j.model.chat.response.ChatResponse response) {
+    private static int totalTokens(ChatResponse response) {
         var usage = response.tokenUsage();
         if (usage == null) {
             return 0;

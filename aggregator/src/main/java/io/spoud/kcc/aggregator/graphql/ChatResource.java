@@ -7,7 +7,7 @@ import io.spoud.kcc.aggregator.graphql.data.AssistantStatus;
 import io.spoud.kcc.aggregator.graphql.data.ChatAnswer;
 import io.spoud.kcc.aggregator.graphql.data.ChatRequest;
 import jakarta.annotation.security.PermitAll;
-import jakarta.inject.Inject;
+import jakarta.enterprise.context.RequestScoped;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -37,13 +37,14 @@ import org.eclipse.microprofile.graphql.NonNull;
 @Consumes(MediaType.APPLICATION_JSON)
 @GraphQLApi
 @Authenticated
+// @RequestScoped, matching UserResource: this reads the per-request SecurityIdentity, and an
+// explicit scope is better than relying on whatever default the JAX-RS and GraphQL layers agree on.
+@RequestScoped
 @RequiredArgsConstructor
 public class ChatResource {
 
     private final ChatService chatService;
-
-    @Inject
-    SecurityIdentity securityIdentity;
+    private final SecurityIdentity securityIdentity;
 
     /**
      * Conversation histories are keyed on this, never on the session id alone. The id is generated

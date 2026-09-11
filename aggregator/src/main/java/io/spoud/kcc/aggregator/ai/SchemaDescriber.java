@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 /**
  * Builds the system prompt: the table definition plus the domain rules that separate a correct
@@ -251,7 +252,7 @@ public class SchemaDescriber {
      * to keep in-house.
      */
     public List<LlmTool> tools() {
-        var tools = new java.util.ArrayList<>(alwaysAvailableTools());
+        var tools = new ArrayList<>(alwaysAvailableTools());
         if (!aiConfig.privateMode()) {
             // All three surface stored business data - rule context maps carry tenant and
             // application names - so private mode withholds them together.
