@@ -28,6 +28,9 @@ cc:
     api-key: ${CC_AI_API_KEY:not-configured}
     # Few-second defaults are too short: a local model loads into memory, then does tool calls.
     request-timeout: ${CC_AI_REQUEST_TIMEOUT:PT10M}
+    # Tokens one question may spend across all its round trips; 0 removes the ceiling. The other
+    # limits bound how many calls and how long each query runs, not what a question costs.
+    max-tokens-per-question: ${CC_AI_MAX_TOKENS_PER_QUESTION:200000}
   admin-password: admin
   metrics:
     aggregations:

@@ -24,6 +24,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class ReadOnlyQueryExecutorTest {
 
+    /** Deliberately tiny row cap so the truncation path is exercised. */
+    private static TestAiConfig tinyRowCapConfig() {
+        var config = new TestAiConfig();
+        config.maxRows = 2;
+        config.queryTimeout = java.time.Duration.ofSeconds(5);
+        return config;
+    }
+
     private OlapInfra olapInfra;
     private ReadOnlyQueryExecutor executor;
 
@@ -32,7 +40,7 @@ class ReadOnlyQueryExecutorTest {
         olapInfra = new OlapInfra(new FakeOlapConfig());
         olapInfra.init();
         seedRows(4);
-        executor = new ReadOnlyQueryExecutor(olapInfra, new SqlGuard(), new FakeAiConfig());
+        executor = new ReadOnlyQueryExecutor(olapInfra, new SqlGuard(), tinyRowCapConfig());
     }
 
     @AfterEach
@@ -72,7 +80,7 @@ class ReadOnlyQueryExecutorTest {
     void appendsTheRowCapAsALimitWhenTheQueryHasNone() {
         var result = executor.execute("SELECT name FROM aggregated_data");
 
-        // FakeAiConfig caps at 2 rows, so the guard appends LIMIT 2.
+        // the config caps at 2 rows, so the guard appends LIMIT 2.
         assertThat(result.executedSql()).endsWith("LIMIT 2");
         assertThat(result.rowCount()).isEqualTo(2);
     }
@@ -150,7 +158,7 @@ class ReadOnlyQueryExecutorTest {
                     }
                 }),
                 new SqlGuard(),
-                new FakeAiConfig());
+                tinyRowCapConfig());
 
         assertThatThrownBy(() -> disabled.execute("SELECT 1"))
                 .isInstanceOf(ReadOnlyQueryExecutor.QueryFailedException.class)
@@ -223,61 +231,4 @@ class ReadOnlyQueryExecutorTest {
         }
     }
 
-    /** Deliberately tiny row cap so the truncation path is exercised. */
-    private static class FakeAiConfig implements AiConfigProperties {
-        @Override
-        public boolean enabled() {
-            return true;
-        }
-
-        @Override
-        public boolean privateMode() {
-            return false;
-        }
-
-        @Override
-        public int maxRows() {
-            return 2;
-        }
-
-        @Override
-        public int maxToolIterations() {
-            return 4;
-        }
-
-        @Override
-        public Duration queryTimeout() {
-            return Duration.ofSeconds(5);
-        }
-
-        @Override
-        public Duration requestTimeout() {
-            return Duration.ofSeconds(60);
-        }
-
-        @Override
-        public String baseUrl() {
-            return "http://localhost:11434/v1";
-        }
-
-        @Override
-        public String model() {
-            return "test-model";
-        }
-
-        @Override
-        public String apiKey() {
-            return "test";
-        }
-
-        @Override
-        public int maxSessions() {
-            return 10;
-        }
-
-        @Override
-        public int maxHistoryExchanges() {
-            return 10;
-        }
-    }
 }

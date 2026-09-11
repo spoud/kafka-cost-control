@@ -62,7 +62,9 @@ public class LangChain4jLlmClient implements LlmClient {
                 .toolSpecifications(tools.stream().map(this::toToolSpecification).toList())
                 .build();
 
-        AiMessage answer = chatModel.chat(request).aiMessage();
+        var response = chatModel.chat(request);
+        AiMessage answer = response.aiMessage();
+        int tokens = totalTokens(response);
 
         var toolCalls = new ArrayList<LlmMessage.ToolCall>();
         if (answer.hasToolExecutionRequests()) {
@@ -71,7 +73,18 @@ public class LangChain4jLlmClient implements LlmClient {
             }
         }
         // Replay the provider's own message verbatim: tool-call ids must survive intact.
-        return new LlmMessage.Assistant(answer.text() == null ? "" : answer.text(), toolCalls, answer);
+        return new LlmMessage.Assistant(
+                answer.text() == null ? "" : answer.text(), toolCalls, answer, tokens);
+    }
+
+    /** Input plus output for one round trip. Zero when the provider reports no usage. */
+    private static int totalTokens(dev.langchain4j.model.chat.response.ChatResponse response) {
+        var usage = response.tokenUsage();
+        if (usage == null) {
+            return 0;
+        }
+        return (usage.inputTokenCount() == null ? 0 : usage.inputTokenCount())
+                + (usage.outputTokenCount() == null ? 0 : usage.outputTokenCount());
     }
 
     private List<ChatMessage> toChatMessages(String systemPrompt, List<LlmMessage> history) {

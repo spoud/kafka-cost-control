@@ -140,9 +140,25 @@ public class ChatService {
     }
 
     private ChatAnswer runToolLoop(LlmClient llm, String systemPrompt, List<LlmMessage> history, List<LlmTool> tools) {
+        int spentTokens = 0;
         for (int iteration = 0; iteration < aiConfig.maxToolIterations(); iteration++) {
             LlmMessage.Assistant assistant = llm.chat(systemPrompt, history, tools);
             history.add(assistant);
+            spentTokens += assistant.tokens();
+
+            // Checked after the round trip rather than before: the cost is only known once the
+            // provider reports it, so the ceiling stops the *next* call rather than refunding
+            // this one. Answer with whatever text came back instead of silently truncating.
+            int budget = aiConfig.maxTokensPerQuestion();
+            if (budget > 0 && spentTokens >= budget) {
+                Log.warnf("Question stopped at %d tokens (ceiling %d)", spentTokens, budget);
+                return ChatAnswer.partial(
+                        assistant.hasToolCalls() || assistant.text().isBlank()
+                                ? "This question reached its cost limit before I could finish. "
+                                        + "Try narrowing it — a shorter time range or fewer dimensions usually helps."
+                                : assistant.text(),
+                        toolRegistry.executedSql());
+            }
 
             if (!assistant.hasToolCalls()) {
                 return ChatAnswer.success(assistant.text(), toolRegistry.executedSql());

@@ -88,4 +88,15 @@ public interface AiConfigProperties {
     @WithName("max-history-exchanges")
     @WithDefault("10")
     int maxHistoryExchanges();
+
+    /**
+     * Tokens one question may spend across all of its tool-calling round trips, or 0 for no
+     * ceiling. max-tool-iterations bounds how many times the model is called and query-timeout
+     * bounds each query, but neither bounds what a single question costs: one large result fed
+     * back to the model can dwarf a dozen small round trips. Against a metered provider that is
+     * the only unbounded quantity here.
+     */
+    @WithName("max-tokens-per-question")
+    @WithDefault("200000")
+    int maxTokensPerQuestion();
 }

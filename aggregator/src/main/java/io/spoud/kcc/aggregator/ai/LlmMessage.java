@@ -14,7 +14,13 @@ public sealed interface LlmMessage {
      * A model turn. {@code raw} carries the provider's own representation so it can be replayed
      * verbatim; reconstructing it from {@code text} would corrupt the conversation.
      */
-    record Assistant(String text, List<ToolCall> toolCalls, Object raw) implements LlmMessage {
+    record Assistant(String text, List<ToolCall> toolCalls, Object raw, int tokens)
+            implements LlmMessage {
+        /** Tokens unknown: a provider that reports no usage must not look free. */
+        public Assistant(String text, List<ToolCall> toolCalls, Object raw) {
+            this(text, toolCalls, raw, 0);
+        }
+
         public boolean hasToolCalls() {
             return toolCalls != null && !toolCalls.isEmpty();
         }
