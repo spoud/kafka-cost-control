@@ -23,7 +23,7 @@ cc:
 
     # The entire configuration surface for choosing a model. Defaults to a local Ollama.
     base-url: ${CC_AI_BASE_URL:http://localhost:11434/v1}
-    model: ${CC_AI_MODEL:qwen3.8:27b}
+    model: ${CC_AI_MODEL:qwen3-coder:latest}
     # Placeholder, not empty: an empty string converts to null and fails startup validation.
     api-key: ${CC_AI_API_KEY:not-configured}
     # Few-second defaults are too short: a local model loads into memory, then does tool calls.

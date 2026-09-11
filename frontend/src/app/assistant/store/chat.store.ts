@@ -2,12 +2,21 @@ import { patchState, signalStore, withHooks, withMethods, withState } from '@ngr
 import { addEntities, addEntity, removeAllEntities, withEntities } from '@ngrx/signals/entities';
 import { effect } from '@angular/core';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    isUnknownArray,
+    readPersisted,
+    readRaw,
+    writePersisted,
+    writeRaw,
+} from '../../common/persisted-state';
 
 const MESSAGES_KEY = 'kcc_chat_messages';
 const SESSION_KEY = 'kcc_chat_session';
 
 /** Bound the stored transcript: localStorage is small and shared with every other kcc_* key. */
 const MAX_STORED_MESSAGES = 100;
+/** Bump when ChatMessage changes in a way a transcript from an older build cannot satisfy. */
+const PERSISTED_VERSION = 1;
 
 export type ChatRole = 'user' | 'assistant';
 
@@ -73,32 +82,31 @@ export const ChatStore = signalStore(
     withEntities<ChatMessage>(),
     withHooks({
         onInit(store) {
-            const storedSession = localStorage.getItem(SESSION_KEY);
+            // Through common/persisted-state, like every other store: the access itself throws
+            // when a browser blocks site data, and this store is root-provided, so an unguarded
+            // read here takes the page down during construction.
+            const storedSession = readRaw(SESSION_KEY);
             if (storedSession) {
                 patchState(store, { sessionId: storedSession });
             } else {
-                localStorage.setItem(SESSION_KEY, store.sessionId());
+                writeRaw(SESSION_KEY, store.sessionId());
             }
 
-            const storedMessages = localStorage.getItem(MESSAGES_KEY);
+            const storedMessages = readPersisted(MESSAGES_KEY, PERSISTED_VERSION, isUnknownArray);
             if (storedMessages) {
-                try {
-                    patchState(store, addEntities(hydrateMessages(JSON.parse(storedMessages))));
-                } catch {
-                    // A corrupted transcript is not worth failing the page over — start fresh.
-                    localStorage.removeItem(MESSAGES_KEY);
-                }
+                // hydrated per item, so one unusable message costs that message, not the transcript
+                patchState(store, addEntities(hydrateMessages(storedMessages)));
             }
 
             effect(() => {
-                const messages = store.entities();
-                localStorage.setItem(
+                writePersisted(
                     MESSAGES_KEY,
-                    JSON.stringify(messages.slice(-MAX_STORED_MESSAGES))
+                    PERSISTED_VERSION,
+                    store.entities().slice(-MAX_STORED_MESSAGES)
                 );
             });
             effect(() => {
-                localStorage.setItem(SESSION_KEY, store.sessionId());
+                writeRaw(SESSION_KEY, store.sessionId());
             });
         },
     }),
