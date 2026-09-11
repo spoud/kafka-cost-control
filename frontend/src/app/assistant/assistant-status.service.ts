@@ -21,11 +21,19 @@ export class AssistantStatusService {
     /**
      * False while loading, so the nav entry appears once rather than flickering in and out on
      * every page load.
+     *
+     * Guarded with hasValue(): reading value() on a failed resource throws, and this feeds the
+     * app shell's nav. An unreachable backend must hide one optional entry, not take down the
+     * whole sidebar.
      */
-    readonly available = computed(() => this.statusResource.value()?.available ?? false);
+    readonly available = computed(() =>
+        this.statusResource.hasValue() ? (this.statusResource.value()?.available ?? false) : false
+    );
 
     /** Why it is unavailable, shown on the page itself for whoever has to fix the config. */
-    readonly reason = computed(() => this.statusResource.value()?.reason ?? null);
+    readonly reason = computed(() =>
+        this.statusResource.hasValue() ? (this.statusResource.value()?.reason ?? null) : null
+    );
 
     /** True until the backend has answered — lets the page avoid claiming anything prematurely. */
     readonly loading = computed(() => this.statusResource.isLoading());
