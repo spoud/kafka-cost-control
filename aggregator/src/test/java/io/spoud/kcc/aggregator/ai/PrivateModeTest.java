@@ -30,6 +30,9 @@ class PrivateModeTest {
     @Inject
     SchemaDescriber schemaDescriber;
 
+    @Inject
+    ToolRegistry toolRegistry;
+
     @Test
     void withdrawsTheValueListingTool() {
         // list_context_values returns application, team and topic names — exactly the business
@@ -58,5 +61,21 @@ class PrivateModeTest {
         // The model gets one shot and cannot verify a guessed filter value, so the prompt must
         // steer it towards grouping rather than filtering.
         assertThat(prompt).contains("GROUP BY").contains("one query");
+    }
+
+    /**
+     * Withdrawing the tool only tells the model it is not there. A model can emit a call for a
+     * tool it was never offered - hallucinated, or steered by something it read - so the dispatch
+     * has to refuse it too, or the guarantee rests on the model's good behaviour.
+     */
+    @Test
+    void refusesTheValueListingToolEvenWhenCalledDirectly() {
+        var call = new LlmMessage.ToolCall(
+                "call-1", "list_context_values", Map.of("key", "application"));
+
+        LlmMessage.ToolResult result = toolRegistry.invoke(call);
+
+        assertThat(result.isError()).isTrue();
+        assertThat(result.content()).contains("private mode");
     }
 }

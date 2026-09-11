@@ -27,13 +27,16 @@ public class ToolRegistry {
 
     private final AggregatedMetricsRepository repository;
     private final ReadOnlyQueryExecutor queryExecutor;
+    private final AiConfigProperties aiConfig;
 
     /** SQL the model ran during the current question, surfaced to the UI for transparency. */
     private final ThreadLocal<List<String>> executedSql = ThreadLocal.withInitial(ArrayList::new);
 
-    public ToolRegistry(AggregatedMetricsRepository repository, ReadOnlyQueryExecutor queryExecutor) {
+    public ToolRegistry(AggregatedMetricsRepository repository, ReadOnlyQueryExecutor queryExecutor,
+                        AiConfigProperties aiConfig) {
         this.repository = repository;
         this.queryExecutor = queryExecutor;
+        this.aiConfig = aiConfig;
     }
 
     /** Reset the per-question SQL audit trail. Call before starting a question. */
@@ -94,7 +97,13 @@ public class ToolRegistry {
             return switch (call.name()) {
                 case "list_metrics" -> LlmMessage.ToolResult.ok(call.id(), listMetrics());
                 case "list_context_keys" -> LlmMessage.ToolResult.ok(call.id(), listContextKeys());
-                case "list_context_values" -> LlmMessage.ToolResult.ok(call.id(), listContextValues(call));
+                // Refused here as well as withdrawn from the advertised tools: private mode
+                // promises context values never reach the model, and a model can call a tool it
+                // was not offered.
+                case "list_context_values" -> aiConfig.privateMode()
+                        ? LlmMessage.ToolResult.error(call.id(),
+                                "list_context_values is unavailable in private mode.")
+                        : LlmMessage.ToolResult.ok(call.id(), listContextValues(call));
                 case "run_sql" -> runSql(call);
                 case "cost_overview" -> LlmMessage.ToolResult.ok(call.id(), costOverview(call));
                 default -> LlmMessage.ToolResult.error(call.id(), "Unknown tool: " + call.name());
