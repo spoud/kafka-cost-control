@@ -100,6 +100,10 @@ class ConversationHistoryTest {
             public int maxRows() { return 100; }
             public int maxToolIterations() { return 6; }
             public java.time.Duration queryTimeout() { return java.time.Duration.ofSeconds(30); }
+            public java.time.Duration requestTimeout() { return java.time.Duration.ofSeconds(60); }
+            public String baseUrl() { return "http://localhost:11434/v1"; }
+            public String model() { return "test-model"; }
+            public String apiKey() { return "test"; }
             public int maxSessions() { return 10; }
             public int maxHistoryExchanges() { return exchanges; }
         };

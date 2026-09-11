@@ -179,6 +179,26 @@ class AssistantLiveTest {
             return Duration.ofSeconds(30);
         }
 
+        @Override
+        public java.time.Duration requestTimeout() {
+            return Duration.ofSeconds(60);
+        }
+
+        @Override
+        public String baseUrl() {
+            return "http://localhost:11434/v1";
+        }
+
+        @Override
+        public String model() {
+            return "qwen2.5:7b";
+        }
+
+        @Override
+        public String apiKey() {
+            return "not-used-by-ollama";
+        }
+
         public int maxSessions() {
             return 10;
         }

@@ -251,6 +251,26 @@ class ReadOnlyQueryExecutorTest {
         }
 
         @Override
+        public Duration requestTimeout() {
+            return Duration.ofSeconds(60);
+        }
+
+        @Override
+        public String baseUrl() {
+            return "http://localhost:11434/v1";
+        }
+
+        @Override
+        public String model() {
+            return "test-model";
+        }
+
+        @Override
+        public String apiKey() {
+            return "test";
+        }
+
+        @Override
         public int maxSessions() {
             return 10;
         }
