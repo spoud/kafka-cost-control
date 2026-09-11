@@ -234,7 +234,7 @@ public class AggregatedMetricsRepository {
                 .map(conn -> {
                     try (var statement = conn.prepareStatement(
                             "SELECT DISTINCT json_extract_string(%s, ?) FROM aggregated_data".formatted(column))) {
-                        statement.setString(1, "$." + key);
+                        statement.setString(1, jsonPath(key));
                         return getStatementResultAsStrings(statement, false);
                     } catch (Exception e) {
                         Log.error("Failed to get keys of column: " + column, e);
@@ -242,6 +242,19 @@ public class AggregatedMetricsRepository {
                     return new HashSet<String>();
                 })
                 .orElse(new HashSet<>());
+    }
+
+    /**
+     * A JSON path selecting exactly one top-level key, whatever it is called.
+     * <p>
+     * Context keys are user-authored, so they are not identifiers and nothing constrains their
+     * characters. The unquoted form {@code $.key} reads punctuation structurally: {@code cost.unit}
+     * becomes a nested lookup and {@code a[0]} an array index, both returning null rather than
+     * failing - a silently wrong answer. Quoting the key makes it literal; the escapes are for the
+     * quoted string itself, not for SQL, since the whole path is bound as a parameter.
+     */
+    private static String jsonPath(String key) {
+        return "$.\"" + key.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private Set<String> getStatementResultAsStrings(PreparedStatement statement, boolean removeBrackets) throws SQLException {
