@@ -22,7 +22,6 @@ Go in the folder `frontend`. Compile using `npm install`. We're using the [Angul
 
 ### Kafka Connect
 
-Go the folder `kafka-connect`. Compile using `docker compose build`. We're using [Kafka Connect](https://kafka.apache.org/documentation/#connect).
 
 ## Contributing to this repo
 

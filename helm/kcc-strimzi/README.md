@@ -2,8 +2,7 @@
 
 This helm chart deploys the Kafka Cost Control (KCC) appication on a Kubernetes cluster and configures it
 to monitor a Strimzi Kafka cluster.
-Specifically, it spins up telegraf, timescaledb, the strimzi context operator and the KCC application (aggregator).
-Furthermore, it configures a kafka connect instance to ingest outputs of the aggregator into the timescaledb.
+Specifically, it spins up telegraf, the strimzi context operator and the KCC application (aggregator).
 Please install this chart in the same namespace as the Strimzi Kafka cluster.
 To use the chart, first check `values.yaml` and adjust the configuration to your needs.
 Then, install the chart with the following command:

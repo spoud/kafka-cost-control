@@ -39,10 +39,6 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "docker"
-    directory: "/kafka-connect"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "docker"
     directory: "/aggregator/src/main/docker"
     schedule:
       interval: "weekly"

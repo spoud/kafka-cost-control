@@ -14,7 +14,6 @@ Scrapers → raw Kafka topic → Aggregator (Kafka Streams) → aggregated Kafka
 - **Aggregator** (`aggregator/`) is the core Quarkus/Kafka Streams service: it enriches raw metrics with context (via `context-data`), windows and reduces them, joins them against configurable `pricing-rules`, and produces windowed cost data.
 - **Frontend** (`frontend/`) is an Angular SPA that queries the aggregator's GraphQL API to visualize costs.
 - **Strimzi Operator** (`strimzi-operator/`) watches `KafkaTopic`/`KafkaUser` CRDs and auto-publishes context-data records from resource annotations, for Strimzi-managed clusters.
-- **Kafka Connect** (`kafka-connect/`) provides a JDBC sink image to export aggregated data to TimescaleDB/PostgreSQL.
 
 ## Getting started
 
