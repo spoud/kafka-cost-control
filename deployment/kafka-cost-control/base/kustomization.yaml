@@ -3,8 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - aggregator.yaml
-  - timescaledb.yaml
-  - kafka-connect.yaml
   - grafana.yaml
   - kafka-cost-control-ui.yaml
 
