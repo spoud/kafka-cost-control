@@ -29,8 +29,9 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
+import java.util.Map;
+import java.util.Optional;
 
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -113,8 +114,16 @@ public class MetricEnricher {
                         tags = tags.and(value.getEntityType().name().toLowerCase(), value.getName());
                         gaugeRepository.updateGauge("kcc_" + value.getInitialMetricName(), tags, value.getValue(), value.getStartTime());
                     } catch (Exception e) {
-                        Log.warnv("Error updating gauge for metric {0} and tags {1}: {2}", value.getName(), value.getTags(), e.getMessage());
-                        Log.debugv(e, "Error updating gauge for metric {0} and tags {1}", value.getName(), value.getTags());
+                        // Names the metric the gauge was actually built from - the old message
+                        // printed the entity instead - and adds the context, which the tags map
+                        // does not cover. On one deployment this fires several times a minute
+                        // reading "for metric  and tags {}": a blank entity, an empty map, and a
+                        // null getMessage(), which says nothing about what failed or why.
+                        Log.warnv("Error updating gauge for metric {0} (entity {1}={2}, context {3}, tags {4}): {5}",
+                                value.getInitialMetricName(), value.getEntityType(), value.getName(),
+                                value.getContext(), value.getTags(),
+                                e.getMessage() == null ? e.getClass().getName() : e.getMessage());
+                        Log.debugv(e, "Error updating gauge for metric {0}", value.getInitialMetricName());
                     }
                 })
                 .peek((k, v) -> aggregatedMetricsRepository.insertRow(v),
