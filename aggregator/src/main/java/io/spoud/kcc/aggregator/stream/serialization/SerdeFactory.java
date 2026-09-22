@@ -7,12 +7,23 @@ import io.spoud.kcc.data.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.util.ClassSecurityValidator;
 import org.apache.kafka.common.serialization.Serde;
 
 import java.util.Map;
 
 @ApplicationScoped
 public class SerdeFactory {
+
+    static {
+        // Avro 1.12.2 added ClassSecurityValidator, which by default refuses to resolve any
+        // class outside a small trusted set when (de)serializing specific records - our own
+        // generated classes get rejected with a SecurityException otherwise. Trust our own
+        // package on top of the default rules rather than the whole classpath.
+        ClassSecurityValidator.setGlobal(ClassSecurityValidator.composite(
+                ClassSecurityValidator.DEFAULT,
+                clazz -> ContextData.class.getPackageName().equals(clazz.getPackageName())));
+    }
 
     private final Map<String, Object> kafkaConfig;
 
