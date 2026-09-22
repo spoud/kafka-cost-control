@@ -20,7 +20,7 @@ import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import io.strimzi.api.kafka.model.user.KafkaUserAuthorizationSimpleBuilder;
 import io.strimzi.api.kafka.model.user.KafkaUserBuilder;
-import io.strimzi.api.kafka.model.user.acl.AclOperation;
+import io.strimzi.api.kafka.model.user.acl.StrimziAclOperation;
 import io.strimzi.api.kafka.model.user.acl.AclResourcePatternType;
 import io.strimzi.api.kafka.model.user.acl.AclRuleTopicResourceBuilder;
 import io.strimzi.api.kafka.model.user.acl.AclRuleType;
@@ -94,31 +94,31 @@ class OperatorTest {
         addKafkaTopic(getTopicInstance("hidden-topic", TOPIC_APP));
         // create a KafkaUser resource with permission to read from the topic
         addKafkaUser(getUserInstance("my-reader", Map.of(GROUP_KEY, GROUP_READER), AclResourcePatternType.LITERAL,
-                TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE)));
+                TOPIC_NAME, List.of(StrimziAclOperation.READ, StrimziAclOperation.DESCRIBE, StrimziAclOperation.DESCRIBECONFIGS),
+                List.of(StrimziAclOperation.WRITE, StrimziAclOperation.ALTER, StrimziAclOperation.DELETE)));
         // create two KafkaUser resources only with permission to write to the topic (no read permission).
         // Both users are part of the same group, so the context of the topic should contain only one writer group (not two).
         addKafkaUser(getUserInstance("my-writer", Map.of(GROUP_KEY, GROUP_WRITER), AclResourcePatternType.LITERAL,
-                TOPIC_NAME, List.of(AclOperation.WRITE, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.READ, AclOperation.ALTER, AclOperation.DELETE)));
+                TOPIC_NAME, List.of(StrimziAclOperation.WRITE, StrimziAclOperation.DESCRIBE, StrimziAclOperation.DESCRIBECONFIGS),
+                List.of(StrimziAclOperation.READ, StrimziAclOperation.ALTER, StrimziAclOperation.DELETE)));
         addKafkaUser(getUserInstance("my-writer2", Map.of(GROUP_KEY, GROUP_WRITER), AclResourcePatternType.LITERAL,
-                TOPIC_NAME, List.of(AclOperation.WRITE, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.READ, AclOperation.ALTER, AclOperation.DELETE)));
+                TOPIC_NAME, List.of(StrimziAclOperation.WRITE, StrimziAclOperation.DESCRIBE, StrimziAclOperation.DESCRIBECONFIGS),
+                List.of(StrimziAclOperation.READ, StrimziAclOperation.ALTER, StrimziAclOperation.DELETE)));
         // create kafka user only with permissions to describe the topic (no read/write permission)
         addKafkaUser(getUserInstance("my-describer", Map.of(GROUP_KEY, GROUP_DESCRIBER), AclResourcePatternType.PREFIX,
-                TOPIC_NAME, List.of(AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.DELETE)));
+                TOPIC_NAME, List.of(StrimziAclOperation.DESCRIBE, StrimziAclOperation.DESCRIBECONFIGS),
+                List.of(StrimziAclOperation.DELETE)));
         // create kafka user with all permissions
         addKafkaUser(getUserInstance("my-admin", Map.of(GROUP_KEY, GROUP_ADMIN), AclResourcePatternType.PREFIX,
-                "*", List.of(AclOperation.ALL),
+                "*", List.of(StrimziAclOperation.ALL),
                 List.of()));
         // create kafka users with no permissions
         addKafkaUser(getUserInstance("dummy", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
-                TOPIC_NAME, List.of(AclOperation.READ), // even though read is allowed, the deny ALL rule should take precedence
-                List.of(AclOperation.ALL)));
+                TOPIC_NAME, List.of(StrimziAclOperation.READ), // even though read is allowed, the deny ALL rule should take precedence
+                List.of(StrimziAclOperation.ALL)));
         addKafkaUser(getUserInstance("dummy2", Map.of(GROUP_KEY, GROUP_DUMMY), AclResourcePatternType.PREFIX,
-                TOPIC_NAME, List.of(AclOperation.READ), // even though read is allowed, the deny READ rule should take precedence
-                List.of(AclOperation.READ)));
+                TOPIC_NAME, List.of(StrimziAclOperation.READ), // even though read is allowed, the deny READ rule should take precedence
+                List.of(StrimziAclOperation.READ)));
         // this user has no ACLs at all (testing that this does not break the operator)
         addKafkaUser(getKafkaUserWithoutAcls("dummy3", Map.of(GROUP_KEY, GROUP_DUMMY)));
 
@@ -138,8 +138,8 @@ class OperatorTest {
         var anotherGroup = UUID.randomUUID().toString();
         var annotations = Map.of(config.contextAnnotationPrefix() + config.userIdContextAnnotation(), anotherGroup);
         var user = getUserInstance(username, annotations, AclResourcePatternType.LITERAL,
-                TOPIC_NAME, List.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DESCRIBECONFIGS),
-                List.of(AclOperation.WRITE, AclOperation.ALTER, AclOperation.DELETE));
+                TOPIC_NAME, List.of(StrimziAclOperation.READ, StrimziAclOperation.DESCRIBE, StrimziAclOperation.DESCRIBECONFIGS),
+                List.of(StrimziAclOperation.WRITE, StrimziAclOperation.ALTER, StrimziAclOperation.DELETE));
         addKafkaUser(user);
         delayedAsyncRun(scheduler::reconcileNow);
 
@@ -216,7 +216,7 @@ class OperatorTest {
     }
 
     KafkaUser getUserInstance(String username, Map<String, String> annotations, AclResourcePatternType patternType,
-                              String resourceName, List<AclOperation> allowedOperations, List<AclOperation> deniedOperations) {
+                              String resourceName, List<StrimziAclOperation> allowedOperations, List<StrimziAclOperation> deniedOperations) {
         return new KafkaUserBuilder()
                 .withNewMetadata()
                 .withName(username)

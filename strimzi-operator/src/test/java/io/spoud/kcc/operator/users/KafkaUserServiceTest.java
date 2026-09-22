@@ -1,6 +1,6 @@
 package io.spoud.kcc.operator.users;
 
-import io.strimzi.api.kafka.model.user.acl.AclOperation;
+import io.strimzi.api.kafka.model.user.acl.StrimziAclOperation;
 import io.strimzi.api.kafka.model.user.acl.AclRule;
 import io.strimzi.api.kafka.model.user.acl.AclRuleBuilder;
 import org.junit.jupiter.api.Test;
@@ -15,9 +15,9 @@ class KafkaUserServiceTest {
 
     @Test
     void getOperations_returnsPluralOperationsWhenPresent() {
-        AclRule rule = new AclRuleBuilder().withOperations(List.of(AclOperation.READ, AclOperation.WRITE)).build();
+        AclRule rule = new AclRuleBuilder().withOperations(List.of(StrimziAclOperation.READ, StrimziAclOperation.WRITE)).build();
 
-        assertThat(service.getOperations(rule)).containsExactly(AclOperation.READ, AclOperation.WRITE);
+        assertThat(service.getOperations(rule)).containsExactly(StrimziAclOperation.READ, StrimziAclOperation.WRITE);
     }
 
     @Test
@@ -29,17 +29,17 @@ class KafkaUserServiceTest {
         AclRule rule = new AclRuleBuilder().build();
         rule.setAdditionalProperty("operation", "Read");
 
-        assertThat(service.getOperations(rule)).containsExactly(AclOperation.READ);
+        assertThat(service.getOperations(rule)).containsExactly(StrimziAclOperation.READ);
     }
 
     @Test
     void getOperations_legacyFieldUsesJsonValueNotEnumName() {
-        // AclOperation's JSON representation ("All") differs from its Java enum constant name (ALL),
+        // StrimziAclOperation's JSON representation ("All") differs from its Java enum constant name (ALL),
         // via @JsonValue/@JsonCreator forValue(). The fallback must go through forValue(), not valueOf().
         AclRule rule = new AclRuleBuilder().build();
         rule.setAdditionalProperty("operation", "All");
 
-        assertThat(service.getOperations(rule)).containsExactly(AclOperation.ALL);
+        assertThat(service.getOperations(rule)).containsExactly(StrimziAclOperation.ALL);
     }
 
     @Test

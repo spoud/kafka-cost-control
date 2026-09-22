@@ -26,7 +26,7 @@ public class KafkaUserService {
      */
     public Collection<KafkaUser> getReadersOfTopic(String topicName) {
         return kafkaUserRepository.getAllUsers().stream()
-                .filter(user -> canPerformOperationOnTopic(user, AclOperation.READ, topicName))
+                .filter(user -> canPerformOperationOnTopic(user, StrimziAclOperation.READ, topicName))
                 .toList();
     }
 
@@ -39,11 +39,11 @@ public class KafkaUserService {
      */
     public Collection<KafkaUser> getWritersOfTopic(String topicName) {
         return kafkaUserRepository.getAllUsers().stream()
-                .filter(user -> canPerformOperationOnTopic(user, AclOperation.WRITE, topicName))
+                .filter(user -> canPerformOperationOnTopic(user, StrimziAclOperation.WRITE, topicName))
                 .toList();
     }
 
-    private boolean canPerformOperationOnTopic(KafkaUser user, AclOperation op, String topicName) {
+    private boolean canPerformOperationOnTopic(KafkaUser user, StrimziAclOperation op, String topicName) {
         try {
             if (user.getSpec().getAuthorization() instanceof KafkaUserAuthorizationSimple auth) {
                 var rules = getRulesForTopicName(auth.getAcls(), topicName);
@@ -76,25 +76,25 @@ public class KafkaUserService {
         return false;
     }
 
-    private boolean hasRuleForOperation(Collection<AclRule> rules, AclOperation op, AclRuleType type) {
+    private boolean hasRuleForOperation(Collection<AclRule> rules, StrimziAclOperation op, AclRuleType type) {
         return rules.stream().anyMatch(rule -> (getOperations(rule).contains(op)
-                || getOperations(rule).contains(AclOperation.ALL))
+                || getOperations(rule).contains(StrimziAclOperation.ALL))
                 && rule.getType() == type);
     }
 
-    List<AclOperation> getOperations(AclRule rule) {
-        List<AclOperation> ops = rule.getOperations();
+    List<StrimziAclOperation> getOperations(AclRule rule) {
+        List<StrimziAclOperation> ops = rule.getOperations();
         if (ops != null && !ops.isEmpty()) {
             return ops;
         }
         // Fallback for the deprecated singular "operation" field, still used by some existing KafkaUser
         // resources under the v1beta2 CRD schema. AclRule implements UnknownPropertyPreserving, so Jackson
         // captures unrecognized fields like this one in additionalProperties instead of discarding them.
-        // AclOperation's JSON representation ("Read", "Describe", ...) doesn't match its enum constant
+        // StrimziAclOperation's JSON representation ("Read", "Describe", ...) doesn't match its enum constant
         // names (READ, DESCRIBE, ...), so this must go through forValue(), not valueOf().
         Object legacyOp = rule.getAdditionalProperties().get("operation");
         if (legacyOp instanceof String s) {
-            AclOperation op = AclOperation.forValue(s);
+            StrimziAclOperation op = StrimziAclOperation.forValue(s);
             return op != null ? List.of(op) : List.of();
         }
         return List.of();
