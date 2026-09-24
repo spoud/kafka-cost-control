@@ -46,6 +46,15 @@ resources:
 
 namespace: kafka-cost-control
 
+# the base leaves the Ingress hosts as TO_BE_DEFINED_BY_OVERRIDE, which Kubernetes rejects
+patches:
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: kcc.example.com
+
 generatorOptions:
   disableNameSuffixHash: true
 
@@ -74,7 +83,7 @@ CC_TOPICS_RAW_DATA=metrics-raw-telegraf-dev
 CC_ADMIN_PASSWORD=admin
 ----
 
-The `kafka-cost-control-ingress` and `kafka-cost-control-ui-ingress` Ingresses have their host set to `TO_BE_DEFINED_BY_OVERRIDE`. Add patches in your overlay to set it to your own host.
+Replace `kcc.example.com` with your own host. It is used by both the UI and the aggregator's `/graphql` endpoint.
 
 Deploy the application using kubectl
 
