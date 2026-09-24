@@ -41,5 +41,4 @@ See each module's own README/build files for the full set of commands (native bu
 The demo application shows you what's possible with Kafka Cost Control. We used our kafka test cluster, so the
 data don't mean a lot. But it gives you a good idea of what you can achieve.
 
- - [Grafana Dashboard](https://kafka-cost-control-grafana-demo.sdm.spoud.io/d/b56a35cd-5052-496e-a534-7181836c3e0b/montly-usage) user and password is **demo:demo**
  - [Kafka Cost Control UI](https://kafka-cost-control-demo.sdm.spoud.io/)

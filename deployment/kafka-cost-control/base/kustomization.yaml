@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - aggregator.yaml
-  - grafana.yaml
   - kafka-cost-control-ui.yaml
 
 generatorOptions:
