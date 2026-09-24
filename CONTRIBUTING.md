@@ -20,9 +20,6 @@ Go in the folder `kafka-scraper`. Compile using `mvn clean package`. We're using
 
 Go in the folder `frontend`. Compile using `npm install`. We're using the [Angular Framework](https://angular.dev/). Run in dev mode using `npm start`.
 
-### Kafka Connect
-
-
 ## Contributing to this repo
 
 Bug reports and feature requests are welcome. Please fill up a GitHub issue.
