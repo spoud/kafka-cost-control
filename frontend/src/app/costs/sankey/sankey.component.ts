@@ -99,11 +99,11 @@ export class SankeyComponent {
     private model = computed(() => {
         this.resetCount(); // a reset produces a new option object; see resetView
         const storage = (this.lastRequest()?.kafkaStorageCents ?? 0) / 100; // dollar amount...
-        const kafkaIn = (this.lastRequest()?.kafkaNetworkReadCents ?? 0) / 100;
-        const kafkaOut = (this.lastRequest()?.kafkaNetworkWriteCents ?? 0) / 100;
+        const networkWrite = (this.lastRequest()?.kafkaNetworkWriteCents ?? 0) / 100;
+        const networkRead = (this.lastRequest()?.kafkaNetworkReadCents ?? 0) / 100;
         // above together with some other things added, e.g. base costs
         const total = (this.lastRequest()?.totalCents ?? 0) / 100;
-        const other = total - storage - kafkaOut - kafkaIn;
+        const other = total - storage - networkWrite - networkRead;
 
         const dataSet = new Set<string>();
         // node id -> short label shown in the diagram; nodes not listed here (metrics, total, other)
@@ -133,8 +133,9 @@ export class SankeyComponent {
         dataSet.add('other');
 
         addLink('total', 'confluent_kafka_server_retained_bytes', storage);
-        addLink('total', 'confluent_kafka_server_request_bytes', kafkaIn);
-        addLink('total', 'confluent_kafka_server_response_bytes', kafkaOut);
+        // same mapping as the backend: produce (request) is billed as write, fetch (response) as read
+        addLink('total', 'confluent_kafka_server_request_bytes', networkWrite);
+        addLink('total', 'confluent_kafka_server_response_bytes', networkRead);
         addLink('total', 'other', other);
 
         const groupByKeys = this.lastRequest()?.contextKeysToGroupBy ?? [];
