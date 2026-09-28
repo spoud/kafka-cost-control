@@ -33,8 +33,13 @@ cc:
     max-tokens-per-question: ${CC_AI_MAX_TOKENS_PER_QUESTION:200000}
   admin-password: admin
   metrics:
+    # Gauges that report a current level are sampled many times per window; summing them
+    # multiplies the value by the number of samples (60 per hour at a 1-minute scrape).
     aggregations:
       confluent_kafka_server_retained_bytes: max
+      confluent_kafka_server_partition_count: max
+      kafka_topic_partition_count: max
+      kafka_topic_schema_count: max
   topics:
     pricing-rules: pricing-rules
     context-data: context-data
