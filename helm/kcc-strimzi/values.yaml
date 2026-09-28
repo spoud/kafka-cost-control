@@ -7,6 +7,10 @@ env: dev
 # Set this to true to enable debug logging in telegraf and the context operator
 debug: true
 
+# Length of one cost window in seconds. It sets both the aggregator's windows and Telegraf's
+# pre-aggregation period, which must be equal or storage and traffic land in the wrong windows.
+aggregationWindowSizeSeconds: 3600
+
 topics:
   context: { } # when unset, the below values are generated from the release name
   #topicName: "context-data"
@@ -56,7 +60,6 @@ telegraf:
       cpu: 100m
       memory: 100Mi
   scrapeIntervalSeconds: 10
-  aggregationWindowSizeSeconds: 3600
 
 strimzi:
   clusterName: my-cluster
@@ -116,7 +119,6 @@ schemaRegistry:
 
 aggregator:
   enabled: true
-  aggregationWindowSize: PT1H
   # Enable DuckDB integration
   olapEnabled: false
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)

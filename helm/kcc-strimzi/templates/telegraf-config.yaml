@@ -39,7 +39,7 @@ data:
     
     [[aggregators.basicstats]]
         namepass = ["kafka_log_log_size"]
-        period = "{{ .Values.telegraf.aggregationWindowSizeSeconds }}s"
+        period = "{{ .Values.aggregationWindowSizeSeconds }}s"
         delay = "10s"
         grace = "10s"
         drop_original = true
@@ -47,7 +47,7 @@ data:
 
     [[aggregators.basicstats]]
         namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
-        period = "{{ div .Values.telegraf.aggregationWindowSizeSeconds 6 }}s"
+        period = "{{ div .Values.aggregationWindowSizeSeconds 6 }}s"
         delay = "10s"
         grace = "10s"
         drop_original = true

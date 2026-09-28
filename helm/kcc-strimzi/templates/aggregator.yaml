@@ -9,6 +9,12 @@
 {{- end -}}
 {{ $caCert := (include "strimziCaCert" .) }}
 
+{{- if hasKey .Values.aggregator "aggregationWindowSize" }}
+{{- fail "aggregator.aggregationWindowSize was replaced by the top-level aggregationWindowSizeSeconds, which sets both the aggregator and Telegraf window" }}
+{{- end }}
+{{- if hasKey .Values.telegraf "aggregationWindowSizeSeconds" }}
+{{- fail "telegraf.aggregationWindowSizeSeconds was replaced by the top-level aggregationWindowSizeSeconds, which sets both the aggregator and Telegraf window" }}
+{{- end }}
 {{ if .Values.aggregator.enabled -}}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -95,7 +101,7 @@ spec:
             - name: CC_TOPICS_CONTEXT_DATA
               value: {{ $contextTopic }}
             - name: CC_AGGREGATION_WINDOW_SIZE
-              value: {{ .Values.aggregator.aggregationWindowSize }}
+              value: PT{{ .Values.aggregationWindowSizeSeconds }}S
             - name: CC_TOPICS_RAW_DATA
               value: {{ $rawMetricsTopics }}
             {{- if .Values.ui.enabled }}
