@@ -52,6 +52,7 @@ type MetricHistory {
     "Get entry/entries for a certain key/s"
     key: [String]
   ): [Entry_String_String]!
+  costs: [Float]!
   name: String!
   "ISO-8601"
   times: [DateTime]!
@@ -103,6 +104,7 @@ type PricingRuleEntity {
 
 "Query root"
 type Query {
+  "Whether the AI assistant is configured and able to answer questions."
   assistantStatus: AssistantStatus!
   calculateTable(request: CostOverviewRequestInput): TableResponse!
   contextData: [ContextDataEntity!]!
@@ -113,6 +115,7 @@ type Query {
   history(from: DateTimeParameterInput!, groupByContextKeys: [String]!, metricNames: [String]!, to: DateTimeParameterInput): [MetricHistory!]!
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
+  pricingRuleCosts(request: PricingRuleCostRequestInput): CostOverviewResponse!
   pricingRules: [PricingRuleEntity!]!
 }
 
@@ -142,6 +145,15 @@ scalar BigInteger
 "Scalar for DateTime"
 scalar DateTime
 
+input ChatRequestInput {
+  "The question to answer."
+  message: String!
+  "How many earlier questions the client is showing for this session."
+  priorTurns: Int
+  "Client-generated conversation id; history is kept per session."
+  sessionId: String!
+}
+
 input ContextDataDeleteRequestInput {
   id: String!
 }
@@ -155,15 +167,6 @@ input ContextDataSaveRequestInput {
   validFrom: DateTime
   "ISO-8601"
   validUntil: DateTime
-}
-
-input ChatRequestInput {
-  "The question to answer."
-  message: String!
-  "How many earlier questions the client is showing for this session."
-  priorTurns: Int
-  "Client-generated conversation id; history is kept per session."
-  sessionId: String!
 }
 
 input CostOverviewRequestInput {
@@ -186,6 +189,14 @@ input DateTimeParameterInput {
 input Entry_String_StringInput {
   key: String
   value: String
+}
+
+input PricingRuleCostRequestInput {
+  contextKeysToGroupBy: [String]
+  "ISO-8601"
+  from: DateTime
+  "ISO-8601"
+  to: DateTime
 }
 
 input PricingRuleDeleteRequestInput {

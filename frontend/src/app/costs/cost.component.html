@@ -1,7 +1,4 @@
-<app-page-header
-    title="Cost Overview"
-    subtitle="Distribute provider invoices across applications and stages."
->
+<app-page-header title="Cost Overview" [subtitle]="subtitle()">
     <ng-container actions>
         @if (selectedConfigId(); as configId) {
             <button mat-stroked-button color="primary" type="button" (click)="openSaveDialog()">
@@ -48,6 +45,20 @@
     </ng-container>
 </app-page-header>
 
+<mat-button-toggle-group
+    class="source-toggle"
+    aria-label="Where the costs come from"
+    [value]="source()"
+    (change)="setSource($event.value)"
+>
+    <mat-button-toggle value="invoice"
+        ><mat-icon>receipt_long</mat-icon>Split an invoice</mat-button-toggle
+    >
+    <mat-button-toggle value="pricingRules"
+        ><mat-icon>sell</mat-icon>From pricing rules</mat-button-toggle
+    >
+</mat-button-toggle-group>
+
 <form [formGroup]="costs">
     <div class="card-row top-row">
         <mat-card appearance="outlined">
@@ -73,107 +84,149 @@
             </mat-card-content>
         </mat-card>
 
-        <mat-card appearance="outlined">
-            <mat-card-header>
-                <mat-card-title class="card-title">
-                    <mat-icon>receipt_long</mat-icon>Provider Invoice
-                </mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-                <div class="form-row">
-                    <mat-form-field>
-                        <mat-label>KAFKA_NETWORK_WRITE</mat-label>
-                        <span matTextPrefix>$&nbsp;</span>
-                        <input
-                            matInput
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            formControlName="kafkaNetworkWrite"
-                        />
-                    </mat-form-field>
-                    <mat-form-field>
-                        <mat-label>KAFKA_NETWORK_READ</mat-label>
-                        <span matTextPrefix>$&nbsp;</span>
-                        <input
-                            matInput
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            formControlName="kafkaNetworkRead"
-                        />
-                    </mat-form-field>
-                    <mat-form-field>
-                        <mat-label>KAFKA_STORAGE</mat-label>
-                        <span matTextPrefix>$&nbsp;</span>
-                        <input
-                            matInput
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            formControlName="kafkaStorage"
-                        />
-                    </mat-form-field>
-                    <mat-form-field>
-                        <mat-label>Total paid</mat-label>
-                        <span matTextPrefix>$&nbsp;</span>
-                        <input matInput type="number" min="0" step="0.01" formControlName="total" />
-                    </mat-form-field>
-                </div>
-                @if (mismatch()) {
-                    <div class="info">
-                        Line items sum to
-                        <strong>${{ inputTotal() | number: '1.2-2' }}</strong> but total paid is
-                        <strong>${{ costs.value.total | number: '1.2-2' }}</strong
-                        >. Difference of
-                        <strong
-                            >${{
-                                inputTotal() - (costs.value.total ?? 0) | abs | number: '1.2-2'
-                            }}</strong
-                        >
-                        will be distributed proportionally.
+        @if (source() === 'pricingRules') {
+            <mat-card appearance="outlined">
+                <mat-card-header>
+                    <mat-card-title class="card-title"
+                        ><mat-icon>sell</mat-icon>Pricing Rules</mat-card-title
+                    >
+                </mat-card-header>
+                <mat-card-content>
+                    <p class="rule-hint">
+                        Each metric is priced by its rule (base cost + cost factor × value) when the
+                        data is processed, so a rule change applies from then on. Past periods keep
+                        the price that applied until the data is reprocessed.
+                    </p>
+                    <a mat-stroked-button routerLink="/pricing-rules"
+                        ><mat-icon>edit</mat-icon>Edit pricing rules</a
+                    >
+                </mat-card-content>
+            </mat-card>
+        } @else {
+            <mat-card appearance="outlined">
+                <mat-card-header>
+                    <mat-card-title class="card-title">
+                        <mat-icon>receipt_long</mat-icon>Provider Invoice
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="form-row">
+                        <mat-form-field>
+                            <mat-label>KAFKA_NETWORK_WRITE</mat-label>
+                            <span matTextPrefix>$&nbsp;</span>
+                            <input
+                                matInput
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                formControlName="kafkaNetworkWrite"
+                            />
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>KAFKA_NETWORK_READ</mat-label>
+                            <span matTextPrefix>$&nbsp;</span>
+                            <input
+                                matInput
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                formControlName="kafkaNetworkRead"
+                            />
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>KAFKA_STORAGE</mat-label>
+                            <span matTextPrefix>$&nbsp;</span>
+                            <input
+                                matInput
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                formControlName="kafkaStorage"
+                            />
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Total paid</mat-label>
+                            <span matTextPrefix>$&nbsp;</span>
+                            <input
+                                matInput
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                formControlName="total"
+                            />
+                        </mat-form-field>
                     </div>
-                }
-            </mat-card-content>
-        </mat-card>
+                    @if (mismatch()) {
+                        <div class="info">
+                            Line items sum to
+                            <strong>${{ inputTotal() | number: '1.2-2' }}</strong> but total paid is
+                            <strong>${{ costs.value.total | number: '1.2-2' }}</strong
+                            >. Difference of
+                            <strong
+                                >${{
+                                    inputTotal() - (costs.value.total ?? 0) | abs | number: '1.2-2'
+                                }}</strong
+                            >
+                            will be distributed proportionally.
+                        </div>
+                    }
+                </mat-card-content>
+            </mat-card>
+        }
     </div>
 </form>
 
-<div class="card-row middle-row">
-    <mat-card appearance="outlined">
-        <mat-card-header>
-            <mat-card-title class="card-title">
-                <mat-icon>tune</mat-icon>Allocation Rules
-            </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-            <div class="unsupported-notice"><mat-icon>info</mat-icon>Currently unsupported</div>
-            <div class="rules-disabled">
-                <p class="rule-hint">
-                    A higher write weight means producers are charged proportionally more.
-                </p>
-                <div class="rule-row">
-                    <span class="rule-label">Write weight</span>
-                    <mat-slider min="0.1" max="5" step="0.1" discrete class="rule-slider" disabled>
-                        <input matSliderThumb [value]="writeWeight()" />
-                    </mat-slider>
-                    <span class="rule-val">{{ writeWeight() | number: '1.1-1' }}</span>
+<div class="card-row middle-row" [class.single]="source() === 'pricingRules'">
+    @if (source() === 'invoice') {
+        <mat-card appearance="outlined">
+            <mat-card-header>
+                <mat-card-title class="card-title">
+                    <mat-icon>tune</mat-icon>Allocation Rules
+                </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="unsupported-notice"><mat-icon>info</mat-icon>Currently unsupported</div>
+                <div class="rules-disabled">
+                    <p class="rule-hint">
+                        A higher write weight means producers are charged proportionally more.
+                    </p>
+                    <div class="rule-row">
+                        <span class="rule-label">Write weight</span>
+                        <mat-slider
+                            min="0.1"
+                            max="5"
+                            step="0.1"
+                            discrete
+                            class="rule-slider"
+                            disabled
+                        >
+                            <input matSliderThumb [value]="writeWeight()" />
+                        </mat-slider>
+                        <span class="rule-val">{{ writeWeight() | number: '1.1-1' }}</span>
+                    </div>
+                    <div class="rule-row">
+                        <span class="rule-label">Read weight</span>
+                        <mat-slider
+                            min="0.1"
+                            max="5"
+                            step="0.1"
+                            discrete
+                            class="rule-slider"
+                            disabled
+                        >
+                            <input matSliderThumb [value]="readWeight()" />
+                        </mat-slider>
+                        <span class="rule-val">{{ readWeight() | number: '1.1-1' }}</span>
+                    </div>
+                    <div class="rule-info">
+                        <strong>Effective ratio:</strong> for every 1 byte produced, consuming
+                        {{ readWeight() / writeWeight() | number: '1.2-2' }}× more weight in cost
+                        allocation.
+                    </div>
                 </div>
-                <div class="rule-row">
-                    <span class="rule-label">Read weight</span>
-                    <mat-slider min="0.1" max="5" step="0.1" discrete class="rule-slider" disabled>
-                        <input matSliderThumb [value]="readWeight()" />
-                    </mat-slider>
-                    <span class="rule-val">{{ readWeight() | number: '1.1-1' }}</span>
-                </div>
-                <div class="rule-info">
-                    <strong>Effective ratio:</strong> for every 1 byte produced, consuming
-                    {{ readWeight() / writeWeight() | number: '1.2-2' }}× more weight in cost
-                    allocation.
-                </div>
-            </div>
-        </mat-card-content>
-    </mat-card>
+            </mat-card-content>
+        </mat-card>
+    }
 
     <mat-card appearance="outlined">
         <mat-card-header>
@@ -227,7 +280,14 @@
     </mat-card>
 </div>
 
-@if (hasResults()) {
+@if (noPricingRuleCosts()) {
+    <app-empty-state
+        icon="sell"
+        message="No pricing-rule costs in this period. Add rules for your metrics; they price data processed after they exist."
+    >
+        <a actions mat-stroked-button routerLink="/pricing-rules">Open Pricing Rules</a>
+    </app-empty-state>
+} @else if (hasResults()) {
     <mat-card appearance="outlined" class="results-card">
         <mat-card-header>
             <mat-card-title class="card-title">
@@ -235,14 +295,22 @@
             </mat-card-title>
         </mat-card-header>
         <mat-card-content class="results-content">
-            <app-cost-table [inputData]="tableData()" [lastRequest]="lastRequest()" />
+            <app-cost-table
+                [inputData]="tableData()"
+                [lastRequest]="lastRequest()"
+                [source]="source()"
+            />
             @if (groupBy().length === 0) {
                 <app-empty-state
                     icon="account_tree"
                     message="Pick at least one group-by key above to see how cost breaks down."
                 />
             } @else {
-                <app-sankey [inputData]="data()" [lastRequest]="lastRequest()" />
+                <app-sankey
+                    [inputData]="data()"
+                    [lastRequest]="lastRequest()"
+                    [source]="source()"
+                />
             }
         </mat-card-content>
     </mat-card>

@@ -4,10 +4,11 @@ import { CostOverviewRequestInput } from '../../../generated/graphql/types';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatSort, MatSortModule } from '@angular/material/sort';
-import { PercentPipe } from '@angular/common';
+import { DecimalPipe, PercentPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { DataTableComponent } from '../../common/data-table/data-table.component';
+import { CostSource } from '../store/cost-overview.store';
 
 @Component({
     selector: 'app-cost-table',
@@ -16,6 +17,7 @@ import { DataTableComponent } from '../../common/data-table/data-table.component
         MatPaginatorModule,
         MatSortModule,
         PercentPipe,
+        DecimalPipe,
         MatButtonModule,
         MatIcon,
         DataTableComponent,
@@ -26,6 +28,7 @@ import { DataTableComponent } from '../../common/data-table/data-table.component
 export class CostTableComponent implements AfterViewInit {
     inputData = input.required<CalculateTableQuery>();
     lastRequest = input.required<CostOverviewRequestInput | undefined>();
+    source = input<CostSource>('invoice');
 
     @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
     @ViewChild(MatSort) sort: MatSort | undefined;
@@ -63,7 +66,8 @@ export class CostTableComponent implements AfterViewInit {
 
     downloadCsv() {
         const contextKeys = this.lastRequest()?.contextKeysToGroupBy ?? [];
-        const headers = ['Metric', ...contextKeys, 'Total', 'Percentage'];
+        const valueHeader = this.source() === 'pricingRules' ? 'Cost ($)' : 'Total';
+        const headers = ['Metric', ...contextKeys, valueHeader, 'Percentage'];
         const entries = this.inputData().calculateTable.entries ?? [];
 
         const rows = entries

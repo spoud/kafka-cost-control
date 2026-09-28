@@ -11,6 +11,8 @@ import { MatChipListbox, MatChipOption } from '@angular/material/chips';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
+import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { RouterLink } from '@angular/router';
 import {
     CdkDrag,
     CdkDragDrop,
@@ -23,8 +25,13 @@ import {
     CalculateTableQuery,
     CostOverviewGQL,
     CostOverviewQuery,
+    PricingRuleCostsGQL,
+    PricingRuleCostsQuery,
 } from '../../generated/graphql/sdk';
-import { CostOverviewRequestInput } from '../../generated/graphql/types';
+import {
+    CostOverviewRequestInput,
+    PricingRuleCostRequestInput,
+} from '../../generated/graphql/types';
 import { SankeyComponent } from './sankey/sankey.component';
 import {
     MatDatepickerToggle,
@@ -39,7 +46,7 @@ import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.serv
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
 import { DateRangeQuickSelectComponent } from '../common/date-range-quick-select/date-range-quick-select.component';
 import { DateRange, endOfDay } from '../common/date-range';
-import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
+import { CostOverviewFormValues, CostOverviewStore, CostSource } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 
@@ -78,6 +85,9 @@ import { EmptyStateComponent } from '../common/empty-state/empty-state.component
         CdkDropList,
         CdkDrag,
         CdkDragHandle,
+        MatButtonToggleGroup,
+        MatButtonToggle,
+        RouterLink,
     ],
     templateUrl: './cost.component.html',
     styleUrl: './cost.component.scss',
@@ -85,6 +95,7 @@ import { EmptyStateComponent } from '../common/empty-state/empty-state.component
 export class CostComponent {
     private calcCostOverview = inject(CostOverviewGQL);
     private calcTable = inject(CalculateTableGQL);
+    private calcPricingRuleCosts = inject(PricingRuleCostsGQL);
     private fb = inject(FormBuilder);
     private _store = inject(CostOverviewStore);
     private _dialog = inject(MatDialog);
@@ -104,6 +115,14 @@ export class CostComponent {
         kafkaNetworkWrite: [this.restored?.kafkaNetworkWrite ?? (0 as number | null)],
         total: [this.restored?.total ?? (0 as number | null)],
     });
+
+    source = signal<CostSource>(this.restored?.source ?? 'invoice');
+
+    subtitle = computed(() =>
+        this.source() === 'pricingRules'
+            ? 'Costs from your pricing rules, broken down by application and stage.'
+            : 'Distribute provider invoices across applications and stages.'
+    );
 
     writeWeight = signal(1.0);
     readWeight = signal(2.4);
@@ -143,6 +162,7 @@ export class CostComponent {
     currentFormValues = computed<CostOverviewFormValues>(() => {
         const v = this.costsValue();
         return {
+            source: this.source(),
             from: v?.from ?? this.startOfLastMonth,
             to: v?.to ?? this.endOfLastMonth,
             kafkaStorage: v?.kafkaStorage ?? null,
@@ -158,10 +178,10 @@ export class CostComponent {
     lastRequest = signal<CostOverviewRequestInput | undefined>(undefined);
 
     constructor() {
-        merge(this.costs.valueChanges, toObservable(this.groupBy))
+        merge(this.costs.valueChanges, toObservable(this.groupBy), toObservable(this.source))
             .pipe(
                 debounceTime(600),
-                filter(() => (this.costs.value.total ?? 0) > 0),
+                filter(() => this.canCalculate()),
                 takeUntilDestroyed()
             )
             .subscribe(() => this.calculate());
@@ -171,9 +191,40 @@ export class CostComponent {
         });
 
         // restore previous results immediately if we brought back a usable configuration
-        if ((this.restored?.total ?? 0) > 0) {
+        if (this.canCalculate()) {
             this.calculate();
         }
+    }
+
+    /**
+     * Both need a valid range: a date the picker can't parse arrives as null, and the backend
+     * rejects a missing start. An invoice split also needs an amount to distribute.
+     */
+    private canCalculate(): boolean {
+        const { from, to } = this.costs.value;
+        if (!isValidDate(from) || !isValidDate(to)) {
+            return false;
+        }
+        return this.source() === 'pricingRules' || (this.costs.value.total ?? 0) > 0;
+    }
+
+    /** No pricing-rule costs came back for the period, as opposed to not having asked yet. */
+    noPricingRuleCosts = computed(
+        () =>
+            this.source() === 'pricingRules' &&
+            !!this.data() &&
+            (this.data()?.costOverview.metricToDistributionMapList?.length ?? 0) === 0
+    );
+
+    setSource(source: CostSource): void {
+        if (source === this.source()) {
+            return;
+        }
+        // results belong to the other source; drop them so the page never mixes the two
+        this.data.set(undefined);
+        this.tableData.set({ calculateTable: { entries: null } });
+        this.lastRequest.set(undefined);
+        this.source.set(source);
     }
 
     hasResults = computed(
@@ -224,6 +275,7 @@ export class CostComponent {
             return;
         }
         this.selectedConfigId.set(id);
+        this.setSource(config.source);
         this.costs.patchValue({
             from: config.from,
             to: config.to,
@@ -243,6 +295,10 @@ export class CostComponent {
     }
 
     calculate() {
+        if (this.source() === 'pricingRules') {
+            this.calculatePricingRuleCosts();
+            return;
+        }
         const request: CostOverviewRequestInput = {
             from: this.costs.value.from,
             to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
@@ -260,4 +316,39 @@ export class CostComponent {
             this.tableData.set(response.data!);
         });
     }
+
+    private calculatePricingRuleCosts() {
+        const request: PricingRuleCostRequestInput = {
+            from: this.costs.value.from,
+            to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
+            contextKeysToGroupBy: this.contextKeysToGroupBy(),
+        };
+        this.calcPricingRuleCosts.fetch({ variables: { request } }).subscribe(response => {
+            if (this.source() !== 'pricingRules') {
+                return; // switched back to the invoice split while this was in flight
+            }
+            const costs = response.data!.pricingRuleCosts;
+            this.lastRequest.set({ ...request });
+            this.data.set({ costOverview: costs });
+            this.tableData.set({ calculateTable: { entries: toTableEntries(costs) } });
+        });
+    }
+}
+
+function isValidDate(value: Date | null | undefined): value is Date {
+    return value instanceof Date && !isNaN(value.getTime());
+}
+
+/** Table rows for pricing-rule costs: dollars per group, and each group's share of its metric. */
+function toTableEntries(costs: PricingRuleCostsQuery['pricingRuleCosts']) {
+    return (costs.metricToDistributionMapList ?? []).flatMap(distribution => {
+        const prices = (distribution?.nameToPriceList ?? []).filter(p => !!p);
+        const metricCents = prices.reduce((sum, p) => sum + (p.price ?? 0), 0);
+        return prices.map(p => ({
+            initialMetricName: distribution?.metric ?? '',
+            context: p.contextValues ?? [],
+            total: (p.price ?? 0) / 100,
+            percentage: metricCents ? (p.price ?? 0) / metricCents : 0,
+        }));
+    });
 }

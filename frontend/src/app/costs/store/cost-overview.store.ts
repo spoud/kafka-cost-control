@@ -21,7 +21,11 @@ const SAVED_CONFIGS_KEY = 'kcc_cost_overview_saved_configs';
 /** Bump when CostOverviewFormValues changes in a way values written by an older build cannot satisfy. */
 const PERSISTED_VERSION = 1;
 
+/** Where the amounts come from: an invoice split by usage, or the pricing rules (bottom-up). */
+export type CostSource = 'invoice' | 'pricingRules';
+
 export interface CostOverviewFormValues {
+    source: CostSource;
     from: Date;
     to: Date;
     kafkaStorage: number | null;
@@ -46,6 +50,11 @@ const initialState: CostOverviewState = {
 
 function reviveDates<T extends { from: Date; to: Date }>(value: T): T {
     return { ...value, from: reviveDate(value.from), to: reviveDate(value.to) };
+}
+
+/** `source` postdates the first shipped shape; anything written before it was an invoice split. */
+function withSource<T extends CostOverviewFormValues>(value: T): T {
+    return { ...value, source: value.source === 'pricingRules' ? 'pricingRules' : 'invoice' };
 }
 
 /**
@@ -89,7 +98,7 @@ export const CostOverviewStore = signalStore(
                 isCostOverviewValues
             );
             if (storedCurrent) {
-                patchState(store, { current: reviveDates(storedCurrent) });
+                patchState(store, { current: withSource(reviveDates(storedCurrent)) });
             }
             const storedConfigs = readPersisted(
                 SAVED_CONFIGS_KEY,
@@ -100,7 +109,11 @@ export const CostOverviewStore = signalStore(
                 // filtered per item so one unusable config costs the user that config, not all of them
                 patchState(
                     store,
-                    addEntities(storedConfigs.filter(isSavedConfig).map(reviveDates))
+                    addEntities(
+                        storedConfigs
+                            .filter(isSavedConfig)
+                            .map(config => withSource(reviveDates(config)))
+                    )
                 );
             }
 

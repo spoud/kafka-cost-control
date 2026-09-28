@@ -103,4 +103,42 @@ describe('CostOverviewStore hydration', () => {
 
         expect(store.current()?.from).toBeInstanceOf(Date);
     });
+
+    it('reads state saved before the cost source existed as an invoice split', () => {
+        localStorage.setItem(
+            CURRENT_STATE_KEY,
+            JSON.stringify({
+                from: '2026-01-01T00:00:00Z',
+                to: '2026-02-01T00:00:00Z',
+                groupBy: [],
+            })
+        );
+        localStorage.setItem(
+            SAVED_CONFIGS_KEY,
+            JSON.stringify([
+                { id: 'old', name: 'Old', from: '2026-01-01', to: '2026-02-01', groupBy: [] },
+            ])
+        );
+
+        const store = TestBed.inject(CostOverviewStore);
+
+        expect(store.current()?.source).toBe('invoice');
+        expect(store.entities()[0].source).toBe('invoice');
+    });
+
+    it('keeps a stored pricing-rules source', () => {
+        localStorage.setItem(
+            CURRENT_STATE_KEY,
+            JSON.stringify({
+                source: 'pricingRules',
+                from: '2026-01-01T00:00:00Z',
+                to: '2026-02-01T00:00:00Z',
+                groupBy: [],
+            })
+        );
+
+        const store = TestBed.inject(CostOverviewStore);
+
+        expect(store.current()?.source).toBe('pricingRules');
+    });
 });
