@@ -18,7 +18,12 @@ import {
 } from '../chart-legend/chart-legend.component';
 import { applyLegendClick } from '../legend-selection';
 import { ChartActions } from '../chart-actions';
-import { formatCompact, formatPercent } from '../../../common/compact-number';
+import {
+    ChartUnit,
+    formatCompact,
+    formatCurrency,
+    formatPercent,
+} from '../../../common/compact-number';
 import { DateRange } from '../../../common/date-range';
 
 export type BarOrLine = 'bar' | 'line';
@@ -66,6 +71,7 @@ export class BarChartComponent implements ChartActions {
     panelData = input<Panel>();
 
     type = input.required<BarOrLine>();
+    unit = input<ChartUnit>('usage');
 
     /**
      * The range the user actually asked for. Without it the time axis spans only the timestamps
@@ -183,7 +189,8 @@ export class BarChartComponent implements ChartActions {
         const deselected = this.deselected();
         const normalized = this.normalized();
         const range = this.range();
-        const format = normalized ? formatPercent : formatCompact;
+        const currency = this.unit() === 'currency';
+        const format = normalized ? formatPercent : currency ? formatCurrency : formatCompact;
 
         return {
             tooltip: {
@@ -217,7 +224,7 @@ export class BarChartComponent implements ChartActions {
                     show: true,
                 },
                 max: normalized ? 100 : undefined,
-                name: normalized ? '%' : 'bytes',
+                name: normalized ? '%' : currency ? 'cost ($)' : 'bytes',
                 axisLabel: {
                     formatter: (value: number) => format(value),
                 },
@@ -278,7 +285,8 @@ export class BarChartComponent implements ChartActions {
             }
         });
         csvLines.sort();
-        const withHeader = ['time,name,value', ...csvLines];
+        const header = this.unit() === 'currency' ? 'time,name,cost' : 'time,name,value';
+        const withHeader = [header, ...csvLines];
         const blob = new Blob([withHeader.join('\n')], { type: 'text/csv' });
         const name = (this.panelData()?.title ?? '') + new Date().toISOString();
         saveAs(blob, name + '.csv');

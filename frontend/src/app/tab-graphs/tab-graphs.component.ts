@@ -4,6 +4,8 @@ import { GraphPanelComponent } from './graph-panel/graph-panel.component';
 import { GraphFilterService } from './graph-filter/graph-filter.service';
 import { MatIcon } from '@angular/material/icon';
 import { MatAnchor } from '@angular/material/button';
+import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
 import { FilterBarComponent } from '../common/filter-bar/filter-bar.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
@@ -23,6 +25,7 @@ export interface GraphFilter {
 }
 
 const FILTER_KEY = 'kcc_explore_filter';
+const SHOW_COST_KEY = 'kcc_explore_show_cost';
 /** Bump when GraphFilter changes in a way values written by an older build cannot satisfy. */
 const PERSISTED_VERSION = 1;
 
@@ -69,6 +72,9 @@ function restoreFilter(): GraphFilter | undefined {
         PageHeaderComponent,
         FilterBarComponent,
         EmptyStateComponent,
+        MatButtonToggleGroup,
+        MatButtonToggle,
+        RouterLink,
     ],
     templateUrl: './tab-graphs.component.html',
     styleUrl: './tab-graphs.component.scss',
@@ -105,6 +111,15 @@ export class TabGraphsComponent {
         return `olap/export/aggregated?${params}`;
     });
 
+    /** Plot pricing-rule costs instead of usage; the history response already carries both. */
+    showCost = signal(
+        readPersisted(
+            SHOW_COST_KEY,
+            PERSISTED_VERSION,
+            (v): v is boolean => typeof v === 'boolean'
+        ) ?? false
+    );
+
     historyData = this.graphFilterService.historyResource(this.filter);
 
     /** A finished request that returned nothing, as opposed to one still in flight. */
@@ -112,7 +127,18 @@ export class TabGraphsComponent {
         () => !this.historyData.isLoading() && (this.historyData.value()?.length ?? 0) === 0
     );
 
+    /** Data came back, but no pricing rule priced any of it. */
+    protected readonly noCostData = computed(
+        () =>
+            this.showCost() &&
+            !this.noData() &&
+            (this.historyData.value() ?? []).every(series =>
+                series.costs.every(cost => cost === null || cost === undefined)
+            )
+    );
+
     constructor() {
+        effect(() => writePersisted(SHOW_COST_KEY, PERSISTED_VERSION, this.showCost()));
         effect(() => {
             const filter = this.filter();
             if (filter) {

@@ -25,3 +25,19 @@ export function formatPercent(value: number | null | undefined): string {
     }
     return `${value.toFixed(1)}%`;
 }
+
+/** What a chart's values measure: usage (named by the axis) or money from the pricing rules. */
+export type ChartUnit = 'usage' | 'currency';
+
+const cents = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+/** 1.5 -> "$1.50", 12345 -> "$12.3K". Non-finite values render as an em dash, never "NaN". */
+export function formatCurrency(value: number | null | undefined): string {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+        return '—';
+    }
+    return '$' + (Math.abs(value) < 1000 ? cents.format(value) : compact.format(value));
+}

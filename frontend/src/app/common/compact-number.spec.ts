@@ -1,4 +1,4 @@
-import { formatCompact, formatPercent } from './compact-number';
+import { formatCompact, formatCurrency, formatPercent } from './compact-number';
 
 describe('formatCompact', () => {
     it('leaves values below a thousand readable', () => {
@@ -26,5 +26,21 @@ describe('formatPercent', () => {
 
     it('renders an em dash for missing values', () => {
         expect(formatPercent(null)).toBe('—');
+    });
+});
+
+describe('formatCurrency', () => {
+    it('shows cents below a thousand', () => {
+        expect(formatCurrency(1.5)).toBe('$1.50');
+        expect(formatCurrency(0.004)).toBe('$0.00');
+    });
+
+    it('compacts thousands', () => {
+        expect(formatCurrency(12345)).toMatch(/^\$12\.3K$/i);
+    });
+
+    it('renders an em dash for missing values', () => {
+        expect(formatCurrency(null)).toBe('—');
+        expect(formatCurrency(Number.NaN)).toBe('—');
     });
 });
