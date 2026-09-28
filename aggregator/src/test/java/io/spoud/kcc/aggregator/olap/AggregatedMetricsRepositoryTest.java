@@ -6,6 +6,7 @@ import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
+import io.spoud.kcc.aggregator.graphql.data.PricingRuleCostRequest;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.aggregator.stream.TestConfigProperties;
@@ -14,15 +15,20 @@ import io.spoud.kcc.data.EntityType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class AggregatedMetricsRepositoryTest {
 
@@ -617,6 +623,82 @@ class AggregatedMetricsRepositoryTest {
         var prices = new HashMap<String, Double>();
         distribution.nameToPriceList().forEach(p -> prices.put(p.contextValues().getFirst(), p.price()));
         return prices;
+    }
+
+    @Test
+    @DisplayName("A database created before the cost column gets it in place and keeps its rows")
+    void existingDatabaseGetsCostColumn(@TempDir Path dir) throws SQLException {
+        var url = "jdbc:duckdb:" + dir.resolve("before-cost.duckdb");
+        try (var conn = DriverManager.getConnection(url); var stmt = conn.createStatement()) {
+            stmt.execute("""
+                    CREATE TABLE aggregated_data (start_time TIMESTAMPTZ NOT NULL, end_time TIMESTAMPTZ NOT NULL,
+                        initial_metric_name VARCHAR NOT NULL, entity_type VARCHAR NOT NULL, name VARCHAR NOT NULL,
+                        tags JSON NOT NULL, context JSON NOT NULL, value DOUBLE NOT NULL, target VARCHAR NOT NULL,
+                        id VARCHAR PRIMARY KEY);
+                    INSERT INTO aggregated_data VALUES ('2026-01-01 00:00:00+00', '2026-01-01 01:00:00+00',
+                        'old_metric', 'TOPIC', 'old-topic', '{}', '{}', 42, 'old-topic', 'old-row');
+                    """);
+        }
+        var config = FakeOlapConfig.builder().databaseUrl(url).build();
+        var infra = new OlapInfra(config);
+        infra.init();
+        var migratedRepo = new AggregatedMetricsRepository(config, testCostConfig, infra, null);
+
+        migratedRepo.insertRow(randomDatapoint().setInitialMetricName("new_metric").setCost(1.5).build());
+        migratedRepo.flushToDb();
+
+        var costs = infra.getDSLContext().map(ctx -> ctx.fetch(
+                "SELECT initial_metric_name, cost FROM aggregated_data ORDER BY initial_metric_name")).orElseThrow();
+        assertThat(costs.getValues(0, String.class)).containsExactly("new_metric", "old_metric");
+        assertThat(costs.getValues(1, Double.class)).containsExactly(1.5, null);
+    }
+
+    @Test
+    @DisplayName("History returns pricing-rule costs alongside values, null where no rule applied")
+    void historyReturnsCostsAlongsideValues() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = start.plus(Duration.ofHours(1));
+        repo.insertRow(teamRow(start, end, "priced", "metric", 10).setCost(2.5).build());
+        repo.insertRow(teamRow(start, end, "unpriced", "metric", 20).build());
+        repo.flushToDb();
+
+        var history = repo.getHistoryGrouped(start, end, Set.of("metric"), "team", 1L);
+
+        assertThat(history).extracting(MetricHistoryTO::getName).containsExactlyInAnyOrder("priced", "unpriced");
+        history.forEach(series -> {
+            if (series.getName().equals("priced")) {
+                assertThat(series.getValues()).containsExactly(10.0);
+                assertThat(series.getCosts()).containsExactly(2.5);
+            } else {
+                assertThat(series.getValues()).containsExactly(20.0);
+                assertThat(series.getCosts()).containsExactly((Double) null);
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("Pricing-rule costs are distributed by context in cents, unpriced metrics left out")
+    void pricingRuleCostsByContext() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = start.plus(Duration.ofHours(1));
+        repo.insertRow(teamRow(start, end, "a", "priced_metric", 30).setCost(3.0).build());
+        repo.insertRow(teamRow(start, end, "b", "priced_metric", 10).setCost(1.0).build());
+        repo.insertRow(teamRow(start, end, "a", "unpriced_metric", 99).build());
+        repo.flushToDb();
+
+        var response = repo.calculatePricingRuleCosts(new PricingRuleCostRequest(start, end, List.of("team")));
+
+        assertThat(response.metricToDistributionMapList()).singleElement().satisfies(distribution -> {
+            assertThat(distribution.metric()).isEqualTo("priced_metric");
+            assertThat(distribution.nameToPriceList())
+                    .extracting(p -> p.contextValues().getFirst(), p -> p.price())
+                    .containsExactlyInAnyOrder(tuple("a", 300.0), tuple("b", 100.0));
+        });
+    }
+
+    private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {
+        return randomDatapoint().setStartTime(start).setEndTime(end).setName(team)
+                .setInitialMetricName(metric).setValue(value).setContext(Map.of("team", team));
     }
 
     private static final Random random = new Random();

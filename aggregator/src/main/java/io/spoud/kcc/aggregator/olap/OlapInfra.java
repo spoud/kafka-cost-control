@@ -171,7 +171,7 @@ public class OlapInfra {
         var applications = List.of("RealtimeMetricsAggregator", "CustomerOrderStreamer", "FinancialTransactionProcessor", "LogEventAnalyzer", "InventoryUpdateEmitter");
         var names = List.of("school.principals.management", "education.principals.directory", "admin.principals.records", "staff.principals.updates", "district.principals.roster");
 
-        try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+        try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data (start_time, end_time, initial_metric_name, entity_type, name, tags, context, value, target, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             for (Instant startTime = Instant.now().truncatedTo(ChronoUnit.HOURS), middle = startTime.minus(Duration.ofDays(days / 2));
                  startTime.isAfter(Instant.now().minus(Duration.ofDays(days)));
                  startTime = startTime.minus(Duration.ofHours(1))) {
@@ -225,8 +225,9 @@ public class OlapInfra {
         }
     }
 
+    // By name, so exports written before and after the cost column was added both load.
     private void loadDataExport(String path, Connection conn) {
-        try (var statement = conn.prepareStatement("COPY aggregated_data FROM '" + path + "'")) {
+        try (var statement = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data BY NAME SELECT * FROM '" + path + "'")) {
             statement.execute();
             Log.infof("Loaded seed data from %s", path);
         } catch (SQLException e) {

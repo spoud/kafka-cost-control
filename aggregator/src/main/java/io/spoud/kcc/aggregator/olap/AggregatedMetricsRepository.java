@@ -10,6 +10,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
+import io.spoud.kcc.aggregator.graphql.data.PricingRuleCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.graphql.data.TableResponse;
@@ -30,6 +31,7 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -109,7 +111,7 @@ public class AggregatedMetricsRepository {
             var count = 0;
             var startTime = Instant.now();
             var addedContextKeys = new HashSet<String>();
-            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data (start_time, end_time, initial_metric_name, entity_type, name, tags, context, value, target, id, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var metric = finalRowBuffer.poll(); metric != null; metric = finalRowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
@@ -144,6 +146,11 @@ public class AggregatedMetricsRepository {
                     stmt.setDouble(8, metric.getValue());
                     stmt.setString(9, target);
                     stmt.setString(10, id);
+                    if (metric.getCost() == null) {
+                        stmt.setNull(11, Types.DOUBLE);
+                    } else {
+                        stmt.setDouble(11, metric.getCost());
+                    }
                     stmt.addBatch();
                     count++;
                 }
@@ -411,7 +418,7 @@ public class AggregatedMetricsRepository {
             // no context keys selected means "no grouping" - just show the metric-level total, without a further breakdown
             List<CostOverviewResponse.MetricToDistributionMap.NameToPrice> nameToPrices = request.contextKeysToGroupBy().isEmpty()
                     ? List.of()
-                    : getTotalGroupedByContext(request.from(), request.to(), request.contextKeysToGroupBy(), metricName).stream()
+                    : getTotalGroupedByContext(request.from(), request.to(), request.contextKeysToGroupBy(), metricName, AGGREGATED_DATA.VALUE).stream()
                             .map(aggregatedTotal -> new CostOverviewResponse.MetricToDistributionMap.NameToPrice(
                                     formatContextLabel(request.contextKeysToGroupBy(), aggregatedTotal.contextValues()),
                                     (aggregatedTotal.total() / totalForMetric) * priceInCents,
@@ -422,6 +429,41 @@ public class AggregatedMetricsRepository {
 
         });
         return new CostOverviewResponse(metricToDistributionMapList);
+    }
+
+    /**
+     * Pricing-rule costs (bottom-up) per metric, distributed by context, in the same shape and
+     * unit (cents) as {@link #calculateCosts}. Without grouping keys each metric has one entry
+     * with no context values. Rows no pricing rule covered are left out.
+     */
+    public CostOverviewResponse calculatePricingRuleCosts(PricingRuleCostRequest request) {
+        var from = request.from();
+        var to = request.to();
+        var keys = request.contextKeysToGroupBy();
+        var distributions = pricedMetrics(from, to).stream()
+                .map(metric -> new CostOverviewResponse.MetricToDistributionMap(metric,
+                        getTotalGroupedByContext(from, to, keys, metric, AGGREGATED_DATA.COST).stream()
+                                .map(total -> new CostOverviewResponse.MetricToDistributionMap.NameToPrice(
+                                        formatContextLabel(keys, total.contextValues()),
+                                        total.total() * 100,
+                                        total.contextValues()))
+                                .toList()))
+                .toList();
+        return new CostOverviewResponse(distributions);
+    }
+
+    private List<String> pricedMetrics(Instant startDate, Instant endDate) {
+        return olapInfra.getDSLContext().map(dslContext -> {
+            AggregatedData a = AGGREGATED_DATA.as("a");
+            return dslContext
+                    .selectDistinct(a.INITIAL_METRIC_NAME)
+                    .from(a)
+                    .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
+                            .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
+                            .and(a.COST.isNotNull()))
+                    .orderBy(a.INITIAL_METRIC_NAME)
+                    .fetch(a.INITIAL_METRIC_NAME);
+        }).orElse(List.of());
     }
 
     private double getTotalForMetric(Instant startDate, Instant endDate, String initialMetricName) {
@@ -457,7 +499,8 @@ public class AggregatedMetricsRepository {
                 .collect(Collectors.joining(", "));
     }
 
-    private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName) {
+    /** Sums {@code measure} (usage or pricing-rule cost) per combination of context values. */
+    private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName, Field<Double> measure) {
         List<AggregatedTotal> aggregatedTotals = new ArrayList<>();
         return olapInfra.getDSLContext().map((dslContext) -> {
             List<Field<String>> contextKeys = contextKeysToGroupBy.stream()
@@ -465,13 +508,16 @@ public class AggregatedMetricsRepository {
                     .toList();
 
             AggregatedData a = AGGREGATED_DATA.as("a");
+            Field<Double> aliasedMeasure = a.field(measure);
+            var total = sum(aliasedMeasure).as("total");
             SelectSeekStepN<Record> select = dslContext
                     .select(contextKeys)
-                    .select(sum(a.VALUE).as("sum"))
+                    .select(total)
                     .from(a)
                     .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
                             .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
-                            .and(a.INITIAL_METRIC_NAME.eq(initialMetricName)))
+                            .and(a.INITIAL_METRIC_NAME.eq(initialMetricName))
+                            .and(aliasedMeasure.isNotNull()))
                     .groupBy(contextKeys)
                     .orderBy(contextKeys);
 
@@ -487,7 +533,7 @@ public class AggregatedMetricsRepository {
                 }
                 aggregatedTotals.add(new AggregatedTotal(
                         values,
-                        record.get(sum(a.VALUE)).doubleValue()
+                        record.get(total).doubleValue()
                 ));
             });
             return aggregatedTotals;
@@ -586,6 +632,7 @@ public class AggregatedMetricsRepository {
             var contextField = groupByContextKey == null ? null
                     : DSL.coalesce(DSL.jsonValue(a.CONTEXT, groupByContextKey), DSL.val("unknown")).as("context_value");
             var totalValue = DSL.sum(a.VALUE);
+            var totalCost = DSL.sum(a.COST);
             var range = Duration.between(finalStartDate, finalEndDate);
             var requested = timeBucketWidthHours == null ? null : Duration.ofHours(timeBucketWidthHours);
             var bucketWidth = requested == null
@@ -598,7 +645,7 @@ public class AggregatedMetricsRepository {
                     ? new Field<?>[]{a.INITIAL_METRIC_NAME, tb}
                     : new Field<?>[]{a.INITIAL_METRIC_NAME, contextField, tb};
             var dslQuery = dslContext
-                    .select(totalValue).select(grouping)
+                    .select(totalValue, totalCost).select(grouping)
                     .from(a)
                     .where(condition)
                     .groupBy(grouping)
@@ -619,11 +666,14 @@ public class AggregatedMetricsRepository {
                         seriesName,
                         contextValue == null ? Map.of() : Map.of(groupByContextKey, contextValue),
                         new ArrayList<>(),
+                        new ArrayList<>(),
                         new ArrayList<>()
                 ));
                 var startTime = record.get(tb).toInstant();
                 metricHistory.getTimes().add(startTime);
                 metricHistory.getValues().add(record.get(totalValue).doubleValue());
+                var cost = record.get(totalCost);
+                metricHistory.getCosts().add(cost == null ? null : cost.doubleValue());
             });
             Log.infof("Generated report for the period from %s to %s, grouped for context '%s' in %s.",
                     finalStartDate, finalEndDate, groupByContextKey, Duration.between(reportStart, Instant.now()));

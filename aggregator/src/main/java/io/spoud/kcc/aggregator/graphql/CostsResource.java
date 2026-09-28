@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.graphql;
 import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
+import io.spoud.kcc.aggregator.graphql.data.PricingRuleCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.TableResponse;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,5 +30,15 @@ public class CostsResource {
     @Query("costOverview")
     public @NonNull CostOverviewResponse calculateCosts(CostOverviewRequest request) {
         return aggregatedMetricsRepository.calculateCosts(request);
+    }
+
+    /**
+     * Costs computed by the pricing rules (bottom-up), distributed by context. Prices are in
+     * cents, like costOverview.
+     */
+    @Authenticated
+    @Query("pricingRuleCosts")
+    public @NonNull CostOverviewResponse pricingRuleCosts(PricingRuleCostRequest request) {
+        return aggregatedMetricsRepository.calculatePricingRuleCosts(request);
     }
 }
