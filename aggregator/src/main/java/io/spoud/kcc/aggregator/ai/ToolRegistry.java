@@ -299,8 +299,9 @@ public class ToolRegistry {
         if (storage == null && read == null && write == null) {
             throw new IllegalArgumentException(
                     "At least one of storageCents, networkReadCents or networkWriteCents is required. "
-                            + "The table stores usage, not cost, so an amount to distribute must be supplied. "
-                            + "Ask the user what they spent for this period.");
+                            + "Splitting a bill needs the amount to distribute: ask the user what they spent "
+                            + "for this period. For what the pricing rules charged, query the cost column with "
+                            + "run_sql instead.");
         }
 
         var request = new CostOverviewRequest(from, to, null, storage, read, write, groupBy);
