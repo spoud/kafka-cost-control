@@ -22,8 +22,16 @@
     }
 }
 
+.source-toggle {
+    margin-bottom: var(--space-5);
+}
+
 .middle-row {
     grid-template-columns: 2fr 1fr;
+
+    &.single {
+        grid-template-columns: 1fr;
+    }
 
     @include breakpoints.compact {
         grid-template-columns: 1fr;

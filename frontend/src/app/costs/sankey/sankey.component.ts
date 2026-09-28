@@ -1,6 +1,7 @@
 import { Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
 import { CostOverviewQuery } from '../../../generated/graphql/sdk';
 import { CostOverviewRequestInput } from '../../../generated/graphql/types';
+import { CostSource } from '../store/cost-overview.store';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import { EChartsType } from 'echarts/core';
 import { MatIconButton } from '@angular/material/button';
@@ -90,6 +91,7 @@ export class SankeyComponent {
 
     inputData = input.required<CostOverviewQuery | undefined>();
     lastRequest = input.required<CostOverviewRequestInput | undefined>();
+    source = input<CostSource>('invoice');
 
     /**
      * Nodes, links and the busiest column, built once. `sankeyOptions` and `chartHeight` both
@@ -127,19 +129,34 @@ export class SankeyComponent {
         };
 
         dataSet.add('total');
-        dataSet.add('confluent_kafka_server_retained_bytes');
-        dataSet.add('confluent_kafka_server_request_bytes');
-        dataSet.add('confluent_kafka_server_response_bytes');
-        dataSet.add('other');
+        const distributions = this.inputData()?.costOverview.metricToDistributionMapList ?? [];
+        if (this.source() === 'pricingRules') {
+            // no invoice to start from: each metric's branch is what its pricing rule charged
+            distributions.forEach(entry => {
+                if (entry?.metric) {
+                    dataSet.add(entry.metric);
+                    const cents = (entry.nameToPriceList ?? []).reduce(
+                        (sum, p) => sum + (p?.price ?? 0),
+                        0
+                    );
+                    addLink('total', entry.metric, cents / 100);
+                }
+            });
+        } else {
+            dataSet.add('confluent_kafka_server_retained_bytes');
+            dataSet.add('confluent_kafka_server_request_bytes');
+            dataSet.add('confluent_kafka_server_response_bytes');
+            dataSet.add('other');
 
-        addLink('total', 'confluent_kafka_server_retained_bytes', storage);
-        // same mapping as the backend: produce (request) is billed as write, fetch (response) as read
-        addLink('total', 'confluent_kafka_server_request_bytes', networkWrite);
-        addLink('total', 'confluent_kafka_server_response_bytes', networkRead);
-        addLink('total', 'other', other);
+            addLink('total', 'confluent_kafka_server_retained_bytes', storage);
+            // same mapping as the backend: produce (request) is billed as write, fetch (response) as read
+            addLink('total', 'confluent_kafka_server_request_bytes', networkWrite);
+            addLink('total', 'confluent_kafka_server_response_bytes', networkRead);
+            addLink('total', 'other', other);
+        }
 
         const groupByKeys = this.lastRequest()?.contextKeysToGroupBy ?? [];
-        this.inputData()?.costOverview.metricToDistributionMapList?.forEach(entry => {
+        distributions.forEach(entry => {
             const metric = entry?.metric;
             if (!metric) {
                 return;

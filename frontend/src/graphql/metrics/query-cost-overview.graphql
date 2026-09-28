@@ -21,3 +21,16 @@ query calculateTable ($request: CostOverviewRequestInput!) {
         }
     }
 }
+
+query pricingRuleCosts ($request: PricingRuleCostRequestInput!) {
+    pricingRuleCosts(request: $request) {
+        metricToDistributionMapList {
+            metric
+            nameToPriceList {
+                name
+                price
+                contextValues
+            }
+        }
+    }
+}

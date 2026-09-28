@@ -75,4 +75,40 @@ describe('SankeyComponent', () => {
         expect(fromTotal('confluent_kafka_server_request_bytes')).toBe(700);
         expect(fromTotal('confluent_kafka_server_response_bytes')).toBe(100);
     });
+
+    it('in pricing-rules mode, roots each metric at the sum of its costs with no invoice nodes', () => {
+        const fixture = TestBed.createComponent(SankeyComponent);
+        fixture.componentRef.setInput('source', 'pricingRules');
+        fixture.componentRef.setInput('inputData', {
+            costOverview: {
+                metricToDistributionMapList: [
+                    {
+                        metric: 'kafka_log_log_size',
+                        nameToPriceList: [
+                            { name: 'tenant=a', price: 250, contextValues: ['a'] },
+                            { name: 'tenant=b', price: 150, contextValues: ['b'] },
+                        ],
+                    },
+                ],
+            },
+        } as unknown as CostOverviewQuery);
+        fixture.componentRef.setInput('lastRequest', { contextKeysToGroupBy: ['tenant'] });
+
+        const { data, links } = (
+            fixture.componentInstance.sankeyOptions() as {
+                series: {
+                    data: Node[];
+                    links: { source: string; target: string; value: number }[];
+                };
+            }
+        ).series;
+
+        expect(links.find(l => l.source === 'total')).toEqual({
+            source: 'total',
+            target: 'kafka_log_log_size',
+            value: 4,
+        });
+        expect(data.map(n => n.name)).not.toContain('other');
+        expect(data.map(n => n.name)).not.toContain('confluent_kafka_server_request_bytes');
+    });
 });

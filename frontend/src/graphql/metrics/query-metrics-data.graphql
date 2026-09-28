@@ -7,5 +7,6 @@ query metricHistory ($from: DateTimeParameterInput!, $to: DateTimeParameterInput
         }
         times
         values
+        costs
     }
 }
