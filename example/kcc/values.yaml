@@ -7,6 +7,8 @@ env: dev
 # Set this to true to enable debug logging in telegraf and the context operator
 debug: true
 
+aggregationWindowSizeSeconds: 120
+
 topics:
   context: { } # when unset, the below values are generated from the release name
   #topicName: "context-data"
@@ -55,7 +57,6 @@ telegraf:
       cpu: 100m
       memory: 100Mi
   scrapeIntervalSeconds: 10
-  aggregationWindowSizeSeconds: 120
 
 strimzi:
   clusterName: my-cluster
@@ -112,7 +113,6 @@ schemaRegistry:
 
 aggregator:
   enabled: true
-  aggregationWindowSize: PT2M
   # Enable DuckDB integration
   olapEnabled: false
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
