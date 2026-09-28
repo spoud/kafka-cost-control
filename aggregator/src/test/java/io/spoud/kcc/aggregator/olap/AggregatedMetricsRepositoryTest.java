@@ -696,6 +696,23 @@ class AggregatedMetricsRepositoryTest {
         });
     }
 
+    @Test
+    @DisplayName("Cost queries without an end include every window from the start on")
+    void missingToMeansNoEnd() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant farFuture = Instant.parse("2031-06-01T00:00:00Z");
+        repo.insertRow(teamRow(farFuture, farFuture.plus(Duration.ofHours(1)), "a", "confluent_kafka_server_retained_bytes", 5).setCost(2.0).build());
+        repo.flushToDb();
+
+        var bottomUp = repo.calculatePricingRuleCosts(new PricingRuleCostRequest(start, null, List.of("team")));
+        var invoice = repo.calculateCosts(new CostOverviewRequest(start, null, null, 1000, null, null, List.of("team")));
+
+        assertThat(bottomUp.metricToDistributionMapList()).singleElement()
+                .satisfies(d -> assertThat(d.nameToPriceList()).extracting(p -> p.price()).containsExactly(200.0));
+        assertThat(invoice.metricToDistributionMapList()).singleElement()
+                .satisfies(d -> assertThat(d.nameToPriceList()).extracting(p -> p.price()).containsExactly(1000.0));
+    }
+
     private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {
         return randomDatapoint().setStartTime(start).setEndTime(end).setName(team)
                 .setInitialMetricName(metric).setValue(value).setContext(Map.of("team", team));

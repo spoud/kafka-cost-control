@@ -339,8 +339,7 @@ public class AggregatedMetricsRepository {
                     Map<String, Double> metricToTotal = dslContext
                             .select(a.INITIAL_METRIC_NAME, sum(a.VALUE))
                             .from(a)
-                            .where(a.START_TIME.ge(request.from().atOffset(ZoneOffset.UTC))
-                                    .and(a.END_TIME.le(request.to().atOffset(ZoneOffset.UTC))))
+                            .where(withinWindow(a, request.from(), request.to()))
                             .groupBy(a.INITIAL_METRIC_NAME)
                             .stream()
                             .collect(Collectors.toMap(
@@ -359,8 +358,7 @@ public class AggregatedMetricsRepository {
                             .select(contextKeys)
                             .select(sum(a.VALUE))
                             .from(a)
-                            .where(a.START_TIME.ge(request.from().atOffset(ZoneOffset.UTC))
-                                    .and(a.END_TIME.le(request.to().atOffset(ZoneOffset.UTC))))
+                            .where(withinWindow(a, request.from(), request.to()))
                             .groupBy(combined)
                             .orderBy(contextKeys)
                             .stream()
@@ -452,28 +450,32 @@ public class AggregatedMetricsRepository {
         return new CostOverviewResponse(distributions);
     }
 
-    private List<String> pricedMetrics(Instant startDate, Instant endDate) {
+    private List<String> pricedMetrics(Instant startDate, @Nullable Instant endDate) {
         return olapInfra.getDSLContext().map(dslContext -> {
             AggregatedData a = AGGREGATED_DATA.as("a");
             return dslContext
                     .selectDistinct(a.INITIAL_METRIC_NAME)
                     .from(a)
-                    .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
-                            .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
+                    .where(withinWindow(a, startDate, endDate)
                             .and(a.COST.isNotNull()))
                     .orderBy(a.INITIAL_METRIC_NAME)
                     .fetch(a.INITIAL_METRIC_NAME);
         }).orElse(List.of());
     }
 
-    private double getTotalForMetric(Instant startDate, Instant endDate, String initialMetricName) {
+    /** Windows starting at or after {@code from}; a missing {@code to} means no end. */
+    private static Condition withinWindow(AggregatedData a, Instant from, @Nullable Instant to) {
+        var condition = a.START_TIME.ge(from.atOffset(ZoneOffset.UTC));
+        return to == null ? condition : condition.and(a.END_TIME.le(to.atOffset(ZoneOffset.UTC)));
+    }
+
+    private double getTotalForMetric(Instant startDate, @Nullable Instant endDate, String initialMetricName) {
         return olapInfra.getDSLContext().map(dslContext -> {
             AggregatedData a = AGGREGATED_DATA.as("a");
             Record1<BigDecimal> record = dslContext
                     .select(sum(a.VALUE))
                     .from(a)
-                    .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
-                            .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
+                    .where(withinWindow(a, startDate, endDate)
                             .and(a.INITIAL_METRIC_NAME.eq(initialMetricName)))
                     .fetchOne();
             if (record == null || record.value1() == null) {
@@ -500,7 +502,7 @@ public class AggregatedMetricsRepository {
     }
 
     /** Sums {@code measure} (usage or pricing-rule cost) per combination of context values. */
-    private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName, Field<Double> measure) {
+    private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, @Nullable Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName, Field<Double> measure) {
         List<AggregatedTotal> aggregatedTotals = new ArrayList<>();
         return olapInfra.getDSLContext().map((dslContext) -> {
             List<Field<String>> contextKeys = contextKeysToGroupBy.stream()
@@ -514,8 +516,7 @@ public class AggregatedMetricsRepository {
                     .select(contextKeys)
                     .select(total)
                     .from(a)
-                    .where(a.START_TIME.ge(startDate.atOffset(ZoneOffset.UTC))
-                            .and(a.END_TIME.le(endDate.atOffset(ZoneOffset.UTC)))
+                    .where(withinWindow(a, startDate, endDate)
                             .and(a.INITIAL_METRIC_NAME.eq(initialMetricName))
                             .and(aliasedMeasure.isNotNull()))
                     .groupBy(contextKeys)
@@ -550,8 +551,7 @@ public class AggregatedMetricsRepository {
             DSLContext dslContext = DSL.using(conn);
             AggregatedData a = AGGREGATED_DATA.as("a");
 
-            Condition condition = a.START_TIME.ge(finalStartDate.atOffset(ZoneOffset.UTC))
-                    .and(a.END_TIME.le(finalEndDate.atOffset(ZoneOffset.UTC)));
+            Condition condition = withinWindow(a, finalStartDate, finalEndDate);
             if (!metricNames.isEmpty()) {
                 condition = condition.and(a.INITIAL_METRIC_NAME.in(metricNames));
             }
@@ -623,8 +623,7 @@ public class AggregatedMetricsRepository {
             DSLContext dslContext = DSL.using(conn);
             AggregatedData a = AGGREGATED_DATA.as("a");
 
-            Condition condition = a.START_TIME.ge(finalStartDate.atOffset(ZoneOffset.UTC))
-                    .and(a.END_TIME.le(finalEndDate.atOffset(ZoneOffset.UTC)));
+            Condition condition = withinWindow(a, finalStartDate, finalEndDate);
             if (!metricName.isEmpty()) {
                 condition = condition.and(a.INITIAL_METRIC_NAME.in(metricName));
             }

@@ -15,8 +15,4 @@ public record CostOverviewRequest(
         Integer kafkaNetworkWriteCents,
         List<String> contextKeysToGroupBy
 ) {
-    public Instant to() {
-        Instant openEndedTo = OffsetDateTime.of(99999, 12, 31, 23, 59, 59, 0, ZoneOffset.UTC).toInstant();
-        return to != null ? to : openEndedTo;
-    }
 }
