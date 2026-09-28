@@ -5,7 +5,7 @@ import { CostOverviewRequestInput } from '../../../generated/graphql/types';
 
 type Node = { name: string; itemStyle: { color: string } };
 
-function build(entryCount: number) {
+function build(entryCount: number, request: Partial<CostOverviewRequestInput> = {}) {
     const fixture = TestBed.createComponent(SankeyComponent);
     const nameToPriceList = Array.from({ length: entryCount }, (_, i) => ({
         name: `tenant=t${i % 3} › application=app${i}`,
@@ -25,10 +25,11 @@ function build(entryCount: number) {
         kafkaNetworkReadCents: 30000,
         kafkaNetworkWriteCents: 30000,
         contextKeysToGroupBy: ['tenant', 'application'],
+        ...request,
     } as CostOverviewRequestInput);
 
     const options = fixture.componentInstance.sankeyOptions() as {
-        series: { data: Node[]; links: unknown[] };
+        series: { data: Node[]; links: { source: string; target: string; value: number }[] };
     };
     return { options, height: fixture.componentInstance.chartHeight() };
 }
@@ -63,5 +64,15 @@ describe('SankeyComponent', () => {
         expect(new Set(colors.slice(0, 24)).size).toBe(24);
         // zrender splits colour params on commas; the space-separated CSS form renders black
         colors.forEach(c => expect(c).toMatch(/^hsl\(\d+(\.\d+)?, \d+%, \d+%\)$/));
+    });
+
+    it('routes the write invoice to produce (request) bytes and the read invoice to fetch (response) bytes', () => {
+        const { links } = build(1, { kafkaNetworkWriteCents: 70000, kafkaNetworkReadCents: 10000 })
+            .options.series;
+        const fromTotal = (target: string) =>
+            links.find(l => l.source === 'total' && l.target === target)?.value;
+
+        expect(fromTotal('confluent_kafka_server_request_bytes')).toBe(700);
+        expect(fromTotal('confluent_kafka_server_response_bytes')).toBe(100);
     });
 });

@@ -3,6 +3,8 @@ package io.spoud.kcc.aggregator.olap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
+import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
+import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
@@ -582,6 +584,39 @@ class AggregatedMetricsRepositoryTest {
 
     private static long bucketsOver(Duration range) {
         return range.toHours() / widthOver(range);
+    }
+
+    @Test
+    @DisplayName("Invoice split: network write follows produce (request) bytes, network read follows fetch (response) bytes")
+    void invoiceSplitMapsWriteToRequestAndReadToResponseBytes() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = start.plus(Duration.ofHours(1));
+        insertTeamBytes(start, end, "producer", "confluent_kafka_server_request_bytes", 90);
+        insertTeamBytes(start, end, "producer", "confluent_kafka_server_response_bytes", 10);
+        insertTeamBytes(start, end, "consumer", "confluent_kafka_server_request_bytes", 10);
+        insertTeamBytes(start, end, "consumer", "confluent_kafka_server_response_bytes", 90);
+        repo.flushToDb();
+
+        var response = repo.calculateCosts(new CostOverviewRequest(
+                start, end, 1200, null, 200, 1000, List.of("team")));
+
+        assertThat(pricesByTeam(response, "confluent_kafka_server_request_bytes"))
+                .containsEntry("producer", 900.0).containsEntry("consumer", 100.0);
+        assertThat(pricesByTeam(response, "confluent_kafka_server_response_bytes"))
+                .containsEntry("producer", 20.0).containsEntry("consumer", 180.0);
+    }
+
+    private void insertTeamBytes(Instant start, Instant end, String team, String metric, double value) {
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setName(team)
+                .setInitialMetricName(metric).setValue(value).setContext(Map.of("team", team)).build());
+    }
+
+    private static Map<String, Double> pricesByTeam(CostOverviewResponse response, String metric) {
+        var distribution = response.metricToDistributionMapList().stream()
+                .filter(m -> m.metric().equals(metric)).findFirst().orElseThrow();
+        var prices = new HashMap<String, Double>();
+        distribution.nameToPriceList().forEach(p -> prices.put(p.contextValues().getFirst(), p.price()));
+        return prices;
     }
 
     private static final Random random = new Random();
