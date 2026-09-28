@@ -168,7 +168,7 @@ class ReadOnlyQueryExecutorTest {
     private void seedRows(int count) throws Exception {
         Connection conn = olapInfra.getConnection().orElseThrow();
         try (var stmt = conn.prepareStatement(
-                "INSERT INTO aggregated_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                "INSERT INTO aggregated_data (start_time, end_time, initial_metric_name, entity_type, name, tags, context, value, target, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             Instant start = Instant.now().minus(Duration.ofHours(count));
             for (int i = 0; i < count; i++) {
                 Instant rowStart = start.plus(Duration.ofHours(i));

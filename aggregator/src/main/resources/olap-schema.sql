@@ -9,5 +9,9 @@ CREATE TABLE IF NOT EXISTS aggregated_data
     context             JSON        NOT NULL,
     value               DOUBLE      NOT NULL,
     target              VARCHAR     NOT NULL,
-    id                  VARCHAR PRIMARY KEY
+    id                  VARCHAR PRIMARY KEY,
+    cost                DOUBLE
 );
+
+-- Databases created before the cost column existed get it appended in place.
+ALTER TABLE aggregated_data ADD COLUMN IF NOT EXISTS cost DOUBLE;

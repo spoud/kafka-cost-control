@@ -31,4 +31,8 @@ public class MetricHistoryTO {
 
     @NonNull
     private List<Double> values;
+
+    /** Pricing-rule cost per bucket, parallel to {@link #values}; null where no rule priced it. */
+    @NonNull
+    private List<Double> costs;
 }
