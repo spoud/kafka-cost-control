@@ -68,7 +68,8 @@ public class SchemaDescriber {
                     context             JSON        NOT NULL, -- the business dimensions. Use this.
                     value               DOUBLE      NOT NULL, -- accumulated metric value for the window
                     target              VARCHAR     NOT NULL, -- context['topic'], else 'unknown'
-                    id                  VARCHAR PRIMARY KEY
+                    id                  VARCHAR PRIMARY KEY,
+                    cost                DOUBLE                -- pricing-rule cost of the row; NULL if unpriced
                 );
                 ```
 
@@ -79,12 +80,19 @@ public class SchemaDescriber {
 
                 1. **`tags` is always `{}`.** It is emptied during aggregation. Group by `context`, never `tags`.
 
-                2. **There is no cost column.** This table stores usage, not money. For any question \
-                about cost, spend, price, budget or "how much did X cost", call the `cost_overview` \
-                tool. Never try to compute money in SQL. If the user asks about cost without giving \
-                you an amount to distribute, ask them for the total spend for the period first.
+                2. **Two kinds of cost - pick the right one.**
+                   - **Pricing-rule cost** is the `cost` column: what this installation's pricing rules \
+                charged for the row (baseCost + costFactor x value), in the same currency as the rules. \
+                It is NULL where no rule priced the metric; report those rows as unpriced, never as free. \
+                For "what did X cost" in terms of our prices, `SUM(cost)` in SQL. Costs add up across \
+                windows even for gauges (each hour of storage is priced on its own), but rule 4 still \
+                applies.
+                   - **Splitting a real bill** (the user gives an invoice amount and asks who caused it) \
+                must go through the `cost_overview` tool, never SQL. If they ask about the bill without \
+                an amount, ask for the total spend for the period first.
+                   - If it is unclear which one the user means, ask.
 
-                3. **A metric listed as MAX below is a gauge, not a counter.** Its row is the value \
+                3. **A metric listed as MAX below is a gauge, not a counter.** Its `value` is the level \
                 *at* that hour, not the amount added during it - retained storage behaves this way. \
                 Summing a gauge across windows massively overstates it. Use MAX or AVG over time, \
                 and only SUM across *different* entities within the same window. Which metrics these \
@@ -302,7 +310,7 @@ public class SchemaDescriber {
                             + "carries the context it does - the aggregated table stores only the outcome, "
                             + "not the rule that produced it."));
             tools.add(LlmTool.noArgs("list_pricing_rules",
-                    "List the pricing rules behind every cost figure: per metric, "
+                    "List the pricing rules behind the `cost` column: per metric, "
                             + "cost = baseCost + costFactor * value. Use this to explain how a cost was "
                             + "derived, or to say which metrics have no pricing configured."));
         }
@@ -345,11 +353,11 @@ public class SchemaDescriber {
                         List.of("sql")),
 
                 new LlmTool("cost_overview",
-                        "Attribute a known amount of spend across context dimensions for a time period. "
-                                + "This is the ONLY correct way to answer questions about cost or money, because "
-                                + "the table stores usage, not cost. It distributes the cents you supply in "
-                                + "proportion to each group's share of the relevant metric. Supply whichever of the "
-                                + "three cent amounts the user has told you; omit the others.",
+                        "Split a known bill (an amount the user supplies) across context dimensions for a "
+                                + "time period. This is the ONLY correct way to attribute an invoice; the `cost` "
+                                + "column holds pricing-rule costs, which are a different thing. It distributes the "
+                                + "cents you supply in proportion to each group's share of the relevant metric. "
+                                + "Supply whichever of the three cent amounts the user has told you; omit the others.",
                         java.util.Map.of(
                                 "from", LlmTool.stringParam(
                                         "Start of the period, ISO-8601 instant, e.g. 2026-07-01T00:00:00Z."),
@@ -358,9 +366,9 @@ public class SchemaDescriber {
                                 "storageCents", LlmTool.integerParam(
                                         "Total storage spend for the period, in cents."),
                                 "networkReadCents", LlmTool.integerParam(
-                                        "Total network read (ingress) spend for the period, in cents."),
+                                        "Total network read (egress: data consumed from Kafka) spend for the period, in cents."),
                                 "networkWriteCents", LlmTool.integerParam(
-                                        "Total network write (egress) spend for the period, in cents."),
+                                        "Total network write (ingress: data produced to Kafka) spend for the period, in cents."),
                                 "groupBy", LlmTool.stringArrayParam(
                                         "Context keys to break the cost down by, outermost first, "
                                                 + "e.g. [\"application\"] or [\"cost-unit\", \"topic\"].")),
