@@ -35,7 +35,6 @@ topics:
   toAggregate: [ ]
 
 telegraf:
-  image: telegraf:1.31.3-alpine
   enabled: true
   labels: { }
   # will be applied to the container
@@ -73,7 +72,6 @@ strimzi:
   contextOperator:
     labels: { }
     enabled: true
-    image: spoud/kafka-cost-control-strimzi-operator:latest
     # will be applied to the container
     securityContext:
       runAsUser: 185
@@ -118,7 +116,6 @@ aggregator:
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
   olapDatabaseMemoryLimitPercent: 30
   appId: kcc-aggregator
-  image: spoud/kafka-cost-control:0.4.1
   # Labels that will be added to the pod
   labels: { }
   # will be applied to the container
@@ -151,7 +148,6 @@ aggregator:
 ui:
   enabled: true
   host: "kcc.host" # needs a hosts entry if you want to access via host for local development
-  image: spoud/kafka-cost-control-ui:latest
   replicas: 1
   # Labels that will be added to the pod
   labels: { }
