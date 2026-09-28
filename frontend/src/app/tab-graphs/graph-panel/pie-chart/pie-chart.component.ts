@@ -17,7 +17,7 @@ import {
 } from '../chart-legend/chart-legend.component';
 import { applyLegendClick } from '../legend-selection';
 import { ChartActions } from '../chart-actions';
-import { formatCompact } from '../../../common/compact-number';
+import { ChartUnit, formatCompact, formatCurrency } from '../../../common/compact-number';
 
 @Component({
     selector: 'app-pie-chart',
@@ -50,6 +50,7 @@ export class PieChartComponent implements ChartActions {
     deselected = signal<ReadonlySet<string>>(new Set());
 
     metricsData = input.required<MetricHistory[]>();
+    unit = input<ChartUnit>('usage');
 
     pieChartDataSet = computed(() => {
         const pieChartDataSet: Array<Array<string | number>> = [];
@@ -102,7 +103,11 @@ export class PieChartComponent implements ChartActions {
                 trigger: 'item',
                 confine: true,
                 valueFormatter: (value: unknown) =>
-                    typeof value === 'number' ? formatCompact(value) : '—',
+                    typeof value !== 'number'
+                        ? '—'
+                        : this.unit() === 'currency'
+                          ? formatCurrency(value)
+                          : formatCompact(value),
             },
             dataset: {
                 source: this.pieChartDataSet(),
@@ -137,7 +142,7 @@ export class PieChartComponent implements ChartActions {
             csvLines.push(pieSlice.join(','));
         });
         csvLines.sort();
-        const withHeader = ['name, usage', ...csvLines];
+        const withHeader = [this.unit() === 'currency' ? 'name, cost' : 'name, usage', ...csvLines];
         const blob = new Blob([withHeader.join('\n')], { type: 'text/csv' });
         const name = `report_${new Date().toISOString()}`;
         saveAs(blob, name + '.csv');

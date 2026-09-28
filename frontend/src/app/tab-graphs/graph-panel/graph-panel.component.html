@@ -1,6 +1,8 @@
 <mat-card appearance="outlined" class="chart-card">
     <div class="chart-card-header">
-        <h3 class="chart-card-title"><mat-icon>show_chart</mat-icon> Usage over time</h3>
+        <h3 class="chart-card-title">
+            <mat-icon>show_chart</mat-icon> {{ showCost() ? 'Cost over time' : 'Usage over time' }}
+        </h3>
         <button
             mat-icon-button
             type="button"
@@ -46,7 +48,8 @@
     </div>
     <mat-card-content>
         <app-bar-chart
-            [metricsData]="metricsData()"
+            [metricsData]="chartData()"
+            [unit]="unit()"
             [range]="range()"
             [showToolbar]="false"
             type="line"
@@ -56,7 +59,9 @@
 
 <mat-card appearance="outlined" class="chart-card">
     <div class="chart-card-header">
-        <h3 class="chart-card-title"><mat-icon>pie_chart</mat-icon> Share of total</h3>
+        <h3 class="chart-card-title">
+            <mat-icon>pie_chart</mat-icon> {{ showCost() ? 'Share of cost' : 'Share of total' }}
+        </h3>
         <button
             mat-icon-button
             type="button"
@@ -81,6 +86,6 @@
         </mat-menu>
     </div>
     <mat-card-content>
-        <app-pie-chart [metricsData]="metricsData()" [showToolbar]="false" />
+        <app-pie-chart [metricsData]="chartData()" [unit]="unit()" [showToolbar]="false" />
     </mat-card-content>
 </mat-card>

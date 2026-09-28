@@ -122,3 +122,32 @@ describe('BarChartComponent dataset', () => {
         expect(read()).toBe(true);
     });
 });
+
+describe('BarChartComponent unit', () => {
+    beforeEach(() => TestBed.resetTestingModule());
+
+    function yAxisOf(unit?: 'usage' | 'currency') {
+        const fixture = TestBed.createComponent(BarChartComponent);
+        fixture.componentRef.setInput('metricsData', [
+            series('a', ['2026-01-01T00:00:00Z'], [1.5]),
+        ]);
+        fixture.componentRef.setInput('type', 'line');
+        if (unit) {
+            fixture.componentRef.setInput('unit', unit);
+        }
+        const options = fixture.componentInstance.options() as {
+            yAxis: { name: string; axisLabel: { formatter: (v: number) => string } };
+        };
+        return options.yAxis;
+    }
+
+    it('labels usage in bytes by default', () => {
+        expect(yAxisOf().name).toBe('bytes');
+    });
+
+    it('labels and formats costs in dollars', () => {
+        const yAxis = yAxisOf('currency');
+        expect(yAxis.name).toBe('cost ($)');
+        expect(yAxis.axisLabel.formatter(1.5)).toBe('$1.50');
+    });
+});
