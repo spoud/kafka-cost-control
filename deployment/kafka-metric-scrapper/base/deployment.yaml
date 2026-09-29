@@ -22,9 +22,6 @@ spec:
         - name: telegraf
           image: telegraf:1.40.1-alpine
           imagePullPolicy: IfNotPresent
-          # Since 1.38 Telegraf parses env vars strictly and rejects the unquoted
-          # array values these configs take from the env (urls = ${INPUT_URLS})
-          args: ["--non-strict-env-handling"]
           resources:
             limits:
               cpu: 1
