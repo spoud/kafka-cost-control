@@ -32,6 +32,10 @@ spec:
           envFrom:
             - secretRef:
                 name: telegraf-secret
+            # non-secret settings kept in git; listed last, so they win over the same keys in the secret
+            - configMapRef:
+                name: telegraf-settings
+                optional: true
           volumeMounts:
             - name: config
               mountPath: /etc/telegraf/telegraf.conf

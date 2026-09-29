@@ -3,7 +3,7 @@ resources:
   - ../base
   - scraper.yaml
 
-namespace: kafka-cost-control-mgb-qual
+namespace: kafka-cost-control-scraper
 
 generatorOptions:
   disableNameSuffixHash: true
