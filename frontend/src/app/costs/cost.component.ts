@@ -49,6 +49,7 @@ import { DateRange, endOfDay } from '../common/date-range';
 import { CostOverviewFormValues, CostOverviewStore, CostSource } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
+import { UnpricedMetricsService } from '../common/unpriced-metrics';
 
 @Component({
     imports: [
@@ -100,6 +101,7 @@ export class CostComponent {
     private _store = inject(CostOverviewStore);
     private _dialog = inject(MatDialog);
     graphFilterService = inject(GraphFilterService);
+    unpriced = inject(UnpricedMetricsService);
 
     currentDate = new Date();
     startOfLastMonth = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
@@ -178,6 +180,7 @@ export class CostComponent {
     lastRequest = signal<CostOverviewRequestInput | undefined>(undefined);
 
     constructor() {
+        this.unpriced.reload();
         merge(this.costs.valueChanges, toObservable(this.groupBy), toObservable(this.source))
             .pipe(
                 debounceTime(600),

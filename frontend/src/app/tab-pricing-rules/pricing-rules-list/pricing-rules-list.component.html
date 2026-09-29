@@ -36,3 +36,29 @@
     </table>
     <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
 </app-data-table>
+
+@if (unpriced.loaded() && unpriced.unpriced().length > 0) {
+    <mat-accordion class="unpriced">
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                    <mat-icon>money_off</mat-icon>
+                    Metrics without a pricing rule ({{ unpriced.unpriced().length }})
+                </mat-panel-title>
+            </mat-expansion-panel-header>
+            <p class="unpriced-hint">
+                These metrics are collected but have no pricing rule, so costs from pricing rules
+                don't include them. Many are operational metrics (request counts, latencies) that
+                aren't billed; check that nothing billable is missing.
+            </p>
+            <ul class="unpriced-list">
+                @for (metric of unpriced.unpriced(); track metric.metricName) {
+                    <li>
+                        <code>{{ metric.metricName }}</code>
+                        <span class="last-seen">last seen {{ metric.lastSeen | intlDate }}</span>
+                    </li>
+                }
+            </ul>
+        </mat-expansion-panel>
+    </mat-accordion>
+}

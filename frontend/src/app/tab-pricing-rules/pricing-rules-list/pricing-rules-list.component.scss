@@ -1,0 +1,30 @@
+.unpriced {
+    display: block;
+    margin-top: 16px;
+}
+
+mat-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.unpriced-hint {
+    color: var(--mat-sys-on-surface-variant);
+    margin-top: 0;
+}
+
+.unpriced-list {
+    margin: 0;
+    padding-left: 20px;
+
+    li {
+        padding: 2px 0;
+    }
+
+    .last-seen {
+        color: var(--mat-sys-on-surface-variant);
+        margin-left: 8px;
+        font-size: 0.875em;
+    }
+}
