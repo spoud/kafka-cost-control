@@ -1,0 +1,14 @@
+mutation savePricingRule($request: PricingRuleSaveRequestInput!) {
+    savePricingRule(request: $request) {
+        creationTime
+        metricName
+        baseCost
+        costFactor
+    }
+}
+
+mutation deletePricingRule($request: PricingRuleDeleteRequestInput!) {
+    deletePricingRule(request: $request) {
+        metricName # response is null!
+    }
+}

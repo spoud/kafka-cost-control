@@ -1,14 +1,18 @@
 === Pricing rules
 
 Pricing rules are a way to put a price on each metric. The price will be applied on the *hourly* aggregate.  Also, it's common for metrics to be in *bytes* and not Megabyte or Gigabyte. Keep that in mind when setting the price.
-For example, if you want to have a price of _1.0$_ per _GB_ you will need to set the price to _1.0/1024^3^_ = _0.000976276$_ per _byte_.
+For example, if you want to have a price of _1.0$_ per _GB_ you will need to set the price to _1.0/1024^3^_ = _0.000000000931$_ per _byte_. The UI does this conversion for you: for metrics ending in `bytes` its form takes a price per GB (1 GB = 1024^3^ bytes, as Confluent bills).
 
 Pricing rules are stored in kafka in a compacted topic. The key should be the metric name.
+
+A metric without a pricing rule gets no cost, so costs from pricing rules leave it out. The pricing rules tab lists the collected metrics that have no rule.
+
+Nothing re-creates rules on its own: restarts and redeployments keep them. The sample loader (`config-sample`) saves every rule in its file when you run it, so running it again overwrites rules with the same metric name, including ones changed or deleted in the UI.
 
 ==== Listing pricing rules
 
 ===== From the UI
-Simply go to the pricing rules tab of the UI. You should see the metric name and it's cost.
+Simply go to the pricing rules tab of the UI. You should see the metric name and its cost.
 
 ===== Using Graphql
 [source,graphql]
@@ -26,7 +30,7 @@ query getAllRules {
 ==== Setting a pricing rule
 
 ===== From the UI
-_Not available yet._
+Sign in, go to the pricing rules tab and click _Add pricing rule_, or the edit button of an existing rule. A metric without a rule can also be priced straight from the list of metrics without a pricing rule. Saving a rule for a metric that already has one replaces it.
 
 ===== Using Graphql
 [source,graphql]
@@ -46,7 +50,7 @@ mutation saveRule {
 ==== Removing a pricing rule
 
 ===== From the UI
-_Not available yet._
+Sign in, go to the pricing rules tab and click the delete button of the rule.
 
 ===== Using Graphql
 [source,graphql]
