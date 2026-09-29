@@ -15,7 +15,7 @@
     omit_hostname = false
 
 [[inputs.prometheus]]
-    urls = ${INPUT_URLS}
+    urls = ["${INPUT_URL}"]
     username = "${INPUT_CONFLUENT_METRICS_API_KEY}"
     password = "${INPUT_CONFLUENT_METRICS_API_SECRET}"
     [inputs.prometheus.tags]
@@ -27,8 +27,8 @@
         source="kafka-metric-scrapper"
 
 [[outputs.kafka]]
-    brokers = ${OUTPUT_BROKERS}
-    topic = ${OUTPUT_TOPIC}
+    brokers = ["${OUTPUT_BROKER}"]
+    topic = "${OUTPUT_TOPIC}"
     client_id = "telegraf-scrapper"
     routing_tag = "host"
     idempotent_writes = true

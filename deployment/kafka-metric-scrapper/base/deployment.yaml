@@ -20,7 +20,7 @@ spec:
             optional: false
       containers:
         - name: telegraf
-          image: telegraf:alpine
+          image: telegraf:1.40.1-alpine
           imagePullPolicy: IfNotPresent
           resources:
             limits:

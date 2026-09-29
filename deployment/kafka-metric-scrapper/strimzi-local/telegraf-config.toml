@@ -31,8 +31,8 @@
         source="strimzi-metric-api"
 
 [[outputs.kafka]]
-    brokers = ${OUTPUT_BROKERS}
-    topic = ${OUTPUT_TOPIC}
+    brokers = ["${OUTPUT_BROKER}"]
+    topic = "${OUTPUT_TOPIC}"
     client_id = "telegraf-scrapper"
     routing_tag = "host"
     idempotent_writes = true

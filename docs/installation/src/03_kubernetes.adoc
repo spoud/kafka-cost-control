@@ -10,7 +10,9 @@ This part will be responsible to scrape kafka for relevant metrics. Depending on
 
 This documentation will assume that you use the `dev/` folder, but you can configure as much Kustomize folders as you want. The `dev/` folder is a good starting point if you have confluent cluster running: it runs Telegraf on Confluent's metrics API plus the kafka-scraper (partition and schema counts per topic).
 
-If you only need Confluent's metrics, build your overlay on the link:https://github.com/spoud/kafka-cost-control/tree/master/deployment/kafka-metric-scrapper/confluent[confluent] folder instead: Telegraf alone, with the credentials in the `telegraf-secret` secret. Its non-secret settings (`INPUT_URLS`, `OUTPUT_BROKERS`, `OUTPUT_TOPIC`, `ENVIRONMENT_NAME`) can go in a `telegraf-settings` config map, which takes precedence over the same keys in the secret, so they can live in git.
+If you only need Confluent's metrics, build your overlay on the link:https://github.com/spoud/kafka-cost-control/tree/master/deployment/kafka-metric-scrapper/confluent[confluent] folder instead: Telegraf alone, with the credentials in the `telegraf-secret` secret. Its non-secret settings (`INPUT_URL`, `OUTPUT_BROKER`, `OUTPUT_TOPIC`, `ENVIRONMENT_NAME`) can go in a `telegraf-settings` config map, which takes precedence over the same keys in the secret, so they can live in git.
+
+NOTE: Telegraf (1.38 and later) substitutes environment variables only inside quoted strings, so every setting is a plain value: no quotes, no brackets. `INPUT_URL` is a single URL; to read several clusters, repeat the parameter in it (`...?resource.kafka.id=lkc-a&resource.kafka.id=lkc-b`). Upgrading from an older version: rename `INPUT_URLS` to `INPUT_URL` and `OUTPUT_BROKERS` to `OUTPUT_BROKER`, and drop the brackets and quotes from those values and from `OUTPUT_TOPIC`.
 
 Copy the environment sample file:
 [,shell]

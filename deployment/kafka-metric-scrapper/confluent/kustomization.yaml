@@ -1,8 +1,8 @@
 # Telegraf reading Confluent Cloud's metrics export API for one cluster and writing it to KCC's raw
 # topic. An overlay provides:
 #   - secret `telegraf-secret`: INPUT_CONFLUENT_METRICS_API_KEY/_SECRET, OUTPUT_KAFKA_SASL_USERNAME/_PASSWORD
-#   - configMap `telegraf-settings` (or the same keys in the secret): INPUT_URLS, OUTPUT_BROKERS,
-#     OUTPUT_TOPIC, ENVIRONMENT_NAME
+#   - configMap `telegraf-settings` (or the same keys in the secret): INPUT_URL, OUTPUT_BROKER,
+#     OUTPUT_TOPIC, ENVIRONMENT_NAME (plain values: no quotes, no brackets)
 kind: Kustomization
 resources:
   - ../base
