@@ -97,8 +97,19 @@
                         data is processed, so a rule change applies from then on. Past periods keep
                         the price that applied until the data is reprocessed.
                     </p>
+                    @if (unpriced.loaded() && unpriced.unpriced().length > 0) {
+                        <p class="rule-hint">
+                            Costs include the {{ unpriced.pricedCount() }} collected
+                            {{ unpriced.pricedCount() === 1 ? 'metric' : 'metrics' }} with a pricing
+                            rule. {{ unpriced.unpriced().length }}
+                            {{ unpriced.unpriced().length === 1 ? 'metric has' : 'metrics have' }}
+                            no rule, so
+                            {{ unpriced.unpriced().length === 1 ? 'its' : 'their' }} cost is not
+                            included; the Pricing Rules page lists them.
+                        </p>
+                    }
                     <a mat-stroked-button routerLink="/pricing-rules"
-                        ><mat-icon>edit</mat-icon>Edit pricing rules</a
+                        ><mat-icon>sell</mat-icon>Open Pricing Rules</a
                     >
                 </mat-card-content>
             </mat-card>

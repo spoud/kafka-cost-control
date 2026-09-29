@@ -17,6 +17,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { BytesToGbPipe } from './cost-factor.pipe';
 import { PageHeaderComponent } from '../../common/page-header/page-header.component';
 import { DataTableComponent } from '../../common/data-table/data-table.component';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatIcon } from '@angular/material/icon';
+import { IntlDatePipe } from '../../common/intl-date.pipe';
+import { UnpricedMetricsService } from '../../common/unpriced-metrics';
 
 @Component({
     selector: 'app-pricing-rules-list',
@@ -29,12 +33,16 @@ import { DataTableComponent } from '../../common/data-table/data-table.component
         BytesToGbPipe,
         PageHeaderComponent,
         DataTableComponent,
+        MatExpansionModule,
+        MatIcon,
+        IntlDatePipe,
     ],
 })
 export class PricingRulesListComponent implements OnInit, AfterViewInit {
     private _pricingRules = inject(GetPricingRulesGQL);
     private _liveAnnouncer = inject(LiveAnnouncer);
     private _snackbar = inject(MatSnackBar);
+    unpriced = inject(UnpricedMetricsService);
 
     @ViewChild(MatSort) sort: MatSort | null = null;
     @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
@@ -54,6 +62,7 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
     ];
 
     ngOnInit(): void {
+        this.unpriced.reload();
         this._pricingRules.fetch().subscribe({
             next: value => {
                 this.loading.set(false);
