@@ -1,0 +1,63 @@
+<h2 mat-dialog-title>{{ editing ? 'Edit pricing rule' : 'Add pricing rule' }}</h2>
+<form [formGroup]="form" (ngSubmit)="save()">
+    <mat-dialog-content>
+        <p class="formula">cost = base cost + cost factor × value, per metric and window</p>
+
+        <mat-form-field class="full-width">
+            <mat-label>Metric name</mat-label>
+            <input matInput formControlName="metricName" [matAutocomplete]="metrics" />
+            <mat-autocomplete #metrics="matAutocomplete">
+                @for (name of suggestions(); track name) {
+                    <mat-option [value]="name">{{ name }}</mat-option>
+                }
+            </mat-autocomplete>
+            @if (editing) {
+                <mat-hint
+                    >A rule belongs to its metric; to price another metric, add a rule.</mat-hint
+                >
+            } @else if (replacesExisting()) {
+                <mat-hint class="warning"
+                    >This metric already has a rule; saving replaces it.</mat-hint
+                >
+            }
+            <mat-error>Metric name is required.</mat-error>
+        </mat-form-field>
+
+        <div class="row">
+            <mat-form-field>
+                <mat-label>Base cost</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="baseCost" />
+                <mat-hint>Added once per window</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+                <mat-label>Cost factor</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="costFactor" />
+                <mat-hint>Per unit of the metric's value</mat-hint>
+            </mat-form-field>
+        </div>
+
+        @if (isBytes()) {
+            <mat-form-field class="full-width">
+                <mat-label>Price per GB</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" formControlName="pricePerGb" />
+                <mat-hint
+                    >Sets the cost factor; 1 GB = 2^30 bytes. For storage (retained bytes) it's the
+                    price per GB-hour.</mat-hint
+                >
+            </mat-form-field>
+        }
+
+        <p class="note">
+            The rule prices data processed from now on. Past windows keep the price they were
+            processed with until the data is reprocessed.
+        </p>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-stroked-button type="button" mat-dialog-close>Cancel</button>
+        <button mat-flat-button color="primary" [disabled]="form.invalid">Save</button>
+    </mat-dialog-actions>
+</form>

@@ -1,0 +1,31 @@
+.full-width {
+    width: 100%;
+}
+
+.row {
+    display: flex;
+    gap: 16px;
+
+    mat-form-field {
+        flex: 1;
+    }
+}
+
+mat-form-field {
+    margin-bottom: 8px;
+}
+
+.formula,
+.note {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.875em;
+}
+
+.formula {
+    margin-top: 0;
+    font-family: monospace;
+}
+
+.warning {
+    color: var(--mat-sys-error);
+}
