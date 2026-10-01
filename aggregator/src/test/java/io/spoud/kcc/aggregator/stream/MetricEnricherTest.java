@@ -278,7 +278,7 @@ class MetricEnricherTest {
     void should_use_pricing_rule() {
         pricingRulesTopic.pipeInput(
                 "confluent_kafka_server_sent_bytes",
-                new PricingRule(Instant.now(), "confluent_kafka_server_sent_bytes", 0.1, 0.05));
+                new PricingRule(Instant.now(), "confluent_kafka_server_sent_bytes", 0.1, 0.05, null, null, null, null));
 
         rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 5));
         rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 5));
