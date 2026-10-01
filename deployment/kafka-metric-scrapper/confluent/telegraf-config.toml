@@ -16,9 +16,19 @@
 
 [[inputs.prometheus]]
     urls = ["${INPUT_URL}"]
-    # The only export series without a timestamp: Telegraf stamps it with the scrape time, minutes
-    # ahead of the cost data, which closed each hourly window before its last minutes arrived.
-    namedrop = ["confluent_scrape_resource_access_error"]
+    # Only what costs are built from: network per principal (request = write, response = read),
+    # storage, the cluster's partition count, and the same network per topic. This also keeps out
+    # confluent_scrape_resource_access_error, which the export always adds and sends without a
+    # timestamp: Telegraf stamped it with the scrape time, minutes ahead of the cost data, which
+    # closed each hourly window before its last minutes arrived.
+    namepass = [
+        "confluent_kafka_server_request_bytes",
+        "confluent_kafka_server_response_bytes",
+        "confluent_kafka_server_retained_bytes",
+        "confluent_kafka_server_partition_count",
+        "confluent_kafka_server_received_bytes",
+        "confluent_kafka_server_sent_bytes",
+    ]
     username = "${INPUT_CONFLUENT_METRICS_API_KEY}"
     password = "${INPUT_CONFLUENT_METRICS_API_SECRET}"
     [inputs.prometheus.tags]
