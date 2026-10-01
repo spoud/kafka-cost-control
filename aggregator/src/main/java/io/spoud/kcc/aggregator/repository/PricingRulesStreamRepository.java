@@ -62,12 +62,14 @@ public class PricingRulesStreamRepository {
   }
 
     public List<PricingRuleEntity> getPricingRules() {
-        List<PricingRuleEntity> list = new ArrayList<>();
-        try (final KeyValueIterator<String, PricingRule> iterator =
-                     getStore().all()) {
-            iterator.forEachRemaining(kv -> list.add(PricingRuleEntity.fromAvro(kv.value)));
-        }
-        return list;
+        return StoreReads.retrying("pricing rules store", () -> {
+            List<PricingRuleEntity> list = new ArrayList<>();
+            try (final KeyValueIterator<String, PricingRule> iterator =
+                         getStore().all()) {
+                iterator.forEachRemaining(kv -> list.add(PricingRuleEntity.fromAvro(kv.value)));
+            }
+            return list;
+        });
     }
 
     public ReadOnlyKeyValueStore<String, PricingRule> getStore() {
