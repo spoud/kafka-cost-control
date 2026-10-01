@@ -24,10 +24,17 @@ public class TestConfigProperties implements CostControlConfigProperties {
     private String splitMetricAmongPrincipalsFallbackPrincipal;
     @Builder.Default
     private Duration aggregationWindowSize = Duration.parse("PT1H");
+    @Builder.Default
+    private Duration aggregationWindowGrace = Duration.parse("PT5M");
 
     @Override
     public Duration aggregationWindowSize() {
         return aggregationWindowSize;
+    }
+
+    @Override
+    public Duration aggregationWindowGrace() {
+        return aggregationWindowGrace;
     }
 
     @Override

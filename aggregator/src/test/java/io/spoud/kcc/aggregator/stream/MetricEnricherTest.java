@@ -275,6 +275,27 @@ class MetricEnricherTest {
     }
 
     @Test
+    void late_points_within_the_grace_period_still_count() {
+        // the Confluent export serves cost data ~4 minutes old, while a timestamp-less metric got
+        // Telegraf's scrape time: that newer record closed the hour before its last minutes arrived
+        var hour = Instant.parse("2026-01-01T10:00:00Z");
+        pipe(hour.plus(Duration.ofMinutes(59)), "late_topic", 1);
+        pipe(hour.plus(Duration.ofMinutes(63)), "other_topic", 10); // stream time passes the hour
+        pipe(hour.plus(Duration.ofMinutes(58)), "late_topic", 2);   // 5 minutes late: within grace
+        pipe(hour.plus(Duration.ofMinutes(70)), "other_topic", 10); // grace is over
+        pipe(hour.plus(Duration.ofMinutes(57)), "late_topic", 4);   // too late: dropped
+
+        var lateTopic = aggregatedTableFriendlyTopic.readValuesToList().stream()
+                .filter(r -> r.getName().equals("late_topic"))
+                .toList();
+        assertThat(lateTopic.getLast().getValue()).isEqualTo(3.0);
+    }
+
+    private void pipe(Instant time, String topic, double value) {
+        rawTelegrafDataTopic.pipeInput(new TestRecord<>(null, generateTopicRawTelegraf(time, topic, value), time));
+    }
+
+    @Test
     void should_use_pricing_rule() {
         pricingRulesTopic.pipeInput(
                 "confluent_kafka_server_sent_bytes",

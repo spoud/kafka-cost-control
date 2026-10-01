@@ -53,7 +53,8 @@ public class MetricEnricher {
     public Topology metricEnricherTopology() {
         Log.infov("Will start MetricEnricher for topics: {0}", configProperties.rawTopics());
 
-        TimeWindows tumblingWindow = TimeWindows.ofSizeWithNoGrace(configProperties.aggregationWindowSize());
+        TimeWindows tumblingWindow = TimeWindows.ofSizeAndGrace(
+                configProperties.aggregationWindowSize(), configProperties.aggregationWindowGrace());
 
         StreamsBuilder builder = new StreamsBuilder();
 
