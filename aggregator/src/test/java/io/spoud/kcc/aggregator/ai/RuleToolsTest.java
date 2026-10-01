@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.ai;
 
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
+import io.spoud.kcc.aggregator.data.PriceUnit;
 import io.spoud.kcc.aggregator.data.PricingRuleEntity;
 import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
 import io.spoud.kcc.aggregator.repository.PricingRulesStreamRepository;
@@ -26,7 +27,8 @@ class RuleToolsTest {
             EntityType.TOPIC, "^orders\\..*", Map.of("tenant", "acme"));
 
     private static final PricingRuleEntity PRICE = new PricingRuleEntity(
-            Instant.parse("2026-01-01T00:00:00Z"), "confluent_kafka_server_request_bytes", 1.5, 0.25);
+            Instant.parse("2026-01-01T00:00:00Z"), "confluent_kafka_server_request_bytes", 1.5, 0.25,
+            null, null, null, null);
 
     private static ToolRegistry registry(TestAiConfig config) {
         var context = Mockito.mock(ContextDataStreamRepository.class);
@@ -63,6 +65,21 @@ class RuleToolsTest {
         String content = invoke(registry(new TestAiConfig()), "list_pricing_rules");
 
         assertThat(content).contains("confluent_kafka_server_request_bytes").contains("1.5").contains("0.25");
+    }
+
+    @Test
+    @DisplayName("A rule saved with a price shows it in its unit, so costs can be explained plainly")
+    void listsThePriceAsEntered() {
+        var storage = new PricingRuleEntity(Instant.parse("2026-01-01T00:00:00Z"),
+                "confluent_kafka_server_retained_bytes", 0.0, 3.52e-13,
+                0.00012603, PriceUnit.GB_HOUR, 3.0, "replicas");
+        var pricing = Mockito.mock(PricingRulesStreamRepository.class);
+        Mockito.when(pricing.getPricingRules()).thenReturn(List.of(storage));
+        var registry = new ToolRegistry(null, null, new TestAiConfig(),
+                Mockito.mock(ContextDataStreamRepository.class), pricing);
+
+        assertThat(invoke(registry, "list_pricing_rules"))
+                .contains("(price 1.2603E-4 per GB_HOUR x 3.0 replicas)");
     }
 
     @Test

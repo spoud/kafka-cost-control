@@ -37,15 +37,31 @@ Sign in, go to the pricing rules tab and click _Add pricing rule_, or the edit b
 ----
 mutation saveRule {
   savePricingRule(
-    request: {metricName: "whatever", baseCost: 0.12, costFactor: 0.0001}
+    request: {
+      metricName: "confluent_kafka_server_retained_bytes"
+      baseCost: 0
+      price: 0.00012603
+      priceUnit: GB_HOUR
+      multiplier: 3
+      multiplierLabel: "replicas"
+    }
   ) {
-    creationTime
     metricName
-    baseCost
     costFactor
+    price
+    priceUnit
+    multiplier
   }
 }
 ----
+
+`priceUnit` is what the price is per:
+
+* `GB`: per GB of the metric's value, 1 GB = 1024^3^ bytes (e.g. network bytes);
+* `GB_HOUR`: per GB held for one hour, for stored-bytes metrics, whose hourly maximum is the GB-hours a provider bills;
+* `UNIT`: per unit of the metric's value for one hour (e.g. per partition).
+
+The optional `multiplier` applies on top of the price, e.g. `3` for storage that Confluent Cloud bills per replica. KCC derives the `costFactor` it applies from these: `price × multiplier ÷ bytes per unit`. You can still send a bare `costFactor` (per unit of the raw value) instead of a price.
 
 ==== Removing a pricing rule
 

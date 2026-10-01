@@ -241,9 +241,19 @@ public class ToolRegistry {
         }
         return rules.stream()
                 .sorted(Comparator.comparing(PricingRuleEntity::metricName))
-                .map(r -> "%s: cost = %s + %s * value".formatted(
-                        r.metricName(), r.baseCost(), r.costFactor()))
+                .map(r -> "%s: cost = %s + %s * value%s".formatted(
+                        r.metricName(), r.baseCost(), r.costFactor(), priceAsEntered(r)))
                 .collect(Collectors.joining("\n"));
+    }
+
+    /** The price the way the user entered it, e.g. " (price 0.00012603 per GB_HOUR x 3 replicas)". */
+    private static String priceAsEntered(PricingRuleEntity r) {
+        if (r.price() == null || r.priceUnit() == null) {
+            return "";
+        }
+        var multiplier = r.multiplier() == null ? ""
+                : " x %s%s".formatted(r.multiplier(), r.multiplierLabel() == null ? "" : " " + r.multiplierLabel());
+        return " (price %s per %s%s)".formatted(r.price(), r.priceUnit(), multiplier);
     }
 
     private LlmMessage.ToolResult runSql(LlmMessage.ToolCall call) {

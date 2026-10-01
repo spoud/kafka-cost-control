@@ -23,6 +23,30 @@
       "name": "cost_factor",
         "doc": "The cost that will be multiplied by the metric value. The final cost will be  base_cost + cost_factor * metric_value",
       "type": "double"
+    },
+    {
+      "name": "price",
+      "doc": "The price as entered, per price_unit. When set, cost_factor is derived from it: price * multiplier / bytes-per-unit. Absent on rules saved with a bare cost_factor.",
+      "type": ["null", "double"],
+      "default": null
+    },
+    {
+      "name": "price_unit",
+      "doc": "What price is per: GB (2^30 bytes), GB_HOUR (2^30 bytes held for one hourly window) or UNIT (one unit of the metric's value).",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "multiplier",
+      "doc": "Factor applied on top of price, e.g. 3 for storage billed per replica. Absent means 1.",
+      "type": ["null", "double"],
+      "default": null
+    },
+    {
+      "name": "multiplier_label",
+      "doc": "What the multiplier stands for, e.g. replicas. Display only.",
+      "type": ["null", "string"],
+      "default": null
     }
   ]
 }

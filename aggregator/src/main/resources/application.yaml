@@ -109,6 +109,8 @@ quarkus:
   smallrye-graphql:
     schema-include-scalars: true
     error-extension-fields: exception,code,classification
+    # bad input (e.g. a price without a unit) should say what's wrong, not "System error"
+    show-runtime-exception-message: jakarta.ws.rs.BadRequestException
     ui:
       enable: true
       root-path: /graphql-ui
