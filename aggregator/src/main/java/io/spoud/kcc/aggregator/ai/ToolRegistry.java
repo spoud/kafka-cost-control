@@ -306,15 +306,16 @@ public class ToolRegistry {
         Integer storage = optionalInt(call, "storageCents");
         Integer read = optionalInt(call, "networkReadCents");
         Integer write = optionalInt(call, "networkWriteCents");
-        if (storage == null && read == null && write == null) {
+        Integer partitions = optionalInt(call, "partitionsCents");
+        if (storage == null && read == null && write == null && partitions == null) {
             throw new IllegalArgumentException(
-                    "At least one of storageCents, networkReadCents or networkWriteCents is required. "
+                    "At least one of storageCents, networkReadCents, networkWriteCents or partitionsCents is required. "
                             + "Splitting a bill needs the amount to distribute: ask the user what they spent "
                             + "for this period. For what the pricing rules charged, query the cost column with "
                             + "run_sql instead.");
         }
 
-        var request = new CostOverviewRequest(from, to, null, storage, read, write, groupBy);
+        var request = new CostOverviewRequest(from, to, null, storage, read, write, partitions, groupBy);
         CostOverviewResponse response = repository.calculateCosts(request);
 
         return formatCostOverview(response, groupBy);

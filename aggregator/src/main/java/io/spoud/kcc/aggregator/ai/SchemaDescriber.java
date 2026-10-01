@@ -357,7 +357,7 @@ public class SchemaDescriber {
                                 + "time period. This is the ONLY correct way to attribute an invoice; the `cost` "
                                 + "column holds pricing-rule costs, which are a different thing. It distributes the "
                                 + "cents you supply in proportion to each group's share of the relevant metric. "
-                                + "Supply whichever of the three cent amounts the user has told you; omit the others.",
+                                + "Supply whichever of the four cent amounts the user has told you; omit the others.",
                         java.util.Map.of(
                                 "from", LlmTool.stringParam(
                                         "Start of the period, ISO-8601 instant, e.g. 2026-07-01T00:00:00Z."),
@@ -369,6 +369,8 @@ public class SchemaDescriber {
                                         "Total network read (egress: data consumed from Kafka) spend for the period, in cents."),
                                 "networkWriteCents", LlmTool.integerParam(
                                         "Total network write (ingress: data produced to Kafka) spend for the period, in cents."),
+                                "partitionsCents", LlmTool.integerParam(
+                                        "Total partition spend for the period, in cents; split by each topic's partition-hours."),
                                 "groupBy", LlmTool.stringArrayParam(
                                         "Context keys to break the cost down by, outermost first, "
                                                 + "e.g. [\"application\"] or [\"cost-unit\", \"topic\"].")),

@@ -325,11 +325,14 @@ public class AggregatedMetricsRepository {
     }
 
     // Request bytes flow client->broker (produce), which Confluent bills as network write;
-    // response bytes flow broker->client (fetch), billed as network read.
+    // response bytes flow broker->client (fetch), billed as network read. Partitions follow the
+    // kafka-scraper's per-topic count (hourly max, so each topic's share is its partition-hours):
+    // Confluent's own partition_count is per cluster and can't be split by topic.
     Map<String, Function<CostOverviewRequest, Integer>> metricToProvidedValue = Map.of(
             "confluent_kafka_server_retained_bytes", CostOverviewRequest::kafkaStorageCents,
             "confluent_kafka_server_request_bytes", CostOverviewRequest::kafkaNetworkWriteCents,
-            "confluent_kafka_server_response_bytes", CostOverviewRequest::kafkaNetworkReadCents
+            "confluent_kafka_server_response_bytes", CostOverviewRequest::kafkaNetworkReadCents,
+            "kafka_topic_partition_count", CostOverviewRequest::kafkaPartitionsCents
     );
 
     public @NonNull TableResponse calculateTable(CostOverviewRequest request) {

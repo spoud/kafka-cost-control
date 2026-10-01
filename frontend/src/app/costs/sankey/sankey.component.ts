@@ -103,9 +103,10 @@ export class SankeyComponent {
         const storage = (this.lastRequest()?.kafkaStorageCents ?? 0) / 100; // dollar amount...
         const networkWrite = (this.lastRequest()?.kafkaNetworkWriteCents ?? 0) / 100;
         const networkRead = (this.lastRequest()?.kafkaNetworkReadCents ?? 0) / 100;
+        const partitions = (this.lastRequest()?.kafkaPartitionsCents ?? 0) / 100;
         // above together with some other things added, e.g. base costs
         const total = (this.lastRequest()?.totalCents ?? 0) / 100;
-        const other = total - storage - networkWrite - networkRead;
+        const other = total - storage - networkWrite - networkRead - partitions;
 
         const dataSet = new Set<string>();
         // node id -> short label shown in the diagram; nodes not listed here (metrics, total, other)
@@ -152,6 +153,11 @@ export class SankeyComponent {
             // same mapping as the backend: produce (request) is billed as write, fetch (response) as read
             addLink('total', 'confluent_kafka_server_request_bytes', networkWrite);
             addLink('total', 'confluent_kafka_server_response_bytes', networkRead);
+            if (partitions > 0) {
+                // per-topic partition-hours from the kafka-scraper, like the backend
+                dataSet.add('kafka_topic_partition_count');
+                addLink('total', 'kafka_topic_partition_count', partitions);
+            }
             addLink('total', 'other', other);
         }
 

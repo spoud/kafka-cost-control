@@ -192,6 +192,7 @@ input CostOverviewRequestInput {
   from: DateTime
   kafkaNetworkReadCents: Int
   kafkaNetworkWriteCents: Int
+  kafkaPartitionsCents: Int
   kafkaStorageCents: Int
   "ISO-8601"
   to: DateTime

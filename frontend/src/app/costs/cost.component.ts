@@ -51,6 +51,11 @@ import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dial
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 import { UnpricedMetricsService } from '../common/unpriced-metrics';
 
+/** The API takes whole cents; $0.3311 * 100 is 33.11, which an Int field rejects. */
+export function toCents(dollars: number | null | undefined): number {
+    return Math.round((dollars ?? 0) * 100);
+}
+
 @Component({
     imports: [
         ReactiveFormsModule,
@@ -115,6 +120,7 @@ export class CostComponent {
         kafkaStorage: [this.restored?.kafkaStorage ?? (0 as number | null)],
         kafkaNetworkRead: [this.restored?.kafkaNetworkRead ?? (0 as number | null)],
         kafkaNetworkWrite: [this.restored?.kafkaNetworkWrite ?? (0 as number | null)],
+        kafkaPartitions: [this.restored?.kafkaPartitions ?? (0 as number | null)],
         total: [this.restored?.total ?? (0 as number | null)],
     });
 
@@ -145,7 +151,12 @@ export class CostComponent {
 
     inputTotal = computed(() => {
         const v = this.costsValue();
-        return (v?.kafkaStorage ?? 0) + (v?.kafkaNetworkRead ?? 0) + (v?.kafkaNetworkWrite ?? 0);
+        return (
+            (v?.kafkaStorage ?? 0) +
+            (v?.kafkaNetworkRead ?? 0) +
+            (v?.kafkaNetworkWrite ?? 0) +
+            (v?.kafkaPartitions ?? 0)
+        );
     });
 
     mismatch = computed(() => {
@@ -170,6 +181,7 @@ export class CostComponent {
             kafkaStorage: v?.kafkaStorage ?? null,
             kafkaNetworkRead: v?.kafkaNetworkRead ?? null,
             kafkaNetworkWrite: v?.kafkaNetworkWrite ?? null,
+            kafkaPartitions: v?.kafkaPartitions ?? null,
             total: v?.total ?? null,
             groupBy: this.groupBy(),
         };
@@ -285,6 +297,7 @@ export class CostComponent {
             kafkaStorage: config.kafkaStorage,
             kafkaNetworkRead: config.kafkaNetworkRead,
             kafkaNetworkWrite: config.kafkaNetworkWrite,
+            kafkaPartitions: config.kafkaPartitions ?? null,
             total: config.total,
         });
         this.groupBy.set(config.groupBy);
@@ -305,10 +318,11 @@ export class CostComponent {
         const request: CostOverviewRequestInput = {
             from: this.costs.value.from,
             to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
-            kafkaStorageCents: (this.costs.value.kafkaStorage ?? 0) * 100,
-            kafkaNetworkReadCents: (this.costs.value.kafkaNetworkRead ?? 0) * 100,
-            kafkaNetworkWriteCents: (this.costs.value.kafkaNetworkWrite ?? 0) * 100,
-            totalCents: (this.costs.value.total ?? 0) * 100,
+            kafkaStorageCents: toCents(this.costs.value.kafkaStorage),
+            kafkaNetworkReadCents: toCents(this.costs.value.kafkaNetworkRead),
+            kafkaNetworkWriteCents: toCents(this.costs.value.kafkaNetworkWrite),
+            kafkaPartitionsCents: toCents(this.costs.value.kafkaPartitions),
+            totalCents: toCents(this.costs.value.total),
             contextKeysToGroupBy: this.contextKeysToGroupBy(),
         };
         this.calcCostOverview.fetch({ variables: { request } }).subscribe(response => {

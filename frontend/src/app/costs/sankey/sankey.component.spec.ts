@@ -76,6 +76,22 @@ describe('SankeyComponent', () => {
         expect(fromTotal('confluent_kafka_server_response_bytes')).toBe(100);
     });
 
+    it('adds a partitions branch only when the invoice has a partition line', () => {
+        const fromTotal = (
+            links: { source: string; target: string; value: number }[],
+            target: string
+        ) => links.find(l => l.source === 'total' && l.target === target)?.value;
+
+        const without = build(1).options.series.links;
+        expect(fromTotal(without, 'kafka_topic_partition_count')).toBeUndefined();
+
+        const withPartitions = build(1, { kafkaPartitionsCents: 20000, kafkaStorageCents: 20000 })
+            .options.series.links;
+        expect(fromTotal(withPartitions, 'kafka_topic_partition_count')).toBe(200);
+        // total 1000 = storage 200 + write 300 + read 300 + partitions 200, nothing left over
+        expect(fromTotal(withPartitions, 'other')).toBe(0);
+    });
+
     it('in pricing-rules mode, roots each metric at the sum of its costs with no invoice nodes', () => {
         const fixture = TestBed.createComponent(SankeyComponent);
         fixture.componentRef.setInput('source', 'pricingRules');
