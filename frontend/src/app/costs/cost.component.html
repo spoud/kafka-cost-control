@@ -156,6 +156,17 @@
                             />
                         </mat-form-field>
                         <mat-form-field>
+                            <mat-label>KAFKA_PARTITION</mat-label>
+                            <span matTextPrefix>$&nbsp;</span>
+                            <input
+                                matInput
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                formControlName="kafkaPartitions"
+                            />
+                        </mat-form-field>
+                        <mat-form-field>
                             <mat-label>Total paid</mat-label>
                             <span matTextPrefix>$&nbsp;</span>
                             <input

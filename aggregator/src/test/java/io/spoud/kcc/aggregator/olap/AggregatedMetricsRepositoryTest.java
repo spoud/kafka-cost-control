@@ -604,12 +604,35 @@ class AggregatedMetricsRepositoryTest {
         repo.flushToDb();
 
         var response = repo.calculateCosts(new CostOverviewRequest(
-                start, end, 1200, null, 200, 1000, List.of("team")));
+                start, end, 1200, null, 200, 1000, null, List.of("team")));
 
         assertThat(pricesByTeam(response, "confluent_kafka_server_request_bytes"))
                 .containsEntry("producer", 900.0).containsEntry("consumer", 100.0);
         assertThat(pricesByTeam(response, "confluent_kafka_server_response_bytes"))
                 .containsEntry("producer", 20.0).containsEntry("consumer", 180.0);
+    }
+
+    @Test
+    @DisplayName("Invoice split: the partition line follows each topic's partition-hours")
+    void invoiceSplitsPartitionsByPartitionHours() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        for (int hour = 0; hour < 2; hour++) {
+            Instant from = start.plus(Duration.ofHours(hour));
+            Instant to = from.plus(Duration.ofHours(1));
+            insertTeamBytes(from, to, "big", "kafka_topic_partition_count", 6);
+            insertTeamBytes(from, to, "small", "kafka_topic_partition_count", 2);
+        }
+        // Confluent's cluster-wide count has no topic to split by; it must not take part
+        insertTeamBytes(start, start.plus(Duration.ofHours(1)), "cluster", "confluent_kafka_server_partition_count", 13);
+        repo.flushToDb();
+
+        var response = repo.calculateCosts(new CostOverviewRequest(
+                start, start.plus(Duration.ofHours(2)), null, null, null, null, 800, List.of("team")));
+
+        assertThat(response.metricToDistributionMapList()).extracting(m -> m.metric())
+                .containsExactly("kafka_topic_partition_count");
+        assertThat(pricesByTeam(response, "kafka_topic_partition_count"))
+                .containsOnly(Map.entry("big", 600.0), Map.entry("small", 200.0));
     }
 
     private void insertTeamBytes(Instant start, Instant end, String team, String metric, double value) {
@@ -705,7 +728,7 @@ class AggregatedMetricsRepositoryTest {
         repo.flushToDb();
 
         var bottomUp = repo.calculatePricingRuleCosts(new PricingRuleCostRequest(start, null, List.of("team")));
-        var invoice = repo.calculateCosts(new CostOverviewRequest(start, null, null, 1000, null, null, List.of("team")));
+        var invoice = repo.calculateCosts(new CostOverviewRequest(start, null, null, 1000, null, null, null, List.of("team")));
 
         assertThat(bottomUp.metricToDistributionMapList()).singleElement()
                 .satisfies(d -> assertThat(d.nameToPriceList()).extracting(p -> p.price()).containsExactly(200.0));

@@ -13,6 +13,7 @@ public record CostOverviewRequest(
         Integer kafkaStorageCents,
         Integer kafkaNetworkReadCents,
         Integer kafkaNetworkWriteCents,
+        Integer kafkaPartitionsCents,
         List<String> contextKeysToGroupBy
 ) {
 }

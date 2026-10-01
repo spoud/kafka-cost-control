@@ -31,6 +31,8 @@ export interface CostOverviewFormValues {
     kafkaStorage: number | null;
     kafkaNetworkRead: number | null;
     kafkaNetworkWrite: number | null;
+    /** Absent in configurations saved before the partitions line existed. */
+    kafkaPartitions?: number | null;
     total: number | null;
     groupBy: string[];
 }
