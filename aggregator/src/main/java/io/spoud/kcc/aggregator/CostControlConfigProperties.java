@@ -21,6 +21,15 @@ public interface CostControlConfigProperties {
     @WithDefault("PT1H")
     Duration aggregationWindowSize();
 
+    /**
+     * How long a window keeps accepting points stamped inside it after it has ended. A window
+     * closes as soon as any record newer than its end arrives, so a point that is only minutes
+     * late would otherwise be dropped from the total.
+     */
+    @WithName("aggregation-window-grace")
+    @WithDefault("PT5M")
+    Duration aggregationWindowGrace();
+
     @WithName("topics.raw-data")
     @NotNull
     List<String> rawTopics();

@@ -16,6 +16,9 @@
 
 [[inputs.prometheus]]
     urls = ["${INPUT_URL}"]
+    # The only export series without a timestamp: Telegraf stamps it with the scrape time, minutes
+    # ahead of the cost data, which closed each hourly window before its last minutes arrived.
+    namedrop = ["confluent_scrape_resource_access_error"]
     username = "${INPUT_CONFLUENT_METRICS_API_KEY}"
     password = "${INPUT_CONFLUENT_METRICS_API_SECRET}"
     [inputs.prometheus.tags]

@@ -8,6 +8,9 @@ kafka:
       url: http://localhost:8081
 
 cc:
+  # A window keeps accepting points this long after it ends. It closes as soon as any newer record
+  # arrives, so without grace a point only minutes late is dropped from the hour's total.
+  aggregation-window-grace: PT5M
   olap:
     enabled: false
     database:
