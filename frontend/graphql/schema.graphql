@@ -96,10 +96,17 @@ type NameToPrice {
 
 type PricingRuleEntity {
   baseCost: Float!
+  "Cost per unit of the metric's raw value, derived from the price when one is set"
   costFactor: Float!
   "ISO-8601"
   creationTime: DateTime!
   metricName: String!
+  "Factor on top of the price, e.g. 3 replicas; null means 1"
+  multiplier: Float
+  multiplierLabel: String
+  "Price per priceUnit as entered; null for rules saved with a bare cost factor"
+  price: Float
+  priceUnit: PriceUnit
 }
 
 "Query root"
@@ -134,6 +141,16 @@ enum EntityType {
   PRINCIPAL
   TOPIC
   UNKNOWN
+}
+
+"What a pricing rule's price is per"
+enum PriceUnit {
+  "Per GB of the metric's value, 1 GB = 2^30 bytes as Confluent bills (e.g. network bytes)"
+  GB
+  "Per GB held for one hourly window, 1 GB = 2^30 bytes (e.g. retained bytes)"
+  GB_HOUR
+  "Per unit of the metric's value for one hourly window (e.g. per partition)"
+  UNIT
 }
 
 "Scalar for BigDecimal"
@@ -205,6 +222,14 @@ input PricingRuleDeleteRequestInput {
 
 input PricingRuleSaveRequestInput {
   baseCost: Float!
-  costFactor: Float!
+  "Cost per unit of the metric's raw value. Ignored when a price is given."
+  costFactor: Float
   metricName: String!
+  "Factor on top of the price, e.g. 3 for storage billed per replica. Default 1."
+  multiplier: Float
+  "What the multiplier stands for, e.g. replicas"
+  multiplierLabel: String
+  "Price per priceUnit; the cost factor is derived from it"
+  price: Float
+  priceUnit: PriceUnit
 }

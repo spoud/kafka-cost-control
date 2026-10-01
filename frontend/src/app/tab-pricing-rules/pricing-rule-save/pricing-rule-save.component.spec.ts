@@ -3,8 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { SavePricingRuleGQL } from '../../../generated/graphql/sdk';
+import { PriceUnit } from '../../../generated/graphql/types';
 import { PricingRuleSaveComponent, PricingRuleSaveData } from './pricing-rule-save.component';
-import { costFactorFromPerGb, costFactorPerGb } from '../pricing-rules-list/cost-factor.pipe';
 
 const GB = 1024 * 1024 * 1024;
 
@@ -36,18 +36,60 @@ function setup(data: PricingRuleSaveData) {
         el.querySelector('form')!.dispatchEvent(new Event('submit'));
         fixture.detectChanges();
     };
-    return { fixture, el, input, type, submit, mutate, close };
+    const sent = () => mutate.mock.calls[0][0].variables.request as Record<string, unknown>;
+    return { fixture, el, input, type, submit, mutate, close, sent };
 }
 
 describe('PricingRuleSaveComponent', () => {
-    it('edits an existing rule without letting its metric change', async () => {
+    it('saves a price per GB-hour times a multiplier, as entered', () => {
+        const { type, submit, sent, el } = setup({
+            metricName: 'confluent_kafka_server_retained_bytes',
+            metricNames: [],
+            pricedMetricNames: [],
+        });
+
+        type('price', '0.00012603');
+        type('multiplier', '3');
+        type('multiplierLabel', 'replicas');
+        expect(el.textContent).toContain(((3 * 0.00012603) / GB).toExponential(4));
+        submit();
+
+        expect(sent()).toEqual({
+            metricName: 'confluent_kafka_server_retained_bytes',
+            baseCost: 0,
+            price: 0.00012603,
+            priceUnit: PriceUnit.GbHour,
+            multiplier: 3,
+            multiplierLabel: 'replicas',
+        });
+    });
+
+    it('drops the multiplier label when there is no multiplier', () => {
+        const { type, submit, sent } = setup({
+            metricName: 'confluent_kafka_server_request_bytes',
+            metricNames: [],
+            pricedMetricNames: [],
+        });
+
+        type('price', '0.1495');
+        type('multiplierLabel', 'replicas');
+        submit();
+
+        expect(sent()).toMatchObject({
+            priceUnit: PriceUnit.Gb,
+            multiplier: null,
+            multiplierLabel: null,
+        });
+    });
+
+    it('opens a rule saved with only a cost factor as its price per GB', async () => {
         const rule = {
             metricName: 'confluent_kafka_server_request_bytes',
             baseCost: 0,
-            costFactor: 1e-10,
+            costFactor: 0.1495 / GB,
             creationTime: '2026-09-29T00:00:00Z',
         };
-        const { input, type, submit, mutate, close } = setup({
+        const { input, submit, sent, close } = setup({
             rule,
             metricNames: [],
             pricedMetricNames: [rule.metricName],
@@ -57,45 +99,23 @@ describe('PricingRuleSaveComponent', () => {
 
         expect(input('metricName').disabled).toBe(true);
         expect(input('metricName').value).toBe(rule.metricName);
+        expect(Number(input('price').value)).toBeCloseTo(0.1495, 10);
 
-        type('baseCost', '2');
         submit();
-
-        expect(mutate).toHaveBeenCalledWith({
-            variables: {
-                request: { metricName: rule.metricName, baseCost: 2, costFactor: 1e-10 },
-            },
-        });
-        expect(close).toHaveBeenCalledWith({
-            metricName: rule.metricName,
-            baseCost: 2,
-            costFactor: 1e-10,
-        });
+        expect(sent()).toMatchObject({ metricName: rule.metricName, priceUnit: PriceUnit.Gb });
+        expect(close).toHaveBeenCalled();
     });
 
-    it('sets the cost factor of a byte metric from a price per GB', () => {
-        const { type, input, submit, mutate } = setup({
-            metricName: 'confluent_kafka_server_response_bytes',
-            metricNames: [],
-            pricedMetricNames: [],
-        });
-
-        type('pricePerGb', '0.1265');
-
-        expect(Number(input('costFactor').value)).toBeCloseTo(0.1265 / GB, 20);
-        submit();
-        const request = mutate.mock.calls[0][0].variables.request as { costFactor: number };
-        expect(request.costFactor).toBeCloseTo(0.1265 / GB, 20);
-    });
-
-    it('offers no price per GB for metrics that are not bytes', () => {
-        const { el } = setup({
+    it('requires a price', () => {
+        const { submit, mutate } = setup({
             metricName: 'kafka_topic_partition_count',
             metricNames: [],
             pricedMetricNames: [],
         });
 
-        expect(el.querySelector('input[formcontrolname="pricePerGb"]')).toBeNull();
+        submit();
+
+        expect(mutate).not.toHaveBeenCalled();
     });
 
     it('warns when a new rule would replace an existing one', () => {
@@ -108,12 +128,5 @@ describe('PricingRuleSaveComponent', () => {
         type('metricName', 'confluent_kafka_server_retained_bytes');
 
         expect(el.textContent).toContain('saving replaces it');
-    });
-});
-
-describe('cost factor per GB', () => {
-    it('converts both ways for byte metrics only', () => {
-        expect(costFactorPerGb('x_bytes', costFactorFromPerGb(0.1265))).toBe(0.1265);
-        expect(costFactorPerGb('partition_count', 1)).toBeNull();
     });
 });

@@ -1,8 +1,6 @@
 <h2 mat-dialog-title>{{ editing ? 'Edit pricing rule' : 'Add pricing rule' }}</h2>
 <form [formGroup]="form" (ngSubmit)="save()">
     <mat-dialog-content>
-        <p class="formula">cost = base cost + cost factor × value, per metric and window</p>
-
         <mat-form-field class="full-width">
             <mat-label>Metric name</mat-label>
             <input matInput formControlName="metricName" [matAutocomplete]="metrics" />
@@ -24,32 +22,48 @@
         </mat-form-field>
 
         <div class="row">
-            <mat-form-field>
-                <mat-label>Base cost</mat-label>
+            <mat-form-field class="grow">
+                <mat-label>Price</mat-label>
                 <span matTextPrefix>$&nbsp;</span>
-                <input matInput type="number" formControlName="baseCost" />
-                <mat-hint>Added once per window</mat-hint>
+                <input matInput type="number" formControlName="price" />
+                <mat-error>A price of 0 or more is required.</mat-error>
             </mat-form-field>
             <mat-form-field>
-                <mat-label>Cost factor</mat-label>
-                <span matTextPrefix>$&nbsp;</span>
-                <input matInput type="number" formControlName="costFactor" />
-                <mat-hint>Per unit of the metric's value</mat-hint>
+                <mat-label>Per</mat-label>
+                <mat-select formControlName="priceUnit">
+                    @for (u of units; track u.unit) {
+                        <mat-option [value]="u.unit">{{ u.label }}</mat-option>
+                    }
+                </mat-select>
             </mat-form-field>
         </div>
 
-        @if (isBytes()) {
-            <mat-form-field class="full-width">
-                <mat-label>Price per GB</mat-label>
-                <span matTextPrefix>$&nbsp;</span>
-                <input matInput type="number" formControlName="pricePerGb" />
-                <mat-hint
-                    >Sets the cost factor; 1 GB = 2^30 bytes. For storage (retained bytes) it's the
-                    price per GB-hour.</mat-hint
-                >
+        <div class="row">
+            <mat-form-field>
+                <mat-label>× Multiplier (optional)</mat-label>
+                <input matInput type="number" formControlName="multiplier" />
+                <mat-hint>e.g. 3 when storage is billed per replica</mat-hint>
             </mat-form-field>
-        }
+            <mat-form-field class="grow">
+                <mat-label>Multiplier stands for</mat-label>
+                <input matInput formControlName="multiplierLabel" placeholder="replicas" />
+            </mat-form-field>
+        </div>
 
+        <mat-form-field>
+            <mat-label>Base cost</mat-label>
+            <span matTextPrefix>$&nbsp;</span>
+            <input matInput type="number" formControlName="baseCost" />
+            <mat-hint>Fixed amount per topic or principal per hour, usually 0</mat-hint>
+        </mat-form-field>
+
+        @if (costFactor(); as factor) {
+            <p class="note">
+                Cost per {{ perRawUnit() }} of the metric: {{ factor.toExponential(4) }}. GB means
+                2^30 bytes, as Confluent bills; every window is one hour, so a GB-hour is a GB held
+                for one window.
+            </p>
+        }
         <p class="note">
             The rule prices data processed from now on. Past windows keep the price they were
             processed with until the data is reprocessed.

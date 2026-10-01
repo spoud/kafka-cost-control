@@ -11,12 +11,14 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatHint, MatLabel, MatPrefix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatSelect } from '@angular/material/select';
 import { MatAutocomplete, MatAutocompleteTrigger, MatOption } from '@angular/material/autocomplete';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { startWith } from 'rxjs';
 import { SavePricingRuleGQL } from '../../../generated/graphql/sdk';
-import { PricingRuleEntity } from '../../../generated/graphql/types';
-import { costFactorFromPerGb, costFactorPerGb } from '../pricing-rules-list/cost-factor.pipe';
+import { PriceUnit, PricingRuleEntity } from '../../../generated/graphql/types';
+import { costFactorOf, defaultPriceUnit, PRICE_UNITS, priceFromCostFactor } from '../price';
 
 export interface PricingRuleSaveData {
     /** The rule to edit; without it the dialog creates one. */
@@ -27,6 +29,24 @@ export interface PricingRuleSaveData {
     metricNames: string[];
     /** Metrics that already have a rule; saving one of them again replaces it. */
     pricedMetricNames: string[];
+}
+
+/** The rule's price as entered, or, for a rule saved with only a cost factor, its equivalent. */
+function initialPrice(rule: PricingRuleEntity | undefined, metricName: string) {
+    if (!rule) {
+        return { price: null, priceUnit: defaultPriceUnit(metricName), multiplier: null };
+    }
+    if (rule.price != null && rule.priceUnit) {
+        return {
+            price: rule.price,
+            priceUnit: rule.priceUnit,
+            multiplier: rule.multiplier ?? null,
+        };
+    }
+    const priceUnit = defaultPriceUnit(rule.metricName);
+    // round away the float noise of the conversion; the change in cost is below a millionth
+    const price = Number(priceFromCostFactor(rule.costFactor, priceUnit).toPrecision(6));
+    return { price, priceUnit, multiplier: null };
 }
 
 @Component({
@@ -43,6 +63,7 @@ export interface PricingRuleSaveData {
         MatError,
         MatPrefix,
         MatInput,
+        MatSelect,
         MatAutocomplete,
         MatAutocompleteTrigger,
         MatOption,
@@ -58,26 +79,26 @@ export class PricingRuleSaveComponent {
     protected data = inject<PricingRuleSaveData>(MAT_DIALOG_DATA);
 
     protected editing = !!this.data.rule;
+    protected units = PRICE_UNITS;
+
+    private startName = this.data.rule?.metricName ?? this.data.metricName ?? '';
+    private start = initialPrice(this.data.rule, this.startName);
 
     protected form = inject(NonNullableFormBuilder).group({
-        metricName: [
-            {
-                value: this.data.rule?.metricName ?? this.data.metricName ?? '',
-                disabled: this.editing,
-            },
-            Validators.required,
-        ],
+        metricName: [{ value: this.startName, disabled: this.editing }, Validators.required],
         baseCost: [this.data.rule?.baseCost ?? 0, Validators.required],
-        costFactor: [this.data.rule?.costFactor ?? 0, Validators.required],
-        pricePerGb: [0],
+        price: [this.start.price as number | null, [Validators.required, Validators.min(0)]],
+        priceUnit: [this.start.priceUnit, Validators.required],
+        multiplier: [this.start.multiplier as number | null, Validators.min(0.000001)],
+        multiplierLabel: [this.data.rule?.multiplierLabel ?? ''],
     });
 
     private metricName = toSignal(this.form.controls.metricName.valueChanges, {
         initialValue: this.form.controls.metricName.value,
     });
-
-    /** Byte metrics are easier to price per GB than per byte, so they get a second, linked field. */
-    protected isBytes = computed(() => this.metricName().trim().endsWith('bytes'));
+    private values = toSignal(this.form.valueChanges.pipe(startWith(this.form.getRawValue())), {
+        requireSync: true,
+    });
 
     protected suggestions = computed(() => {
         const typed = this.metricName().trim().toLowerCase();
@@ -89,20 +110,38 @@ export class PricingRuleSaveComponent {
         () => !this.editing && this.data.pricedMetricNames.includes(this.metricName().trim())
     );
 
+    /** What the aggregator will multiply the raw value by, shown so the price is checkable. */
+    protected costFactor = computed(() => {
+        const { price, priceUnit, multiplier } = this.values();
+        return price == null || !priceUnit ? null : costFactorOf(price, priceUnit, multiplier);
+    });
+    protected perRawUnit = computed(() =>
+        this.values().priceUnit === PriceUnit.Unit ? 'unit' : 'byte'
+    );
+
     constructor() {
-        const { costFactor, pricePerGb } = this.form.controls;
-        pricePerGb.setValue(costFactorPerGb('bytes', costFactor.value) ?? 0);
-        costFactor.valueChanges.subscribe(value =>
-            pricePerGb.setValue(costFactorPerGb('bytes', value ?? 0) ?? 0, { emitEvent: false })
-        );
-        pricePerGb.valueChanges.subscribe(value =>
-            costFactor.setValue(costFactorFromPerGb(value ?? 0), { emitEvent: false })
-        );
+        // follow the metric's usual unit until the user picks one
+        this.form.controls.metricName.valueChanges.subscribe(name => {
+            if (!this.form.controls.priceUnit.dirty) {
+                this.form.controls.priceUnit.setValue(defaultPriceUnit(name));
+            }
+        });
     }
 
     save() {
-        const { metricName, baseCost, costFactor } = this.form.getRawValue();
-        const request = { metricName: metricName.trim(), baseCost, costFactor };
+        if (this.form.invalid) {
+            return;
+        }
+        const { metricName, baseCost, price, priceUnit, multiplier, multiplierLabel } =
+            this.form.getRawValue();
+        const request = {
+            metricName: metricName.trim(),
+            baseCost,
+            price,
+            priceUnit,
+            multiplier: multiplier || null,
+            multiplierLabel: multiplier ? multiplierLabel.trim() || null : null,
+        };
         this.savePricingRule.mutate({ variables: { request } }).subscribe({
             next: result => {
                 if (result.error) {
