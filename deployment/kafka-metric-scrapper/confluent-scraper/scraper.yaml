@@ -17,8 +17,9 @@ spec:
     spec:
       containers:
         - name: kafka-cost-control-scraper
-          image: spoud/kafka-cost-control-scraper:latest-native
-          imagePullPolicy: Always
+          # the -native images currently fail to start (glibc mismatch); overlays pin a version
+          image: spoud/kafka-cost-control-scraper:latest-jvm
+          imagePullPolicy: IfNotPresent
           env:
             - name: KAFKA_SECURITY_PROTOCOL
               value: SASL_SSL
@@ -29,7 +30,8 @@ spec:
             - name: KAFKA_BASIC_AUTH_CREDENTIALS_SOURCE
               value: USER_INFO
             - name: KAFKA_BASIC_AUTH_USER_INFO
-              value: ${SCHEMA_REGISTRY_API_KEY}:${SCHEMA_REGISTRY_API_SECRET}
+              # empty defaults, so it starts without a Schema Registry (CC_SCRAPE_SR_ENABLED=false)
+              value: ${SCHEMA_REGISTRY_API_KEY:}:${SCHEMA_REGISTRY_API_SECRET:}
           livenessProbe:
             httpGet:
               path: /q/health/live
@@ -52,8 +54,10 @@ spec:
               name: http
           envFrom:
             - secretRef:
-                name:
-                  kafka-cost-control-scraper-secret
+                name: kafka-cost-control-scraper-secret
+            - configMapRef:
+                name: kafka-cost-control-scraper-settings
+                optional: true
 
 ---
 apiVersion: v1
