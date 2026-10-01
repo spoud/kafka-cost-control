@@ -1,0 +1,22 @@
+# Telegraf on Confluent's metrics export (../confluent) plus the kafka-scraper, which counts each
+# topic's partitions (and schemas, with a Schema Registry); Telegraf scrapes it too. The per-topic
+# partition count is what splits a Confluent bill's partition line by tenant. An overlay provides:
+#   - everything ../confluent needs (secret `telegraf-secret`, configMap `telegraf-settings`)
+#   - secret `kafka-cost-control-scraper-secret`: KAFKA_BOOTSTRAP_SERVERS, CLUSTER_API_KEY/_SECRET
+#     (an API key that may describe topics), and for schema counts KAFKA_SCHEMA_REGISTRY_URL,
+#     SCHEMA_REGISTRY_API_KEY/_SECRET
+#   - optional configMap `kafka-cost-control-scraper-settings`, e.g. CC_SCRAPE_SR_ENABLED=false
+#     without a Schema Registry
+kind: Kustomization
+resources:
+  - ../confluent
+  - scraper.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: telegraf-config
+    behavior: merge
+    files:
+      - kafka-scraper.conf

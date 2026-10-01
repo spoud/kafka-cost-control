@@ -41,5 +41,9 @@ spec:
               mountPath: /etc/telegraf/telegraf.conf
               subPath: telegraf-config.toml
               mountPropagation: None
+            # extra inputs: Telegraf also loads every *.conf key of the same config map from here
+            - name: config
+              mountPath: /etc/telegraf/telegraf.d
+              mountPropagation: None
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
