@@ -4,6 +4,10 @@ mutation savePricingRule($request: PricingRuleSaveRequestInput!) {
         metricName
         baseCost
         costFactor
+        price
+        priceUnit
+        multiplier
+        multiplierLabel
     }
 }
 

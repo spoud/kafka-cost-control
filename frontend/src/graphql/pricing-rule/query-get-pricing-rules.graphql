@@ -4,5 +4,9 @@ query getPricingRules{
         metricName
         baseCost
         costFactor
+        price
+        priceUnit
+        multiplier
+        multiplierLabel
     }
 }

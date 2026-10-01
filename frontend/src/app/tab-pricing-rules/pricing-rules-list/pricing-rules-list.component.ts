@@ -15,7 +15,7 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { BytesToGbPipe } from './cost-factor.pipe';
+import { PricePipe } from '../price';
 import { PageHeaderComponent } from '../../common/page-header/page-header.component';
 import { DataTableComponent } from '../../common/data-table/data-table.component';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -42,7 +42,7 @@ const RULE_STORE_CATCH_UP_MS = 2000;
         MatTableModule,
         MatSortModule,
         MatPaginatorModule,
-        BytesToGbPipe,
+        PricePipe,
         PageHeaderComponent,
         DataTableComponent,
         MatExpansionModule,
@@ -72,11 +72,10 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
     empty = computed(() => !this.loading() && !this.error() && this.dataSource.data.length === 0);
 
     public displayedColumns: string[] = [
-        'creationTime',
         'metricName',
+        'price',
         'baseCost',
-        'costFactor',
-        'costFactorGb',
+        'creationTime',
         'buttons',
     ];
 
