@@ -43,6 +43,11 @@ class PricingRuleSaveRequestTest {
     }
 
     @Test
+    void aFreeMetricMayCostZero() {
+        assertThat(request(null, 0.0, PriceUnit.GB, null, null).toAvro().getCostFactor()).isZero();
+    }
+
+    @Test
     void aPriceWinsOverACostFactorSentAlongside() {
         assertThat(request(42.0, 1.0, PriceUnit.UNIT, null, null).toAvro().getCostFactor()).isEqualTo(1.0);
     }
@@ -65,6 +70,8 @@ class PricingRuleSaveRequestTest {
     void rejectsIncompleteOrNonsensicalPrices() {
         assertThatThrownBy(() -> request(null, 1.0, null, null, null).toAvro())
                 .isInstanceOf(BadRequestException.class).hasMessageContaining("priceUnit");
+        assertThatThrownBy(() -> request(null, -0.01, PriceUnit.GB, null, null).toAvro())
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("0 or more");
         assertThatThrownBy(() -> request(null, 1.0, PriceUnit.GB, 0.0, null).toAvro())
                 .isInstanceOf(BadRequestException.class).hasMessageContaining("multiplier");
         assertThatThrownBy(() -> request(1.0, null, PriceUnit.GB, null, null).toAvro())

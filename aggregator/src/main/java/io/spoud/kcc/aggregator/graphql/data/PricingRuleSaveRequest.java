@@ -37,6 +37,9 @@ public record PricingRuleSaveRequest(
             if (priceUnit() == null) {
                 throw new BadRequestException("A price needs a priceUnit (GB, GB_HOUR or UNIT).");
             }
+            if (price() < 0) {
+                throw new BadRequestException("The price must be 0 or more.");
+            }
             double factor = multiplier() == null ? 1 : multiplier();
             if (factor <= 0) {
                 throw new BadRequestException("The multiplier must be greater than 0.");
