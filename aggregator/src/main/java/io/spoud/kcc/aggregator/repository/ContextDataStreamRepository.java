@@ -78,11 +78,13 @@ public class ContextDataStreamRepository {
     }
 
     public List<ContextDataEntity> getContextObjects() {
-        List<ContextDataEntity> list = new ArrayList<>();
-        try (final KeyValueIterator<String, ContextData> iterator = getStore().all()) {
-            iterator.forEachRemaining(kv -> list.add(ContextDataEntity.fromAvro(kv.key, kv.value)));
-        }
-        return list;
+        return StoreReads.retrying("context data store", () -> {
+            List<ContextDataEntity> list = new ArrayList<>();
+            try (final KeyValueIterator<String, ContextData> iterator = getStore().all()) {
+                iterator.forEachRemaining(kv -> list.add(ContextDataEntity.fromAvro(kv.key, kv.value)));
+            }
+            return list;
+        });
     }
 
     public List<ContextTestResponse> testContext(String testString) {
