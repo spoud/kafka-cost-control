@@ -70,7 +70,11 @@ export class ContextDataSaveComponent {
     private formBuilder = inject(NonNullableFormBuilder);
     private snackBar = inject(MatSnackBar);
     private dateAdapter = inject<DateAdapter<unknown>>(DateAdapter);
-    private data = inject<{ element: ContextDataEntity } | null>(MAT_DIALOG_DATA, {
+    private data = inject<{
+        element?: ContextDataEntity;
+        /** Starting values for a new rule, e.g. for an unassigned topic or service account. */
+        prefill?: { entityType: EntityType; regex: string };
+    } | null>(MAT_DIALOG_DATA, {
         optional: true,
     });
 
@@ -92,7 +96,7 @@ export class ContextDataSaveComponent {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        if (data) {
+        if (data?.element) {
             // edit mode, we have existing data
             this.saveForm = this.formBuilder.group({
                 validFrom: new FormControl(data.element.validFrom as Date | null),
@@ -112,8 +116,13 @@ export class ContextDataSaveComponent {
             this.saveForm = this.formBuilder.group({
                 validFrom: new FormControl(today),
                 validUntil: new FormControl<Date | null>(null),
-                entityType: new FormControl<EntityType>(EntityType.Topic, Validators.required),
-                regex: new FormControl<string>('', { validators: Validators.required }),
+                entityType: new FormControl<EntityType>(
+                    data?.prefill?.entityType ?? EntityType.Topic,
+                    Validators.required
+                ),
+                regex: new FormControl<string>(data?.prefill?.regex ?? '', {
+                    validators: Validators.required,
+                }),
                 context: this.formBuilder.array<Entry_String_StringInput>([], Validators.required),
             });
             this.addKeyValuePair();
@@ -149,7 +158,7 @@ export class ContextDataSaveComponent {
     saveDialog() {
         const variables: { request: ContextDataSaveRequestInput } = {
             request: {
-                id: this.data?.element.id ?? undefined,
+                id: this.data?.element?.id ?? undefined,
                 validFrom: this.saveForm.value.validFrom,
                 validUntil: this.saveForm.value.validUntil,
                 entityType: this.saveForm.value.entityType ?? EntityType.Unknown,

@@ -1,0 +1,9 @@
+query unassignedEntities($request: UnassignedEntitiesRequestInput) {
+    unassignedEntities(request: $request) {
+        entityType
+        name
+        metrics
+        cost
+        lastSeen
+    }
+}
