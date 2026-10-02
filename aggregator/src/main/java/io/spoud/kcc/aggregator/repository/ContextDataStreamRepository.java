@@ -108,7 +108,9 @@ public class ContextDataStreamRepository {
      */
     public Optional<TelegrafDataWrapper.AggregatedDataInfo> enrichWithContext(TelegrafDataWrapper telegrafDataWrapper) {
         return telegrafDataWrapper.toMetric().map(metric -> {
-            var context = getContextDataForName(metric.type(), metric.objectName(), telegrafDataWrapper.getTimestamp());
+            // a principal rule may name the account (e.g. a naming convention) instead of listing IDs
+            var alias = metric.type() == EntityType.PRINCIPAL ? telegrafDataWrapper.principalName().orElse(null) : null;
+            var context = getContextDataForName(metric.type(), metric.objectName(), alias, telegrafDataWrapper.getTimestamp());
             return new TelegrafDataWrapper.AggregatedDataInfo(metric.type(), metric.objectName(), context);
         });
     }
@@ -157,12 +159,21 @@ public class ContextDataStreamRepository {
     }
 
     public Map<String, String> getContextDataForName(EntityType entityType, String objectName, Instant timestamp) {
+        return getContextDataForName(entityType, objectName, null, timestamp);
+    }
+
+    /**
+     * Context from every rule whose regex matches {@code objectName} or, failing that, {@code alias}
+     * (a principal's display name); capture groups come from whichever matched.
+     */
+    public Map<String, String> getContextDataForName(EntityType entityType, String objectName, String alias, Instant timestamp) {
         // Get the cached context data
         List<CachedContextData> contextDataList = getCachedContextData();
         Map<String, String> context = new HashMap<>();
         // This is the join with regex
         contextDataList.forEach(cachedContext -> {
             cachedContext.getMatcher(entityType, objectName, timestamp)
+                    .or(() -> alias == null ? Optional.empty() : cachedContext.getMatcher(entityType, alias, timestamp))
                     .ifPresent(matcher -> {
                         context.putAll(cachedContext.getContextData().getContext().entrySet().stream()
                                 // replace all the regex variable in the value

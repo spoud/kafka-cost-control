@@ -16,6 +16,8 @@ public class TelegrafDataWrapper {
     public static final String COUNTER_FIELD_NAME = "counter";
     public static final String TOPIC_TAG = "topic";
     public static final String PRINCIPAL_ID_TAG = "principal_id";
+    /** Confluent's display name of the service account, sent next to its ID. */
+    public static final String PRINCIPAL_NAME_TAG = "principal_name";
     private final RawTelegrafData telegrafData;
 
     public TelegrafDataWrapper(final RawTelegrafData telegrafData) {
@@ -29,6 +31,13 @@ public class TelegrafDataWrapper {
      */
     public Instant getTimestamp() {
         return telegrafData.timestamp();
+    }
+
+    /** The principal's display name, when the source sends one (Confluent does, as principal_name). */
+    public Optional<String> principalName() {
+        return Optional.ofNullable(telegrafData.tags())
+                .map(tags -> tags.get(PRINCIPAL_NAME_TAG))
+                .filter(name -> !name.isBlank());
     }
 
     public Optional<Metric> toMetric() {
