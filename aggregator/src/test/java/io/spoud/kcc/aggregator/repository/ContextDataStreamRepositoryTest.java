@@ -2,6 +2,8 @@ package io.spoud.kcc.aggregator.repository;
 
 import io.smallrye.reactive.messaging.kafka.Record;
 import io.spoud.kcc.aggregator.data.ContextTestResponse;
+import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.stream.TelegrafDataWrapper;
 import io.spoud.kcc.data.ContextData;
 import io.spoud.kcc.data.EntityType;
 import org.apache.kafka.streams.KafkaStreams;
@@ -142,5 +144,56 @@ class ContextDataStreamRepositoryTest {
                         entry("third-capturing-group", "name"),
                         entry("all-together", "test;topic;name"))
                 );
+    }
+
+    private void rules(ContextData... rules) {
+        doReturn(java.util.Arrays.stream(rules)
+                .map(r -> new ContextDataStreamRepository.CachedContextData(UUID.randomUUID().toString(), r))
+                .toList()).when(contextDataStreamRepository).getCachedContextData();
+    }
+
+    private static ContextData rule(EntityType type, String regex, Map<String, String> context) {
+        return new ContextData(Instant.now().minusSeconds(60), null, null, type, regex, context);
+    }
+
+    private Map<String, String> contextOf(Map<String, String> tags) {
+        var data = new RawTelegrafData(Instant.now(), "confluent_kafka_server_request_bytes", Map.of("gauge", 1.0), tags);
+        return contextDataStreamRepository.enrichWithContext(new TelegrafDataWrapper(data)).orElseThrow().context();
+    }
+
+    @Test
+    void principalRulesMatchTheDisplayNameWithCaptureGroups() {
+        // one naming-convention rule covers every account, including ones created later
+        rules(rule(EntityType.PRINCIPAL, "^kcc-demo-([^.]+)\\.app\\.(.+)$", Map.of("tenant", "$1", "application", "$2")));
+
+        var context = contextOf(Map.of("principal_id", "sa-new123",
+                "principal_name", "kcc-demo-northstar-logistics.app.payment-service"));
+
+        assertThat(context).containsOnly(entry("tenant", "northstar-logistics"), entry("application", "payment-service"));
+    }
+
+    @Test
+    void idRulesKeepWorkingAndMergeWithNameRules() {
+        rules(rule(EntityType.PRINCIPAL, "^(sa-new123)$", Map.of("service_account", "$1")),
+                rule(EntityType.PRINCIPAL, "^kcc-demo-([^.]+)\\..*$", Map.of("tenant", "$1")));
+
+        var context = contextOf(Map.of("principal_id", "sa-new123", "principal_name", "kcc-demo-acme.app.x"));
+
+        assertThat(context).containsOnly(entry("service_account", "sa-new123"), entry("tenant", "acme"));
+    }
+
+    @Test
+    void withoutADisplayNameOnlyTheIdIsMatched() {
+        rules(rule(EntityType.PRINCIPAL, "^kcc-demo-.*$", Map.of("tenant", "x")));
+
+        assertThat(contextOf(Map.of("principal_id", "sa-new123"))).isEmpty();
+        assertThat(contextOf(Map.of("principal_id", "sa-new123", "principal_name", " "))).isEmpty();
+    }
+
+    @Test
+    void topicsAreNotMatchedAgainstAPrincipalName() {
+        rules(rule(EntityType.TOPIC, "^kcc-demo-.*$", Map.of("tenant", "x")));
+
+        assertThat(contextOf(Map.of("topic", "orders", "principal_name", "kcc-demo-acme"))).isEmpty();
     }
 }

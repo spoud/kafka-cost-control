@@ -2,6 +2,8 @@
 
 Context data are a way to attach a context (attributes basically) to a kafka item (topic, principal, ...). Basically define a set of key/values for an item that match a regex. It is possible that one item match multiple regex (and thus multiple context), but in this case you have to be careful to not have conflicting key/values.
 
+A principal rule's regex is matched against the principal's ID and, when the metrics carry one, its display name (Confluent Cloud sends `principal_name` next to `principal_id`). So instead of listing service account IDs, one naming-convention rule such as `^kcc-demo-([^.]+)\.app\.(.+)$` with `tenant: $1` and `application: $2` covers every account that follows the convention, including ones created later. Capture groups come from whichever of the two matched.
+
 You can have as much key/values as you want. They will be used to sum up prices in the dashboard. It is therefor important that you have at least one key/value that defined the cost unit or organization unit. For example: `organzation_unit=department1`.
 
 The context data are stored in kafka in a compacted topic. The key is free for the user to choose.
