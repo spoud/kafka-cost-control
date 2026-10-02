@@ -28,10 +28,9 @@ public class KafkaStreamResource {
   @Mutation("reprocess")
   public @NonNull String reprocess(@NonNull @QueryParam("areYouSure") String areYouSure, @QueryParam("startTime") Instant startTime) {
     if (areYouSure.equals("yes")) {
-      kafkaStreamStarter.reprocess(startTime);
-      return "Reprocessing started, it may take a few seconds/minutes, see logs for details";
+      return kafkaStreamStarter.reprocess(startTime);
     } else {
-      return "Please write 'yes' to confirm reprocessing. This will cause all the data to be reprocessed and may take a while!";
+      return "Please write 'yes' to confirm reprocessing. Stored data from the start time on is deleted and rebuilt from the raw topics with today's context and pricing rules, which may take a while!";
     }
   }
 }
