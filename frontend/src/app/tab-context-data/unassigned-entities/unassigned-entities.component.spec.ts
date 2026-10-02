@@ -1,4 +1,4 @@
-import { exactRegex } from './unassigned-entities.component';
+import { exactRegex, unassignedLabel } from './unassigned-entities.component';
 
 describe('exactRegex', () => {
     it('matches the name exactly, with regex characters escaped', () => {
@@ -12,5 +12,12 @@ describe('exactRegex', () => {
     it('captures the name, so $1 in a context value is the name', () => {
         expect('sa-192ddk3'.replace(new RegExp(exactRegex('sa-192ddk3')), '$1')).toBe('sa-192ddk3');
         expect(exactRegex('a+b(c)')).toBe('^(a\\+b\\(c\\))$');
+    });
+});
+
+describe('unassignedLabel', () => {
+    it('names the chosen key, or any context by default', () => {
+        expect(unassignedLabel(null)).toBe('without any context');
+        expect(unassignedLabel('cost-unit')).toBe('without cost-unit');
     });
 });

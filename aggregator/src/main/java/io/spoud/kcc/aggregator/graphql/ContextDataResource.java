@@ -71,12 +71,12 @@ public class ContextDataResource {
     @Authenticated
     @Query("unassignedEntities")
     @org.eclipse.microprofile.graphql.Description(
-            "Topics and principals without a value for a context key (default tenant), most expensive first; "
-                    + "no from = the last 7 days")
+            "Topics and principals no context rule assigns (or without a value for contextKey), most expensive "
+                    + "first; no from = the last 7 days")
     public @NonNull List<@NonNull UnassignedEntity> unassignedEntities(UnassignedEntitiesRequest request) {
         var from = request == null || request.from() == null ? Instant.now().minus(7, ChronoUnit.DAYS) : request.from();
         var to = request == null ? null : request.to();
-        var key = request == null ? "tenant" : request.contextKeyOrDefault();
+        var key = request == null ? null : request.contextKeyOrNull();
         return contextDataOlapRepository.unassignedEntities(from, to, key);
     }
 }

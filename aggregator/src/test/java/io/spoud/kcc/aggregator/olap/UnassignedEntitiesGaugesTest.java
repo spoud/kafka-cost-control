@@ -2,6 +2,7 @@ package io.spoud.kcc.aggregator.olap;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.spoud.kcc.aggregator.data.UnassignedEntity;
+import io.spoud.kcc.aggregator.stream.TestConfigProperties;
 import io.spoud.kcc.data.EntityType;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -16,7 +17,8 @@ class UnassignedEntitiesGaugesTest {
     @Test
     void countsUnassignedTopicsAndPrincipalsAndTheirCost() {
         var registry = new SimpleMeterRegistry();
-        var gauges = new UnassignedEntitiesGauges(Mockito.mock(ContextDataOlapRepository.class), registry);
+        var gauges = new UnassignedEntitiesGauges(Mockito.mock(ContextDataOlapRepository.class), registry,
+                TestConfigProperties.builder().build());
 
         gauges.update(List.of(
                 new UnassignedEntity(EntityType.PRINCIPAL, "sa-new", List.of("request_bytes"), 0.25, Instant.now()),
@@ -29,5 +31,18 @@ class UnassignedEntitiesGaugesTest {
 
         gauges.update(List.of());
         assertThat(registry.get("kcc.unassigned.cost").gauge().value()).isZero();
+    }
+
+    @Test
+    void checksTheConfiguredKeyOrAnyContext() {
+        var repository = Mockito.mock(ContextDataOlapRepository.class);
+        Mockito.when(repository.unassignedEntities(Mockito.any(), Mockito.isNull(), Mockito.any())).thenReturn(List.of());
+
+        new UnassignedEntitiesGauges(repository, new SimpleMeterRegistry(),
+                TestConfigProperties.builder().unassignedContextKey("cost-unit").build()).refresh();
+        new UnassignedEntitiesGauges(repository, new SimpleMeterRegistry(), TestConfigProperties.builder().build()).refresh();
+
+        Mockito.verify(repository).unassignedEntities(Mockito.any(), Mockito.isNull(), Mockito.eq("cost-unit"));
+        Mockito.verify(repository).unassignedEntities(Mockito.any(), Mockito.isNull(), Mockito.isNull());
     }
 }

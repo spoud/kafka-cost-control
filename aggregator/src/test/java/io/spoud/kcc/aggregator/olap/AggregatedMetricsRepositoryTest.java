@@ -778,6 +778,9 @@ class AggregatedMetricsRepositoryTest {
         // a different key: now the assigned principal counts too
         assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(start, null, "application"))
                 .extracting(UnassignedEntity::name).contains("sa-assigned");
+        // no key: only what no rule matched at all; sa-new has a service_account, so it counts as assigned
+        assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(start, null, null))
+                .extracting(UnassignedEntity::name).containsExactly("odd-topic");
     }
 
     private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {

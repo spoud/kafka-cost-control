@@ -11,10 +11,11 @@ public record UnassignedEntitiesRequest(
         Instant from,
         @Description("ISO-8601; windows ending at or before it, none = up to now")
         Instant to,
-        @Description("The context key that counts as assigned, default tenant")
+        @Description("A context key that counts as assigned; none = any context at all")
         String contextKey) {
 
-    public String contextKeyOrDefault() {
-        return contextKey == null || contextKey.isBlank() ? "tenant" : contextKey;
+    /** The key, or null for "any context". */
+    public String contextKeyOrNull() {
+        return contextKey == null || contextKey.isBlank() ? null : contextKey.trim();
     }
 }

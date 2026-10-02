@@ -37,6 +37,13 @@ public class TestConfigProperties implements CostControlConfigProperties {
         return aggregationWindowGrace;
     }
 
+    private String unassignedContextKey;
+
+    @Override
+    public Optional<String> unassignedContextKey() {
+        return Optional.ofNullable(unassignedContextKey);
+    }
+
     @Override
     public String adminPassword() {
         return adminPassword;

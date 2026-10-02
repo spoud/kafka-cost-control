@@ -1,17 +1,32 @@
-@if (entities.hasValue() && entities.value().length > 0) {
+@if (entities.hasValue()) {
     <mat-accordion class="unassigned">
         <mat-expansion-panel>
             <mat-expansion-panel-header>
                 <mat-panel-title>
                     <mat-icon>help_outline</mat-icon>
-                    Topics and service accounts without a tenant ({{ entities.value().length }})
+                    Topics and service accounts {{ label() }} ({{ entities.value().length }})
                 </mat-panel-title>
             </mat-expansion-panel-header>
+            <div class="controls">
+                <mat-form-field subscriptSizing="dynamic">
+                    <mat-label>Counts as assigned</mat-label>
+                    <mat-select [value]="contextKey()" (valueChange)="chooseKey($event)">
+                        <mat-option [value]="null">any context</mat-option>
+                        @for (key of contextKeys(); track key) {
+                            <mat-option [value]="key">a value for {{ key }}</mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
             <p class="hint">
-                No context rule gives these a tenant, so their costs show as "&lt;other&gt;". Seen
-                in the last {{ lookbackDays }} days, most expensive first. A new rule applies to
-                data processed from then on; an entry disappears once its next hour has a tenant.
+                Seen in the last {{ lookbackDays }} days and still {{ label() }} in their latest
+                hour, most expensive first; their costs show as "&lt;other&gt;" when grouped by that
+                key. A new rule applies to data processed from then on; an entry disappears once its
+                next hour is assigned.
             </p>
+            @if (entities.value().length === 0) {
+                <p class="hint">None: every topic and service account is assigned.</p>
+            }
             <ul class="entities">
                 @for (entity of entities.value(); track entity.entityType + entity.name) {
                     <li>

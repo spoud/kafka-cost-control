@@ -5,7 +5,9 @@ import io.spoud.kcc.data.EntityType;
 import io.spoud.kcc.olap.domain.tables.AggregatedData;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.graphql.NonNull;
+import org.jooq.Condition;
 import org.jooq.Record1;
+import jakarta.annotation.Nullable;
 import org.jooq.impl.DSL;
 
 import java.math.BigDecimal;
@@ -44,27 +46,29 @@ public class ContextDataOlapRepository {
 
     /**
      * Topics and principals seen in the period that are still unassigned: their latest window has no
-     * value for {@code contextKey}. An entity a rule was added for drops out as soon as its next
-     * window is processed, although its older rows keep no value. Cost and metrics count only the
-     * unassigned rows, most expensive first. Rows without an entity (cluster-wide metrics) can't be
-     * assigned by a rule and are left out.
+     * context at all or, with {@code contextKey}, no value for that key. An entity a rule was added
+     * for drops out as soon as its next window is processed, although its older rows stay as they
+     * were. Cost and metrics count only the unassigned rows, most expensive first. Rows without an
+     * entity (cluster-wide metrics) can't be assigned by a rule and are left out.
      */
-    public @NonNull List<@NonNull UnassignedEntity> unassignedEntities(Instant from, Instant to, String contextKey) {
+    public @NonNull List<@NonNull UnassignedEntity> unassignedEntities(Instant from, Instant to, @Nullable String contextKey) {
         return olapInfra.getDSLContext().map(dslContext -> {
             AggregatedData a = AGGREGATED_DATA.as("a");
-            // parenthesized: DuckDB would read `context->>key IS NULL` as `context->>(key IS NULL)`
-            var value = DSL.field("({0}->>{1})", String.class, a.CONTEXT, DSL.val(contextKey));
+            Condition assigned = contextKey == null
+                    ? DSL.condition("len(json_keys({0})) > 0", a.CONTEXT)
+                    // parenthesized: DuckDB would read `context->>key IS NULL` as `context->>(key IS NULL)`
+                    : DSL.field("({0}->>{1})", String.class, a.CONTEXT, DSL.val(contextKey)).isNotNull();
             var condition = a.START_TIME.ge(from.atOffset(ZoneOffset.UTC))
                     .and(a.NAME.ne(""))
                     .and(a.ENTITY_TYPE.in(EntityType.TOPIC.name(), EntityType.PRINCIPAL.name()));
             if (to != null) {
                 condition = condition.and(a.END_TIME.le(to.atOffset(ZoneOffset.UTC)));
             }
-            var metrics = DSL.field("string_agg(DISTINCT {0}, ',' ORDER BY {0}) FILTER (WHERE {1} IS NULL)",
-                    String.class, a.INITIAL_METRIC_NAME, value);
-            var cost = DSL.coalesce(DSL.sum(a.COST).filterWhere(value.isNull()), BigDecimal.ZERO);
+            var metrics = DSL.field("string_agg(DISTINCT {0}, ',' ORDER BY {0}) FILTER (WHERE NOT ({1}))",
+                    String.class, a.INITIAL_METRIC_NAME, assigned);
+            var cost = DSL.coalesce(DSL.sum(a.COST).filterWhere(DSL.not(assigned)), BigDecimal.ZERO);
             var lastSeen = DSL.max(a.END_TIME);
-            var lastAssigned = DSL.max(a.END_TIME).filterWhere(value.isNotNull());
+            var lastAssigned = DSL.max(a.END_TIME).filterWhere(assigned);
             return dslContext
                     .select(a.ENTITY_TYPE, a.NAME, metrics, cost, lastSeen)
                     .from(a)

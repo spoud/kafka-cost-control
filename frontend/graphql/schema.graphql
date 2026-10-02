@@ -124,7 +124,7 @@ type Query {
   metricNames: [MetricNameEntity!]!
   pricingRuleCosts(request: PricingRuleCostRequestInput): CostOverviewResponse!
   pricingRules: [PricingRuleEntity!]!
-  "Topics and principals without a value for a context key (default tenant), most expensive first; no from = the last 7 days"
+  "Topics and principals no context rule assigns (or without a value for contextKey), most expensive first; no from = the last 7 days"
   unassignedEntities(request: UnassignedEntitiesRequestInput): [UnassignedEntity!]!
 }
 
@@ -250,7 +250,7 @@ input PricingRuleSaveRequestInput {
 }
 
 input UnassignedEntitiesRequestInput {
-  "The context key that counts as assigned, default tenant"
+  "A context key that counts as assigned; none = any context at all"
   contextKey: String
   "ISO-8601; windows starting at or after it (ISO-8601)"
   from: DateTime
