@@ -138,6 +138,8 @@ public class KafkaStreamManager {
         props.remove(ConsumerConfig.GROUP_ID_CONFIG);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, BytesDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, BytesDeserializer.class.getName());
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         return new KafkaConsumer<>(props);
     }
 
@@ -152,13 +154,41 @@ public class KafkaStreamManager {
         return partitions;
     }
 
-    /** The timestamp of the first record still in each partition (retention may have removed older ones). */
-    private static List<Instant> earliestRecordTimes(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
-        return consumer.offsetsForTimes(partitions.stream().collect(Collectors.toMap(p -> p, p -> 0L)))
-                .values().stream()
-                .filter(found -> found != null)
-                .map(found -> Instant.ofEpochMilli(found.timestamp()))
-                .toList();
+    /**
+     * The timestamp of the first record still in each non-empty partition (retention may have
+     * removed older ones). Read from the record itself: the timestamp an offset lookup returns
+     * isn't reliable here (Confluent Cloud answered a lookup at time 0 with offset 0 but a
+     * timestamp that made the start fall back to 1970, deleting everything instead of only what
+     * the raw topics can rebuild).
+     */
+    private static List<Instant> earliestRecordTimes(KafkaConsumer<Bytes, Bytes> consumer, List<TopicPartition> partitions) {
+        var beginnings = consumer.beginningOffsets(partitions);
+        var ends = consumer.endOffsets(partitions);
+        var times = new ArrayList<Instant>();
+        for (TopicPartition partition : partitions) {
+            if (beginnings.get(partition).equals(ends.get(partition))) {
+                continue; // empty: nothing to rebuild, nothing to protect
+            }
+            consumer.assign(List.of(partition));
+            consumer.seekToBeginning(List.of(partition));
+            Instant first = null;
+            long deadline = System.currentTimeMillis() + Duration.ofSeconds(30).toMillis();
+            while (first == null && System.currentTimeMillis() < deadline) {
+                for (var record : consumer.poll(Duration.ofSeconds(1))) {
+                    if (record.timestamp() >= 0) {
+                        first = Instant.ofEpochMilli(record.timestamp());
+                    }
+                    break;
+                }
+            }
+            if (first == null) {
+                // without it the start could fall before what the raw topics hold; refuse rather than delete history
+                throw new IllegalStateException("could not read the oldest record of " + partition);
+            }
+            times.add(first);
+        }
+        consumer.unsubscribe();
+        return times;
     }
 
     /** The first offset at or after {@code start} in each partition; the end where nothing is that recent. */
