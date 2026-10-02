@@ -99,6 +99,27 @@ public class AggregatedMetricsRepository {
         });
     }
 
+    /**
+     * Deletes every stored window starting at or after {@code start}, after flushing what is still
+     * buffered, so a reprocess replaces those windows instead of adding re-enriched copies next to
+     * them (a row's id includes its context).
+     *
+     * @return the number of rows deleted
+     */
+    public synchronized int deleteFrom(Instant start) {
+        flushToDb();
+        return olapInfra.getConnection().map(conn -> {
+            try (var stmt = conn.prepareStatement("DELETE FROM aggregated_data WHERE start_time >= ?")) {
+                stmt.setObject(1, start.atOffset(ZoneOffset.UTC));
+                int deleted = stmt.executeUpdate();
+                Log.infof("Deleted %d OLAP rows starting at or after %s", deleted, start);
+                return deleted;
+            } catch (SQLException e) {
+                throw new IllegalStateException("Could not delete OLAP rows from " + start, e);
+            }
+        }).orElse(0);
+    }
+
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     synchronized void flushToDb() {
         olapInfra.getConnection().ifPresent((conn) -> {

@@ -39,7 +39,8 @@ class KafkaStreamManagerTest {
                 .build();
         var kafkaStreams = Mockito.mock(KafkaStreams.class);
         Mockito.when(kafkaStreams.close(Mockito.any(KafkaStreams.CloseOptions.class))).thenReturn(true);
-        kafkaStreamManager = new KafkaStreamManager(configProperties, kafkaStreams, Map.of(), APP_ID);
+        kafkaStreamManager = new KafkaStreamManager(configProperties, kafkaStreams, Map.of(), APP_ID,
+                Mockito.mock(io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository.class));
     }
 
     @Test

@@ -783,6 +783,22 @@ class AggregatedMetricsRepositoryTest {
                 .extracting(UnassignedEntity::name).containsExactly("odd-topic");
     }
 
+    @Test
+    @DisplayName("Reprocess deletes stored windows from the start on, buffered ones included")
+    void deletesWindowsFromAStart() {
+        Instant earlier = Instant.parse("2026-01-01T00:00:00Z");
+        Instant start = Instant.parse("2026-01-01T02:00:00Z");
+        repo.insertRow(randomDatapoint().setStartTime(earlier).setEndTime(earlier.plus(Duration.ofHours(1))).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(start.plus(Duration.ofHours(1))).build());
+        repo.flushToDb();
+        // still in the buffer when the reprocess comes
+        repo.insertRow(randomDatapoint().setStartTime(start.plus(Duration.ofHours(1))).setEndTime(start.plus(Duration.ofHours(2))).build());
+
+        assertThat(repo.deleteFrom(start)).isEqualTo(2);
+        assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(earlier, null, "no-such-key"))
+                .extracting(UnassignedEntity::lastSeen).containsExactly(earlier.plus(Duration.ofHours(1)));
+    }
+
     private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {
         return randomDatapoint().setStartTime(start).setEndTime(end).setName(team)
                 .setInitialMetricName(metric).setValue(value).setContext(Map.of("team", team));

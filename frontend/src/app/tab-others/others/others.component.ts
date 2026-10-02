@@ -37,11 +37,11 @@ export class OthersComponent {
     openReprocessDialog(): void {
         const dialogRef = this._dialog.open(ConfirmDialogComponent, {
             data: {
-                title: 'Are you really sure?',
+                title: 'Rebuild data from the start time?',
                 message:
-                    'Reprocessing data can take a while and will add a significant lag for a while, this means data will not be leave for a while.',
-                confirmLabel: "I'm not afraid, reprocess it!",
-                cancelLabel: "No, I'm sorry, get me back",
+                    "Stored data from the start time on (or everything, without one) is deleted and rebuilt from the raw metrics with today's context and pricing rules; older data stays as it is. Kafka Cost Control restarts, and until the rebuild is done, data from the start time on is incomplete. Depending on the amount of raw data this takes minutes to hours.",
+                confirmLabel: 'Delete and rebuild',
+                cancelLabel: 'Cancel',
                 destructive: true,
             },
         });
@@ -52,15 +52,18 @@ export class OthersComponent {
                 filter(result => result),
                 mergeMap(_value => {
                     const startTime = this.startTime?.toISOString();
-                    this._snackBar.open('Reprocessing started', 'close', {
+                    this._snackBar.open('Reprocessing: stopping and resetting…', 'close', {
                         duration: 5000,
                     });
                     return this._mutationReprocess.mutate({ variables: { startTime } });
                 })
             )
             .subscribe({
-                next: () =>
-                    this._snackBar.open('Reprocessing requested', 'close', { duration: 5000 }),
+                next: result =>
+                    this._snackBar.open(
+                        result.data?.reprocess ?? 'Reprocessing requested',
+                        'close'
+                    ),
                 error: (err: Error) => {
                     return this._snackBar.open('Processing failed: ' + err.message, 'close');
                 },
