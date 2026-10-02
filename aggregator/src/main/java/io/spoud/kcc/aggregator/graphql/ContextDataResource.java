@@ -3,6 +3,8 @@ package io.spoud.kcc.aggregator.graphql;
 import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
 import io.spoud.kcc.aggregator.data.ContextTestResponse;
+import io.spoud.kcc.aggregator.data.UnassignedEntity;
+import io.spoud.kcc.aggregator.graphql.data.UnassignedEntitiesRequest;
 import io.spoud.kcc.aggregator.graphql.data.ContextDataDeleteRequest;
 import io.spoud.kcc.aggregator.graphql.data.ContextDataSaveRequest;
 import io.spoud.kcc.aggregator.olap.ContextDataOlapRepository;
@@ -17,6 +19,8 @@ import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
@@ -62,5 +66,17 @@ public class ContextDataResource {
     @Query("existingContextKeys")
     public @NonNull Set<@NonNull String> getAllExistingContextKeys() {
         return contextDataOlapRepository.getAllExistingContextKeys();
+    }
+
+    @Authenticated
+    @Query("unassignedEntities")
+    @org.eclipse.microprofile.graphql.Description(
+            "Topics and principals no context rule assigns (or without a value for contextKey), most expensive "
+                    + "first; no from = the last 7 days")
+    public @NonNull List<@NonNull UnassignedEntity> unassignedEntities(UnassignedEntitiesRequest request) {
+        var from = request == null || request.from() == null ? Instant.now().minus(7, ChronoUnit.DAYS) : request.from();
+        var to = request == null ? null : request.to();
+        var key = request == null ? null : request.contextKeyOrNull();
+        return contextDataOlapRepository.unassignedEntities(from, to, key);
     }
 }

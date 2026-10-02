@@ -77,6 +77,8 @@
     <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
 </app-data-table>
 
+<app-unassigned-entities *appLoggedIn (addRule)="addRuleFor($event)" />
+
 <ng-template #deleteConfirmContent let-element>
     <p><b>Do you really want to permanently delete the context data with:</b></p>
     <p>

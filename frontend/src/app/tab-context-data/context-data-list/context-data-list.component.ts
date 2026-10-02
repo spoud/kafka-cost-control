@@ -26,6 +26,11 @@ import { ContextDataTestComponent } from '../context-data-test/context-data-test
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
 import { PageHeaderComponent } from '../../common/page-header/page-header.component';
 import { DataTableComponent } from '../../common/data-table/data-table.component';
+import {
+    exactRegex,
+    UnassignedEntitiesComponent,
+    UnassignedEntity,
+} from '../unassigned-entities/unassigned-entities.component';
 
 @Component({
     selector: 'app-context-data-list',
@@ -43,6 +48,7 @@ import { DataTableComponent } from '../../common/data-table/data-table.component
         MatIconButton,
         PageHeaderComponent,
         DataTableComponent,
+        UnassignedEntitiesComponent,
     ],
 })
 export class ContextDataListComponent implements OnInit, AfterViewInit {
@@ -55,6 +61,7 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
     @ViewChild(MatSort) sort: MatSort | null = null;
     @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
     @ViewChild('deleteConfirmContent') deleteConfirmContent!: TemplateRef<unknown>;
+    @ViewChild(UnassignedEntitiesComponent) unassigned?: UnassignedEntitiesComponent;
 
     dataSource = new MatTableDataSource<ContextDataEntity>([]);
 
@@ -125,6 +132,23 @@ export class ContextDataListComponent implements OnInit, AfterViewInit {
                 this.loadContextData();
             }
         });
+    }
+
+    /** A rule for an unassigned topic or service account, pre-filled with its exact name. */
+    addRuleFor(entity: UnassignedEntity) {
+        this.dialog
+            .open(ContextDataSaveComponent, {
+                data: {
+                    prefill: { entityType: entity.entityType, regex: exactRegex(entity.name) },
+                },
+            })
+            .afterClosed()
+            .subscribe(result => {
+                if (result === 'successfully-saved') {
+                    this.loadContextData();
+                    this.unassigned?.reload();
+                }
+            });
     }
 
     edit(element: ContextDataEntity) {

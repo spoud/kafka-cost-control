@@ -124,6 +124,8 @@ type Query {
   metricNames: [MetricNameEntity!]!
   pricingRuleCosts(request: PricingRuleCostRequestInput): CostOverviewResponse!
   pricingRules: [PricingRuleEntity!]!
+  "Topics and principals no context rule assigns (or without a value for contextKey), most expensive first; no from = the last 7 days"
+  unassignedEntities(request: UnassignedEntitiesRequestInput): [UnassignedEntity!]!
 }
 
 type TableEntry {
@@ -135,6 +137,18 @@ type TableEntry {
 
 type TableResponse {
   entries: [TableEntry]
+}
+
+"A topic or principal whose metrics carry no value for a context key: no rule assigns it"
+type UnassignedEntity {
+  "What its pricing rules charged in the period, in dollars"
+  cost: Float!
+  entityType: EntityType!
+  "End of the last window it appeared in (ISO-8601)"
+  lastSeen: DateTime!
+  "Metrics recorded for it in the period"
+  metrics: [String!]!
+  name: String!
 }
 
 enum EntityType {
@@ -233,4 +247,13 @@ input PricingRuleSaveRequestInput {
   "Price per priceUnit; the cost factor is derived from it"
   price: Float
   priceUnit: PriceUnit
+}
+
+input UnassignedEntitiesRequestInput {
+  "A context key that counts as assigned; none = any context at all"
+  contextKey: String
+  "ISO-8601; windows starting at or after it (ISO-8601)"
+  from: DateTime
+  "ISO-8601; windows ending at or before it, none = up to now (ISO-8601)"
+  to: DateTime
 }

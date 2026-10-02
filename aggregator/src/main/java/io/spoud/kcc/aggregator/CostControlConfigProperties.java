@@ -90,6 +90,13 @@ public interface CostControlConfigProperties {
     @WithName("basePath")
     Optional<String> basePath();
 
+    /**
+     * The context key the kcc_unassigned_* gauges check: a topic or principal without a value for
+     * it counts as unassigned. Unset: unassigned means no context rule matched at all.
+     */
+    @WithName("unassigned.context-key")
+    Optional<String> unassignedContextKey();
+
     enum MissingKeyHandling {
         /**
          * If the key is missing, the metric will not be split, but passed through as is.

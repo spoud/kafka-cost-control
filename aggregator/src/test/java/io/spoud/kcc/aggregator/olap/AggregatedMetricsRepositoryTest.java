@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.olap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
+import io.spoud.kcc.aggregator.data.UnassignedEntity;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
@@ -734,6 +735,52 @@ class AggregatedMetricsRepositoryTest {
                 .satisfies(d -> assertThat(d.nameToPriceList()).extracting(p -> p.price()).containsExactly(200.0));
         assertThat(invoice.metricToDistributionMapList()).singleElement()
                 .satisfies(d -> assertThat(d.nameToPriceList()).extracting(p -> p.price()).containsExactly(1000.0));
+    }
+
+    @Test
+    @DisplayName("Unassigned entities: topics and principals without the key, most expensive first")
+    void listsEntitiesWithoutTheContextKey() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = start.plus(Duration.ofHours(1));
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
+                .setName("sa-assigned").setInitialMetricName("confluent_kafka_server_request_bytes")
+                .setContext(Map.of("tenant", "acme")).setCost(5.0).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
+                .setName("sa-new").setInitialMetricName("confluent_kafka_server_request_bytes")
+                .setContext(Map.of("service_account", "sa-new")).setCost(2.0).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
+                .setName("sa-new").setInitialMetricName("confluent_kafka_server_response_bytes")
+                .setContext(Map.of()).setCost(1.0).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.TOPIC)
+                .setName("odd-topic").setInitialMetricName("confluent_kafka_server_retained_bytes")
+                .setContext(Map.of()).setCost(null).build());
+        // a cluster-wide metric has no entity a rule could match
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.UNKNOWN)
+                .setName("").setInitialMetricName("confluent_kafka_server_partition_count")
+                .setContext(Map.of()).setCost(9.0).build());
+        // assigned since its latest window (a rule was added), though its first hour had no tenant
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
+                .setName("sa-fixed").setInitialMetricName("confluent_kafka_server_request_bytes")
+                .setContext(Map.of()).setCost(7.0).build());
+        repo.insertRow(randomDatapoint().setStartTime(end).setEndTime(end.plus(Duration.ofHours(1)))
+                .setEntityType(EntityType.PRINCIPAL).setName("sa-fixed").setInitialMetricName("confluent_kafka_server_request_bytes")
+                .setContext(Map.of("tenant", "acme")).setCost(1.0).build());
+        repo.flushToDb();
+
+        var unassigned = new ContextDataOlapRepository(olapInfra).unassignedEntities(start, null, "tenant");
+
+        assertThat(unassigned).extracting(UnassignedEntity::name).containsExactly("sa-new", "odd-topic");
+        assertThat(unassigned.getFirst().cost()).isEqualTo(3.0);
+        assertThat(unassigned.getFirst().metrics()).containsExactly(
+                "confluent_kafka_server_request_bytes", "confluent_kafka_server_response_bytes");
+        assertThat(unassigned.getFirst().lastSeen()).isEqualTo(end);
+        assertThat(unassigned.get(1).cost()).isZero();
+        // a different key: now the assigned principal counts too
+        assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(start, null, "application"))
+                .extracting(UnassignedEntity::name).contains("sa-assigned");
+        // no key: only what no rule matched at all; sa-new has a service_account, so it counts as assigned
+        assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(start, null, null))
+                .extracting(UnassignedEntity::name).containsExactly("odd-topic");
     }
 
     private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {
