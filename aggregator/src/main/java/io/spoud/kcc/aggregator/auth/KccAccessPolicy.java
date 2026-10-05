@@ -12,11 +12,14 @@ import lombok.RequiredArgsConstructor;
  * {@code none} mode, an allowed signed-in user otherwise. Resources carry no
  * {@code @Authenticated} of their own, since that would keep parts closed in {@code none} mode.
  * An anonymous request is challenged (the browser goes to the sign-in), a signed-in user who
- * isn't allowed gets 403.
+ * isn't allowed gets 403 - except on {@code /auth/login}, where the provider sends every user
+ * back after signing in: from there the UI explains that the account has no access.
  */
 @ApplicationScoped
 @RequiredArgsConstructor
 public class KccAccessPolicy implements HttpSecurityPolicy {
+
+    static final String LOGIN_PATH = "/auth/login";
 
     private final AuthConfigProperties config;
 
@@ -26,7 +29,9 @@ public class KccAccessPolicy implements HttpSecurityPolicy {
         if (config.mode() == AuthConfigProperties.Mode.NONE) {
             return CheckResult.permit();
         }
-        return identity.map(id -> AccessRules.isAllowed(id, config) ? CheckResult.PERMIT : CheckResult.DENY);
+        boolean login = LOGIN_PATH.equals(request.normalizedPath());
+        return identity.map(id -> AccessRules.isAllowed(id, config) || (login && !id.isAnonymous())
+                ? CheckResult.PERMIT : CheckResult.DENY);
     }
 
     @Override

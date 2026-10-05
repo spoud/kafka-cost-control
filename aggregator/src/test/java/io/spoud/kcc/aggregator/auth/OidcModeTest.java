@@ -86,5 +86,10 @@ class OidcModeTest {
                 .then().statusCode(200)
                 .body("authenticated", equalTo(true))
                 .body("allowed", equalTo(false));
+        // back from the provider, the browser still reaches the UI, which says why it's refused
+        RestAssured.given().redirects().follow(false)
+                .when().get("/auth/login?redirect=/costs")
+                .then().statusCode(303)
+                .header("Location", containsString("/costs"));
     }
 }
