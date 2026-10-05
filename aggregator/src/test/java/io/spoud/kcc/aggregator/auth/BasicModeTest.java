@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 /** The default mode: everything but health and metrics needs the admin user. */
@@ -41,7 +42,23 @@ class BasicModeTest {
         RestAssured.given().auth().preemptive().basic("admin", "wrong")
                 .contentType(ContentType.JSON).body(QUERY)
                 .when().post("/graphql")
-                .then().statusCode(401);
+                .then().statusCode(401)
+                .header("WWW-Authenticate", notNullValue());
+    }
+
+    @Test
+    void theUiGetsNoChallengeThatWouldOpenTheBrowsersPasswordPrompt() {
+        // while that prompt is open, every request to the host hangs
+        RestAssured.given().auth().preemptive().basic("admin", "wrong")
+                .header("X-Requested-With", "JavaScript")
+                .when().get("/auth/me")
+                .then().statusCode(401)
+                .header("WWW-Authenticate", nullValue());
+        RestAssured.given().header("X-Requested-With", "JavaScript")
+                .contentType(ContentType.JSON).body(QUERY)
+                .when().post("/graphql")
+                .then().statusCode(401)
+                .header("WWW-Authenticate", nullValue());
     }
 
     @Test
