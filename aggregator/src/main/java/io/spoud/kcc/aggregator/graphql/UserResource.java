@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.graphql;
 
-import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
@@ -11,7 +10,6 @@ import org.eclipse.microprofile.graphql.Query;
 
 @GraphQLApi
 @RequiredArgsConstructor
-@Authenticated
 @RequestScoped
 public class UserResource {
 

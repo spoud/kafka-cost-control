@@ -108,6 +108,42 @@ spec:
             - name: CC_BASEPATH
               value: {{ .Values.ui.contextPath }}
             {{- end }}
+            - name: CC_AUTH_MODE
+              value: {{ .Values.aggregator.auth.mode | quote }}
+            {{- with .Values.aggregator.auth.adminPasswordSecret }}
+            - name: CC_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: password
+            {{- end }}
+            {{- if eq .Values.aggregator.auth.mode "oidc" }}
+            {{- with .Values.aggregator.auth.oidc }}
+            {{- if .provider }}
+            - name: QUARKUS_OIDC_PROVIDER
+              value: {{ .provider | quote }}
+            {{- end }}
+            {{- if .authServerUrl }}
+            - name: QUARKUS_OIDC_AUTH_SERVER_URL
+              value: {{ .authServerUrl | quote }}
+            {{- end }}
+            - name: QUARKUS_OIDC_CLIENT_ID
+              value: {{ required "aggregator.auth.oidc.clientId is required in oidc mode" .clientId | quote }}
+            - name: QUARKUS_OIDC_CREDENTIALS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "aggregator.auth.oidc.clientSecretSecret is required in oidc mode" .clientSecretSecret }}
+                  key: client-secret
+            {{- if .allowedDomains }}
+            - name: CC_AUTH_ALLOWED_DOMAINS
+              value: {{ .allowedDomains | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if ne .Values.ui.contextPath "/" }}
+            - name: QUARKUS_OIDC_AUTHENTICATION_REDIRECT_PATH
+              value: {{ .Values.ui.contextPath }}auth/callback
+            {{- end }}
+            {{- end }}
             {{ if eq .Values.strimzi.auth "scram-sha-512" }}
             - name: KAFKA_SASL_MECHANISM
               value: SCRAM-SHA-512
@@ -236,6 +272,13 @@ spec:
                 port:
                   number: 80
           - path: {{ .Values.ui.contextPath }}olap
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-kafka-cost-control-service
+                port:
+                  number: 80
+          - path: {{ .Values.ui.contextPath }}auth
             pathType: Prefix
             backend:
               service:

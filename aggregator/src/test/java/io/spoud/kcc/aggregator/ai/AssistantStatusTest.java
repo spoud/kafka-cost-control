@@ -41,9 +41,9 @@ class AssistantStatusTest {
     }
 
     @Test
-    void isReadableWithoutAuthenticationSoTheNavCanDecideEarly() {
-        // Unlike the chat mutation itself, which is @Authenticated. This exposes only whether a
-        // feature is switched on.
+    @TestSecurity(user = "admin", roles = "ADMIN")
+    void tellsASignedInUserWhetherTheAssistantIsAvailable() {
+        // the nav asks this once the user is signed in; like every endpoint, it needs a sign-in
         RestAssured.given()
                 .when().get("/api/v1/chat/status")
                 .then().statusCode(200)

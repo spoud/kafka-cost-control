@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.graphql;
 
-import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.spoud.kcc.aggregator.ai.ChatService;
 import io.spoud.kcc.aggregator.graphql.data.AssistantStatus;
@@ -29,14 +28,12 @@ import org.eclipse.microprofile.graphql.NonNull;
  * {@link MetricsResource}; the question is a single {@link ChatRequest} because JAX-RS permits
  * only one body parameter.
  * <p>
- * {@code @Authenticated} must stay: this project has no {@code deny-unannotated}, so an endpoint
- * without it is fully public.
+ * Who may ask is decided by {@code KccAccessPolicy}, in front of every endpoint.
  */
 @Path("/api/v1/chat")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @GraphQLApi
-@Authenticated
 // @RequestScoped, matching UserResource: this reads the per-request SecurityIdentity, and an
 // explicit scope is better than relying on whatever default the JAX-RS and GraphQL layers agree on.
 @RequestScoped
