@@ -1,10 +1,13 @@
 package io.spoud.kcc.aggregator.auth;
 
+import io.quarkus.logging.Log;
+import io.quarkus.runtime.StartupEvent;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.vertx.http.runtime.security.HttpSecurityPolicy;
 import io.smallrye.mutiny.Uni;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -33,6 +36,23 @@ public class KccAccessPolicy implements HttpSecurityPolicy {
         return identity.map(id -> AccessRules.isAllowed(id, config) || (login && !id.isAnonymous())
                 ? CheckResult.PERMIT : CheckResult.DENY);
     }
+
+    /**
+     * Says at startup who may use the application. In {@code none} mode that is everyone who can
+     * reach it, changes and reprocessing included, which is only right behind a proxy that
+     * authenticates every request - so it is a warning, not a note.
+     */
+    void logMode(@Observes StartupEvent event) {
+        if (config.mode() == AuthConfigProperties.Mode.NONE) {
+            Log.warn(NONE_MODE_WARNING);
+        } else {
+            Log.infof("Sign-in required for every request (cc.auth.mode=%s)", config.mode().name().toLowerCase());
+        }
+    }
+
+    static final String NONE_MODE_WARNING = "Sign-in is off (cc.auth.mode=none): anyone who can reach this "
+            + "instance can read all data, change pricing and context rules and start a reprocess, which "
+            + "deletes stored data. Use it only behind a proxy that authenticates every request.";
 
     @Override
     public String name() {
