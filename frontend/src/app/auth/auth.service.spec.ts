@@ -82,6 +82,25 @@ describe('AuthService', () => {
         expect(auth.mode()).toBe('oidc');
     });
 
+    it('drops a stored admin password in OIDC mode instead of signing the tab in as admin', async () => {
+        sessionStorage.setItem(SESSION_STORAGE_BASIC_AUTH, ADMIN);
+        const oidcServer = vi.fn(
+            async (url: string, init?: { headers?: Record<string, string> }) => {
+                const admin = init?.headers?.['Authorization'] === `Basic ${ADMIN}`;
+                const status: AuthStatus = admin
+                    ? { mode: 'oidc', authenticated: true, allowed: true, user: 'admin' }
+                    : { mode: 'oidc', authenticated: false, allowed: false, user: null };
+                return new Response(JSON.stringify(status));
+            }
+        );
+        const { auth, headers } = await setup(oidcServer);
+
+        expect(auth.signedIn()).toBe(false);
+        expect(auth.mode()).toBe('oidc');
+        expect(sessionStorage.getItem(SESSION_STORAGE_BASIC_AUTH)).toBeNull();
+        expect(headers.getHeaders()['Authorization']).toBeUndefined();
+    });
+
     it('lets everyone in when sign-in is off', async () => {
         const open: AuthStatus = { mode: 'none', authenticated: false, allowed: true, user: null };
         const { auth } = await setup(vi.fn(async () => new Response(JSON.stringify(open))));
