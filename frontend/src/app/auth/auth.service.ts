@@ -11,6 +11,10 @@ export interface AuthStatus {
     /** Signed in and let in; always true in "none" mode. */
     allowed: boolean;
     user: string | null;
+    /** OIDC only, e.g. "google"; missing from aggregators before 0.9.9. */
+    provider?: string | null;
+    /** OIDC only: the e-mail domains that may sign in. */
+    domains?: string[];
 }
 
 // sessionStorage, not localStorage: this holds the user's base64 basic-auth credentials, and
@@ -41,6 +45,8 @@ export class AuthService {
     readonly signedIn = computed(() => this._status()?.allowed === true);
     readonly mode = computed(() => this._status()?.mode ?? null);
     readonly user = computed(() => this._status()?.user ?? null);
+    readonly provider = computed(() => this._status()?.provider ?? null);
+    readonly domains = computed(() => this._status()?.domains ?? []);
 
     constructor() {
         this.headers.setHeader(HEADER_REQUESTED_WITH, 'JavaScript');

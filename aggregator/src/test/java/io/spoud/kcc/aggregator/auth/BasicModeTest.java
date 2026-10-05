@@ -5,6 +5,7 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
@@ -74,7 +75,9 @@ class BasicModeTest {
                 .body("mode", equalTo("basic"))
                 .body("authenticated", equalTo(false))
                 .body("allowed", equalTo(false))
-                .body("user", nullValue());
+                .body("user", nullValue())
+                .body("provider", nullValue())
+                .body("domains", empty());
         RestAssured.given().auth().preemptive().basic("admin", "admin")
                 .when().get("/auth/me")
                 .then().statusCode(200)
