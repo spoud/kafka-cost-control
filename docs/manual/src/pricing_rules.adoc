@@ -63,6 +63,8 @@ mutation saveRule {
 
 The optional `multiplier` applies on top of the price, e.g. `3` for storage that Confluent Cloud bills per replica. KCC derives the `costFactor` it applies from these: `price × multiplier ÷ bytes per unit`. You can still send a bare `costFactor` (per unit of the raw value) instead of a price.
 
+`freePerWindow` (optional, in `priceUnit`) is an amount per hour that is free across all topics or principals of the metric, e.g. `10` on `kafka_topic_partition_count` for the 10 free partitions per cluster on Confluent Basic. Each hour, every entity's variable cost is scaled by `(total − free) / total`, so the hour costs what the provider bills and each entity keeps its share; below the free amount the metric costs nothing. KCC has no cluster dimension yet, so all entities of the metric count as one cluster. The allowance is applied to the stored costs (Cost Overview, history, export, assistant); the `cost` field on the `aggregated` topic stays per entity without it.
+
 ==== Removing a pricing rule
 
 ===== From the UI

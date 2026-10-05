@@ -61,6 +61,25 @@ describe('PricingRuleSaveComponent', () => {
             priceUnit: PriceUnit.GbHour,
             multiplier: 3,
             multiplierLabel: 'replicas',
+            freePerWindow: null,
+        });
+    });
+
+    it('saves a free amount per hour, e.g. the free partitions per cluster', () => {
+        const { type, submit, sent } = setup({
+            metricName: 'kafka_topic_partition_count',
+            metricNames: [],
+            pricedMetricNames: [],
+        });
+
+        type('price', '0.0046');
+        type('freePerWindow', '10');
+        submit();
+
+        expect(sent()).toMatchObject({
+            priceUnit: PriceUnit.Unit,
+            price: 0.0046,
+            freePerWindow: 10,
         });
     });
 

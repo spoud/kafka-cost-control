@@ -8,5 +8,6 @@ query getPricingRules{
         priceUnit
         multiplier
         multiplierLabel
+        freePerWindow
     }
 }

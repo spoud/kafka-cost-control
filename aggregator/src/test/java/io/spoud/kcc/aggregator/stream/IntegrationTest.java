@@ -83,7 +83,7 @@ public class IntegrationTest {
                     new ProducerRecord<>(
                             TOPIC_INPUT_PRICING_RULES,
                             "metric_name",
-                            new PricingRule(Instant.now(), "metric_name", 1.0, 2.0, null, null, null, null)));
+                            new PricingRule(Instant.now(), "metric_name", 1.0, 2.0, null, null, null, null, null)));
         }
 
         // await for kafka stream to be fully started

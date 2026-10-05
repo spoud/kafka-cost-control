@@ -50,6 +50,17 @@
             </mat-form-field>
         </div>
 
+        <mat-form-field class="full-width">
+            <mat-label>Free per hour (optional)</mat-label>
+            <input matInput type="number" formControlName="freePerWindow" />
+            <span matTextSuffix>{{ freeUnit() }}</span>
+            <mat-hint
+                >Free across all topics or principals each hour, e.g. 10 partitions per cluster on
+                Confluent Basic; the rest is charged in proportion.</mat-hint
+            >
+            <mat-error>0 or more.</mat-error>
+        </mat-form-field>
+
         <mat-form-field>
             <mat-label>Base cost</mat-label>
             <span matTextPrefix>$&nbsp;</span>

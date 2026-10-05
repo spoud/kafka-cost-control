@@ -9,7 +9,14 @@ import {
     MatDialogTitle,
 } from '@angular/material/dialog';
 import { MatButton } from '@angular/material/button';
-import { MatError, MatFormField, MatHint, MatLabel, MatPrefix } from '@angular/material/form-field';
+import {
+    MatError,
+    MatFormField,
+    MatHint,
+    MatLabel,
+    MatPrefix,
+    MatSuffix,
+} from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSelect } from '@angular/material/select';
 import { MatAutocomplete, MatAutocompleteTrigger, MatOption } from '@angular/material/autocomplete';
@@ -62,6 +69,7 @@ function initialPrice(rule: PricingRuleEntity | undefined, metricName: string) {
         MatHint,
         MatError,
         MatPrefix,
+        MatSuffix,
         MatInput,
         MatSelect,
         MatAutocomplete,
@@ -91,6 +99,10 @@ export class PricingRuleSaveComponent {
         priceUnit: [this.start.priceUnit, Validators.required],
         multiplier: [this.start.multiplier as number | null, Validators.min(0.000001)],
         multiplierLabel: [this.data.rule?.multiplierLabel ?? ''],
+        freePerWindow: [
+            this.data.rule?.freePerWindow ?? (null as number | null),
+            Validators.min(0),
+        ],
     });
 
     private metricName = toSignal(this.form.controls.metricName.valueChanges, {
@@ -115,6 +127,11 @@ export class PricingRuleSaveComponent {
         const { price, priceUnit, multiplier } = this.values();
         return price == null || !priceUnit ? null : costFactorOf(price, priceUnit, multiplier);
     });
+    /** What the free amount is counted in: the price's unit, GB for a per-GB-hour price. */
+    protected freeUnit = computed(() =>
+        this.values().priceUnit === PriceUnit.Unit ? 'units' : 'GB'
+    );
+
     protected perRawUnit = computed(() =>
         this.values().priceUnit === PriceUnit.Unit ? 'unit' : 'byte'
     );
@@ -132,8 +149,15 @@ export class PricingRuleSaveComponent {
         if (this.form.invalid) {
             return;
         }
-        const { metricName, baseCost, price, priceUnit, multiplier, multiplierLabel } =
-            this.form.getRawValue();
+        const {
+            metricName,
+            baseCost,
+            price,
+            priceUnit,
+            multiplier,
+            multiplierLabel,
+            freePerWindow,
+        } = this.form.getRawValue();
         const request = {
             metricName: metricName.trim(),
             baseCost,
@@ -141,6 +165,7 @@ export class PricingRuleSaveComponent {
             priceUnit,
             multiplier: multiplier || null,
             multiplierLabel: multiplier ? multiplierLabel.trim() || null : null,
+            freePerWindow: freePerWindow || null,
         };
         this.savePricingRule.mutate({ variables: { request } }).subscribe({
             next: result => {

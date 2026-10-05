@@ -253,7 +253,9 @@ public class ToolRegistry {
         }
         var multiplier = r.multiplier() == null ? ""
                 : " x %s%s".formatted(r.multiplier(), r.multiplierLabel() == null ? "" : " " + r.multiplierLabel());
-        return " (price %s per %s%s)".formatted(r.price(), r.priceUnit(), multiplier);
+        var free = r.freePerWindow() == null ? ""
+                : ", first %s free per window across all entities".formatted(r.freePerWindow());
+        return " (price %s per %s%s%s)".formatted(r.price(), r.priceUnit(), multiplier, free);
     }
 
     private LlmMessage.ToolResult runSql(LlmMessage.ToolCall call) {

@@ -15,7 +15,7 @@ class PricingRuleSaveRequestTest {
 
     private static PricingRuleSaveRequest request(Double costFactor, Double price, PriceUnit unit,
                                                   Double multiplier, String label) {
-        return new PricingRuleSaveRequest("m", 0.0, costFactor, price, unit, multiplier, label);
+        return new PricingRuleSaveRequest("m", 0.0, costFactor, price, unit, multiplier, label, null);
     }
 
     @Test
@@ -40,6 +40,26 @@ class PricingRuleSaveRequestTest {
     void aPerUnitPriceIsTheCostFactor() {
         assertThat(request(null, 0.0046, PriceUnit.UNIT, null, null).toAvro().getCostFactor())
                 .isEqualTo(0.0046);
+    }
+
+    @Test
+    void storesTheFreeAmountPerWindow() {
+        var free = new PricingRuleSaveRequest("m", 0.0, null, 0.0046, PriceUnit.UNIT, null, null, 10.0).toAvro();
+        var none = new PricingRuleSaveRequest("m", 0.0, null, 0.0046, PriceUnit.UNIT, null, null, 0.0).toAvro();
+
+        assertThat(free.getFreePerWindow()).isEqualTo(10.0);
+        assertThat(none.getFreePerWindow()).isNull();
+        assertThatThrownBy(() -> new PricingRuleSaveRequest("m", 0.0, null, 1.0, PriceUnit.UNIT, null, null, -1.0).toAvro())
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("free amount");
+        assertThatThrownBy(() -> new PricingRuleSaveRequest("m", 0.0, 1.0, null, null, null, null, 10.0).toAvro())
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("needs a price");
+    }
+
+    @Test
+    void theFreeAmountIsConvertedToRawUnits() {
+        var rule = PricingRuleEntity.fromAvro(new PricingRuleSaveRequest("m", 0.0, null, 0.1495, PriceUnit.GB, null, null, 2.0).toAvro());
+
+        assertThat(io.spoud.kcc.aggregator.olap.PricingRuleFreeAllowances.allowance(rule).freeRaw()).isEqualTo(2.0 * GB);
     }
 
     @Test

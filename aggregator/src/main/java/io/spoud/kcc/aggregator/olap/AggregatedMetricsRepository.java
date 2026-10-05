@@ -21,6 +21,7 @@ import io.spoud.kcc.olap.domain.tables.records.AggregatedDataRecord;
 import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.jooq.*;
@@ -60,6 +61,7 @@ public class AggregatedMetricsRepository {
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final Set<String> contextKeys = new ConcurrentHashSet<>();
+    private FreeAllowances freeAllowances = FreeAllowances.NONE;
 
     public AggregatedMetricsRepository(OlapConfigProperties olapConfig, CostControlConfigProperties costControlConfig, OlapInfra olapInfra, MetricNameRepository metricNameRepository) {
         Log.info("Initializing AggregatedMetricsRepository");
@@ -74,6 +76,12 @@ public class AggregatedMetricsRepository {
         contextKeys.addAll(getAllJsonKeys("context"));
 
         Log.infof("AggregatedMetricsRepository initialized after %s", Duration.between(startTime, Instant.now()));
+    }
+
+    /** Method injection keeps the constructor (and the tests that call it) unchanged. */
+    @Inject
+    void setFreeAllowances(FreeAllowances freeAllowances) {
+        this.freeAllowances = freeAllowances;
     }
 
     private static void ensureIdentifierIsSafe(String identifier) {
@@ -132,6 +140,7 @@ public class AggregatedMetricsRepository {
             var count = 0;
             var startTime = Instant.now();
             var addedContextKeys = new HashSet<String>();
+            var touchedWindows = new HashSet<Map.Entry<String, Instant>>();
             try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data (start_time, end_time, initial_metric_name, entity_type, name, tags, context, value, target, id, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var metric = finalRowBuffer.poll(); metric != null; metric = finalRowBuffer.poll()) {
                     Log.debugv("Ingesting metric: {0}", metric);
@@ -148,6 +157,7 @@ public class AggregatedMetricsRepository {
                         continue;
                     }
                     addedContextKeys.addAll(metric.getContext().keySet());
+                    touchedWindows.add(Map.entry(metric.getInitialMetricName(), start));
                     var target = metric.getContext().getOrDefault("topic", "unknown"); // for now, the only possible target is the topic
                     var id = DigestUtils.sha1Hex(String.valueOf(start) +
                             end +
@@ -180,11 +190,55 @@ public class AggregatedMetricsRepository {
                 Log.error("Failed to ingest ALL metrics to OLAP database", e);
                 return;
             }
+            applyFreeAllowances(conn, touchedWindows);
             contextKeys.addAll(addedContextKeys); // this is only safe to do here, once the flush is complete
             if (count != 0 || skipped != 0) {
                 Log.infof("Ingested %d metrics. Skipped %d metrics. Duration: %s", count, skipped, Duration.between(startTime, Instant.now()));
             }
         });
+    }
+
+    /**
+     * A rule's free amount per window (e.g. Confluent's 10 free partitions per cluster) can't be
+     * applied in the stream, which prices each row alone. Once a window's rows are stored, each
+     * row's variable cost is scaled by max(0, total - free) / total, so the window costs what the
+     * provider bills and every entity keeps its proportional share. All entities of the metric
+     * count as one cluster: KCC has no cluster dimension yet.
+     */
+    private void applyFreeAllowances(java.sql.Connection conn, Set<Map.Entry<String, Instant>> windows) {
+        if (windows.isEmpty()) {
+            return;
+        }
+        Map<String, FreeAllowances.Allowance> allowances = freeAllowances.current();
+        if (allowances.isEmpty()) {
+            return;
+        }
+        // numbered parameters: DuckDB doesn't number `?` in source order across UPDATE ... FROM (subquery)
+        String sql = """
+                UPDATE aggregated_data SET cost = $1 + $2 * value *
+                    (CASE WHEN w.total > $3 THEN (w.total - $3) / w.total ELSE 0 END)
+                FROM (SELECT sum(value) AS total FROM aggregated_data
+                      WHERE initial_metric_name = $4 AND start_time = $5) w
+                WHERE initial_metric_name = $4 AND start_time = $5 AND cost IS NOT NULL
+                """;
+        try (var stmt = conn.prepareStatement(sql)) {
+            for (var window : windows) {
+                var allowance = allowances.get(window.getKey());
+                if (allowance == null) {
+                    continue;
+                }
+                var start = window.getValue().atOffset(ZoneOffset.UTC);
+                stmt.setDouble(1, allowance.baseCost());
+                stmt.setDouble(2, allowance.costFactor());
+                stmt.setDouble(3, allowance.freeRaw());
+                stmt.setString(4, window.getKey());
+                stmt.setObject(5, start);
+                stmt.addBatch();
+            }
+            stmt.executeBatch();
+        } catch (SQLException e) {
+            Log.error("Failed to apply free allowances to OLAP costs", e);
+        }
     }
 
     public void insertRow(AggregatedDataWindowed row) {

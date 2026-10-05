@@ -22,6 +22,11 @@ public enum PriceUnit {
         this.valuePerUnit = valuePerUnit;
     }
 
+    /** An amount in this unit, in units of the metric's raw value (e.g. GB to bytes). */
+    public double toRawValue(double amount) {
+        return amount * valuePerUnit;
+    }
+
     /** The cost per unit of the metric's raw value. */
     public double costFactor(double price, double multiplier) {
         return price * multiplier / valuePerUnit;

@@ -44,6 +44,27 @@ describe('price units', () => {
         ).toBe('$0.1495 per GB');
     });
 
+    it('mentions a free amount per hour', () => {
+        expect(
+            formatPrice({
+                metricName: 'kafka_topic_partition_count',
+                costFactor: 0.0046,
+                price: 0.0046,
+                priceUnit: PriceUnit.Unit,
+                freePerWindow: 10,
+            })
+        ).toBe('$0.0046 per unit, first 10 free per hour');
+        expect(
+            formatPrice({
+                metricName: 'x_bytes',
+                costFactor: 1,
+                price: 0.1495,
+                priceUnit: PriceUnit.Gb,
+                freePerWindow: 2,
+            })
+        ).toBe('$0.1495 per GB, first 2 GB free per hour');
+    });
+
     it('shows a rule saved with only a cost factor in its metric’s usual unit', () => {
         expect(
             formatPrice({

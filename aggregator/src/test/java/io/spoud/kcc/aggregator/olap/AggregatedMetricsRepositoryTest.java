@@ -16,6 +16,8 @@ import io.spoud.kcc.data.EntityType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import java.time.ZoneOffset;
+import org.jooq.impl.DSL;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -29,6 +31,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
+import static io.spoud.kcc.olap.domain.Tables.AGGREGATED_DATA;
 import static org.assertj.core.api.Assertions.tuple;
 
 class AggregatedMetricsRepositoryTest {
@@ -797,6 +801,46 @@ class AggregatedMetricsRepositoryTest {
         assertThat(repo.deleteFrom(start)).isEqualTo(2);
         assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(earlier, null, "no-such-key"))
                 .extracting(UnassignedEntity::lastSeen).containsExactly(earlier.plus(Duration.ofHours(1)));
+    }
+
+    private double costOf(Instant start, String metric) {
+        return olapInfra.getDSLContext().map(ctx -> ctx
+                .select(DSL.sum(AGGREGATED_DATA.COST)).from(AGGREGATED_DATA)
+                .where(AGGREGATED_DATA.INITIAL_METRIC_NAME.eq(metric)
+                        .and(AGGREGATED_DATA.START_TIME.eq(start.atOffset(ZoneOffset.UTC))))
+                .fetchOne(0, Double.class)).orElseThrow();
+    }
+
+    private void insertTopic(Instant start, String metric, String topic, double value, double cost) {
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(start.plus(Duration.ofHours(1)))
+                .setEntityType(EntityType.TOPIC).setName(topic).setInitialMetricName(metric)
+                .setValue(value).setCost(cost).setContext(Map.of("topic", topic)).build());
+    }
+
+    @Test
+    @DisplayName("Free allowance: 13 partitions with 10 free cost 3, spread in proportion; below the allowance costs nothing")
+    void appliesTheFreeAllowancePerWindow() {
+        repo.setFreeAllowances(() -> Map.of("kafka_topic_partition_count",
+                new FreeAllowances.Allowance(0.0, 0.0046, 10)));
+        Instant hour = Instant.parse("2026-10-03T10:00:00Z");
+        Instant small = hour.plus(Duration.ofHours(1));
+        for (int i = 0; i < 13; i++) {
+            insertTopic(hour, "kafka_topic_partition_count", "t" + i, 1, 0.0046);
+        }
+        for (int i = 0; i < 4; i++) {
+            insertTopic(small, "kafka_topic_partition_count", "t" + i, 1, 0.0046);
+        }
+        insertTopic(hour, "confluent_kafka_server_retained_bytes", "t0", 100, 0.5); // no allowance: untouched
+        repo.flushToDb();
+
+        assertThat(costOf(hour, "kafka_topic_partition_count")).isCloseTo(3 * 0.0046, within(1e-12));
+        assertThat(costOf(small, "kafka_topic_partition_count")).isZero();
+        assertThat(costOf(hour, "confluent_kafka_server_retained_bytes")).isEqualTo(0.5);
+
+        // a later flush rewrites one row with its unscaled cost; the window must not compound the scaling
+        insertTopic(hour, "kafka_topic_partition_count", "t0", 1, 0.0046);
+        repo.flushToDb();
+        assertThat(costOf(hour, "kafka_topic_partition_count")).isCloseTo(3 * 0.0046, within(1e-12));
     }
 
     private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {

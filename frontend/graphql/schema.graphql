@@ -100,6 +100,8 @@ type PricingRuleEntity {
   costFactor: Float!
   "ISO-8601"
   creationTime: DateTime!
+  "Amount per window, in priceUnit, that is free across all entities; null means none"
+  freePerWindow: Float
   metricName: String!
   "Factor on top of the price, e.g. 3 replicas; null means 1"
   multiplier: Float
@@ -239,6 +241,8 @@ input PricingRuleSaveRequestInput {
   baseCost: Float!
   "Cost per unit of the metric's raw value. Ignored when a price is given."
   costFactor: Float
+  "Amount per window, in priceUnit, that is free across all entities (e.g. 10 partitions per cluster); the rest is charged in proportion"
+  freePerWindow: Float
   metricName: String!
   "Factor on top of the price, e.g. 3 for storage billed per replica. Default 1."
   multiplier: Float

@@ -33,6 +33,11 @@ export function priceFromCostFactor(costFactor: number, unit: PriceUnit): number
 
 const money = new Intl.NumberFormat('en', { maximumSignificantDigits: 6 });
 
+/** A free amount reads in GB, also for a per-GB-hour price (the window is the hour). */
+function freeUnitLabel(unit: PriceUnit): string {
+    return unit === PriceUnit.Unit ? 'unit' : 'GB';
+}
+
 export interface PricedRule {
     metricName: string;
     costFactor: number;
@@ -40,6 +45,7 @@ export interface PricedRule {
     priceUnit?: PriceUnit | null;
     multiplier?: number | null;
     multiplierLabel?: string | null;
+    freePerWindow?: number | null;
 }
 
 /**
@@ -52,7 +58,11 @@ export function formatPrice(rule: PricedRule): string {
             rule.multiplier != null
                 ? ` × ${money.format(rule.multiplier)}${rule.multiplierLabel ? ' ' + rule.multiplierLabel : ''}`
                 : '';
-        return `$${money.format(rule.price)} per ${unitInfo(rule.priceUnit).label}${times}`;
+        const unit = unitInfo(rule.priceUnit).label;
+        const free = rule.freePerWindow
+            ? `, first ${money.format(rule.freePerWindow)}${rule.priceUnit === PriceUnit.Unit ? '' : ' ' + freeUnitLabel(rule.priceUnit)} free per hour`
+            : '';
+        return `$${money.format(rule.price)} per ${unit}${times}${free}`;
     }
     const unit = defaultPriceUnit(rule.metricName);
     return `$${money.format(priceFromCostFactor(rule.costFactor, unit))} per ${unitInfo(unit).label}`;

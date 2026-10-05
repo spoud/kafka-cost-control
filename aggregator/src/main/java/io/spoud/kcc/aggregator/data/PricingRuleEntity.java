@@ -19,7 +19,9 @@ public record PricingRuleEntity(
     PriceUnit priceUnit,
     @Description("Factor on top of the price, e.g. 3 replicas; null means 1")
     Double multiplier,
-    String multiplierLabel) {
+    String multiplierLabel,
+    @Description("Amount per window, in priceUnit, that is free across all entities; null means none")
+    Double freePerWindow) {
   public static PricingRuleEntity fromAvro(PricingRule pricingRule) {
     if (pricingRule == null) {
       return null;
@@ -32,6 +34,7 @@ public record PricingRuleEntity(
         pricingRule.getPrice(),
         PriceUnit.fromStored(pricingRule.getPriceUnit()),
         pricingRule.getMultiplier(),
-        pricingRule.getMultiplierLabel());
+        pricingRule.getMultiplierLabel(),
+        pricingRule.getFreePerWindow());
   }
 }

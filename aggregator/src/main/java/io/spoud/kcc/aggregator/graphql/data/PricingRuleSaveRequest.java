@@ -26,7 +26,9 @@ public record PricingRuleSaveRequest(
         @Description("Factor on top of the price, e.g. 3 for storage billed per replica. Default 1.")
         Double multiplier,
         @Description("What the multiplier stands for, e.g. replicas")
-        String multiplierLabel) {
+        String multiplierLabel,
+        @Description("Amount per window, in priceUnit, that is free across all entities (e.g. 10 partitions per cluster); the rest is charged in proportion")
+        Double freePerWindow) {
 
     public PricingRule toAvro() {
         var rule = PricingRule.newBuilder()
@@ -44,15 +46,19 @@ public record PricingRuleSaveRequest(
             if (factor <= 0) {
                 throw new BadRequestException("The multiplier must be greater than 0.");
             }
+            if (freePerWindow() != null && freePerWindow() < 0) {
+                throw new BadRequestException("The free amount per window must be 0 or more.");
+            }
             return rule.setCostFactor(priceUnit().costFactor(price(), factor))
+                    .setFreePerWindow(freePerWindow() == null || freePerWindow() == 0 ? null : freePerWindow())
                     .setPrice(price())
                     .setPriceUnit(priceUnit().name())
                     .setMultiplier(multiplier())
                     .setMultiplierLabel(multiplier() == null ? null : blankToNull(multiplierLabel()))
                     .build();
         }
-        if (multiplier() != null || priceUnit() != null) {
-            throw new BadRequestException("A priceUnit or multiplier needs a price.");
+        if (multiplier() != null || priceUnit() != null || freePerWindow() != null) {
+            throw new BadRequestException("A priceUnit, multiplier or free amount needs a price.");
         }
         if (costFactor() == null) {
             throw new BadRequestException("Give a price and priceUnit, or a costFactor.");

@@ -47,6 +47,12 @@
       "doc": "What the multiplier stands for, e.g. replicas. Display only.",
       "type": ["null", "string"],
       "default": null
+    },
+    {
+      "name": "free_per_window",
+      "doc": "Amount per window, in price_unit, that is free across all entities of the metric (e.g. 10 partitions per cluster on Confluent Basic). The variable cost of the rest is spread over the entities in proportion to their value. Applied where the stored cost is written (OLAP), not in the aggregated topic.",
+      "type": ["null", "double"],
+      "default": null
     }
   ]
 }
