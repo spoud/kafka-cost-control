@@ -4,10 +4,9 @@ import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { BasicAuthServiceService } from './auth/basic-auth-service.service';
+import { AuthService } from './auth/auth.service';
+import { SignInComponent } from './auth/sign-in/sign-in.component';
 import { MatTooltip } from '@angular/material/tooltip';
-import { MatDialog } from '@angular/material/dialog';
-import { SignInDialogComponent } from './common/sign-in-dialog/sign-in-dialog.component';
 import { provideEchartsCore } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
 import { BarChart, LineChart, PieChart } from 'echarts/charts';
@@ -29,7 +28,7 @@ import {
 } from '@angular/material/list';
 import { MatDivider } from '@angular/material/divider';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { landingPath, NavLink, menuLinks, menuLinksLoggedIn } from './app.routes';
+import { landingPath, NavLink, menuLinks } from './app.routes';
 import { AssistantStatusService } from './assistant/assistant-status.service';
 import { NgOptimizedImage } from '@angular/common';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
@@ -76,34 +75,26 @@ echarts.use([
         MatSlideToggle,
         RouterOutlet,
         NgOptimizedImage,
+        SignInComponent,
     ],
     providers: [provideEchartsCore({ echarts })],
 })
 export class AppComponent {
-    private _dialog = inject(MatDialog);
-    private _authService = inject(BasicAuthServiceService);
+    protected readonly auth = inject(AuthService);
     private _breakpointObserver = inject(BreakpointObserver);
     protected readonly themeService = inject(ThemeService);
 
     private readonly SIDENAV_COLLAPSED_KEY = 'sidenav-collapsed';
-
-    constructor() {
-        this.isAuthenticated = this._authService.authenticated();
-    }
 
     isHandset: Signal<boolean> = toSignal(
         this._breakpointObserver.observe(Breakpoints.Handset).pipe(map(result => result.matches)),
         { initialValue: this._breakpointObserver.isMatched(Breakpoints.Handset) }
     );
 
-    isAuthenticated: Signal<boolean>;
     private readonly assistantStatus = inject(AssistantStatusService);
 
     navLinksSignal: Signal<NavLink[]> = computed(() => {
         const list: NavLink[] = [...menuLinks];
-        if (this.isAuthenticated()) {
-            list.push(...menuLinksLoggedIn);
-        }
         // The assistant is optional and off by default. Hide it unless the backend reports it can
         // actually answer, rather than offering a chat box that fails on the first question.
         const assistantAvailable = this.assistantStatus.available();
@@ -119,20 +110,15 @@ export class AppComponent {
     );
     collapsed = signal<boolean>(readRaw(this.SIDENAV_COLLAPSED_KEY) === 'true');
 
-    // The logo follows the same rule as the router's default route. Hardcoding /costs sent an
-    // anonymous visitor who clicked it to the "Sign in required" page, since /costs is guarded.
-    protected readonly homeLink = computed(() => landingPath(this.isAuthenticated()));
+    // the logo follows the same rule as the router's default route
+    protected readonly homeLink = landingPath;
 
     signOut(): void {
-        this._authService.signOut();
+        this.auth.signOut();
     }
 
     toggleDarkMode(): void {
         this.themeService.setDark(!this.themeService.isDark());
-    }
-
-    signIn(): void {
-        this._dialog.open(SignInDialogComponent);
     }
 
     toggleCollapsed(): void {

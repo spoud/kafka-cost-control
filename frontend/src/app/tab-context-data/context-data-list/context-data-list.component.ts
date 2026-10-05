@@ -20,7 +20,6 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ContextDataSaveComponent } from '../context-data-save/context-data-save.component';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { LoggedInDirective } from '../../auth/logged-in.directive';
 import { IntlDatePipe } from '../../common/intl-date.pipe';
 import { ContextDataTestComponent } from '../context-data-test/context-data-test.component';
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
@@ -42,7 +41,6 @@ import {
         MatPaginatorModule,
         KeyValueListComponent,
         MatIcon,
-        LoggedInDirective,
         IntlDatePipe,
         MatButton,
         MatIconButton,

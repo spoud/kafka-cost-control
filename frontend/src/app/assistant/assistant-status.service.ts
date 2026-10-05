@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, resource } from '@angular/core';
 import { firstValueFrom, map } from 'rxjs';
 import { AssistantStatusGQL } from '../../generated/graphql/sdk';
+import { AuthService } from '../auth/auth.service';
 
 /**
  * Whether this deployment has the AI assistant configured.
@@ -12,8 +13,11 @@ import { AssistantStatusGQL } from '../../generated/graphql/sdk';
 @Injectable({ providedIn: 'root' })
 export class AssistantStatusService {
     private readonly gql = inject(AssistantStatusGQL);
+    private readonly auth = inject(AuthService);
 
+    // asked once signed in: before that, every request is refused
     private readonly statusResource = resource({
+        params: () => (this.auth.signedIn() ? true : undefined),
         loader: () =>
             firstValueFrom(this.gql.fetch().pipe(map(response => response.data?.assistantStatus))),
     });

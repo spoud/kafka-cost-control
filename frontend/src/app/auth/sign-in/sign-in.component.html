@@ -1,0 +1,54 @@
+<main class="sign-in">
+    <div class="brand">
+        <img ngSrc="assets/spoud.svg" width="48" height="48" alt="Kafka Cost Control Logo" />
+        <span>COST CONTROL</span>
+    </div>
+
+    @if (auth.loading()) {
+        <mat-spinner diameter="36" aria-label="Checking the sign-in"></mat-spinner>
+    } @else if (auth.error()) {
+        <p>Kafka Cost Control is not reachable ({{ auth.error() }}).</p>
+        <button mat-flat-button type="button" (click)="auth.load()">
+            <mat-icon>refresh</mat-icon>
+            Try again
+        </button>
+    } @else if (auth.status()?.authenticated) {
+        <p>
+            You're signed in as <strong>{{ auth.user() }}</strong
+            >, but that account has no access to Kafka Cost Control.
+        </p>
+        <button mat-stroked-button type="button" (click)="auth.signOut()">
+            <mat-icon>logout</mat-icon>
+            Sign out
+        </button>
+    } @else if (auth.mode() === 'oidc') {
+        <button mat-flat-button type="button" (click)="auth.signInWithProvider()">
+            <mat-icon>login</mat-icon>
+            Sign in
+        </button>
+    } @else {
+        <form [formGroup]="form" (ngSubmit)="signIn()">
+            <mat-form-field>
+                <mat-label>User name</mat-label>
+                <input matInput autocomplete="username" formControlName="username" />
+            </mat-form-field>
+            <mat-form-field>
+                <mat-label>Password</mat-label>
+                <input
+                    matInput
+                    type="password"
+                    autocomplete="current-password"
+                    formControlName="password"
+                    cdkFocusInitial
+                />
+            </mat-form-field>
+            @if (failure()) {
+                <p class="failure" role="alert">{{ failure() }}</p>
+            }
+            <button mat-flat-button type="submit" [disabled]="form.invalid || busy()">
+                <mat-icon>login</mat-icon>
+                Sign in
+            </button>
+        </form>
+    }
+</main>

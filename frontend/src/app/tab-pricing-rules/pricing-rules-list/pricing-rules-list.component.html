@@ -3,7 +3,7 @@
     subtitle="A rate card: price × usage, without free tiers or discounts. To share an actual bill, split the invoice on the Costs page."
 >
     <ng-container actions>
-        <button *appLoggedIn mat-flat-button type="button" (click)="openSaveDialog()">
+        <button mat-flat-button type="button" (click)="openSaveDialog()">
             <mat-icon>add</mat-icon>
             Add pricing rule
         </button>
@@ -37,7 +37,6 @@
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let element">
                 <button
-                    *appLoggedIn
                     mat-icon-button
                     type="button"
                     aria-label="Edit pricing rule"
@@ -46,7 +45,6 @@
                     <mat-icon>edit</mat-icon>
                 </button>
                 <button
-                    *appLoggedIn
                     mat-icon-button
                     type="button"
                     aria-label="Delete pricing rule"
@@ -83,7 +81,6 @@
                         <code>{{ metric.metricName }}</code>
                         <span class="last-seen">last seen {{ metric.lastSeen | intlDate }}</span>
                         <button
-                            *appLoggedIn
                             mat-button
                             type="button"
                             (click)="openSaveDialog(undefined, metric.metricName)"
