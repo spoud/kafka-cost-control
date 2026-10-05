@@ -7,5 +7,10 @@
   },
   "/olap": {
     "target": "http://localhost:8080"
+  },
+  "/auth": {
+    "target": "http://localhost:8080",
+    "//": "no changeOrigin: the OIDC redirect URI must name the dev server's host",
+    "changeOrigin": false
   }
 }

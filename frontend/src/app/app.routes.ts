@@ -1,12 +1,8 @@
-import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
-import { loggedInGuard } from './auth/logged-in.guard';
-import { BasicAuthServiceService } from './auth/basic-auth-service.service';
 
 export const routes: Routes = [
     {
         path: 'assistant',
-        canActivate: [loggedInGuard],
         loadComponent: () =>
             import('./assistant/assistant.component').then(m => m.AssistantComponent),
     },
@@ -36,21 +32,12 @@ export const routes: Routes = [
     },
     {
         path: 'costs',
-        canActivate: [loggedInGuard],
         loadComponent: () => import('./costs/cost.component').then(m => m.CostComponent),
     },
     {
         path: 'others',
-        canActivate: [loggedInGuard],
         loadComponent: () =>
             import('./tab-others/others/others.component').then(m => m.OthersComponent),
-    },
-    {
-        path: 'unauthorized',
-        loadComponent: () =>
-            import('./common/unauthorized/unauthorized.component').then(
-                m => m.UnauthorizedComponent
-            ),
     },
     // Renamed/removed pages. Must stay above the catch-alls below: routes match in order.
     {
@@ -60,33 +47,25 @@ export const routes: Routes = [
     {
         // removed rather than renamed, so it follows the landing rule
         path: 'home',
-        redirectTo: () => landingRoute(),
+        redirectTo: () => landingPath(),
     },
     {
         path: '',
         pathMatch: 'full',
-        redirectTo: () => landingRoute(),
+        redirectTo: () => landingPath(),
     },
     {
         path: '**',
-        redirectTo: () => landingRoute(),
+        redirectTo: () => landingPath(),
     },
 ];
 
 /**
- * Where to send someone who did not ask for a particular page.
- *
- * Cost Overview is behind {@link loggedInGuard} and authentication lives in sessionStorage, so
- * redirecting there unconditionally sent every first visit, new tab and post-session refresh to
- * the "Sign in required" page — an error page as the app's front door. Explore is public and
- * shows real data, so it is the right landing for anyone not signed in.
+ * Where to send someone who did not ask for a particular page. The whole app is behind the
+ * sign-in (or open to all), so every page is reachable and this is simply Cost Overview.
  */
-export function landingPath(authenticated: boolean): string {
-    return authenticated ? '/costs' : '/explore';
-}
-
-function landingRoute(): string {
-    return landingPath(inject(BasicAuthServiceService).authenticated()());
+export function landingPath(): string {
+    return '/costs';
 }
 
 export interface Link {
@@ -103,6 +82,20 @@ export interface NavLink extends Link {
 }
 
 export const menuLinks: NavLink[] = [
+    {
+        sortOrder: 0,
+        path: '/costs',
+        label: 'Cost Overview',
+        icon: 'attach_money',
+        group: 'primary',
+    },
+    {
+        sortOrder: 1,
+        path: '/assistant',
+        label: 'Assistant',
+        icon: 'smart_toy',
+        group: 'primary',
+    },
     { sortOrder: 2, path: '/explore', label: 'Explore', icon: 'explore', group: 'primary' },
     { sortOrder: 3, path: '/reporting', label: 'Reporting', icon: 'assignment', group: 'primary' },
     { sortOrder: 4, path: '/context-data', label: 'Context Data', icon: 'label', group: 'admin' },
@@ -112,24 +105,6 @@ export const menuLinks: NavLink[] = [
         label: 'Pricing Rules',
         icon: 'price_check',
         group: 'admin',
-    },
-];
-
-export const menuLinksLoggedIn: NavLink[] = [
-    {
-        sortOrder: 0,
-        path: '/costs',
-        label: 'Cost Overview',
-        icon: 'attach_money',
-        group: 'primary',
-    },
-    // Logged-in only: the chat endpoint is @Authenticated on the aggregator.
-    {
-        sortOrder: 1,
-        path: '/assistant',
-        label: 'Assistant',
-        icon: 'smart_toy',
-        group: 'primary',
     },
     { sortOrder: 6, path: '/others', label: 'Others', icon: 'build', group: 'admin' },
 ];

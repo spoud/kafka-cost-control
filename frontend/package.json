@@ -8,7 +8,7 @@
     "test:watch": "ng test",
     "test": "ng test --watch=false",
     "generate": "rm -f ./src/generated/graphql/* && ./node_modules/.bin/graphql-codegen --config graphql/codegen.yml",
-    "update-schema": "wget -O graphql/schema.graphql http://localhost:8080/graphql/schema.graphql",
+    "update-schema": "wget --auth-no-challenge --user=admin --password=${KCC_ADMIN_PASSWORD:-admin} -O graphql/schema.graphql http://localhost:8080/graphql/schema.graphql",
     "lint": "ng lint",
     "format": "prettier --write .",
     "prettier": "npm run format"

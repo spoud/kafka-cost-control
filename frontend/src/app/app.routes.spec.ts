@@ -1,59 +1,35 @@
-import { TestBed } from '@angular/core/testing';
-import { ApolloTestingModule } from 'apollo-angular/testing';
-import { landingPath, routes } from './app.routes';
-import { BasicAuthServiceService } from './auth/basic-auth-service.service';
+import { landingPath, menuLinks, routes } from './app.routes';
 
 /**
- * The default route decides what an anonymous visitor sees first. Pointing it at a guarded page
- * turns the app's front door into the "Sign in required" error page.
+ * The whole app is behind the sign-in (or open to all), so no route is guarded and the default
+ * route always lands on Cost Overview.
  */
 describe('default route', () => {
-    function resolveRedirect(authenticated: boolean): string {
-        TestBed.resetTestingModule();
-        TestBed.configureTestingModule({ imports: [ApolloTestingModule] });
-        const auth = TestBed.inject(BasicAuthServiceService);
-        if (authenticated) {
-            (auth as unknown as { _authenticated: { set(v: boolean): void } })._authenticated.set(
-                true
-            );
-        }
+    it('lands on Cost Overview', () => {
         const empty = routes.find(r => r.path === '');
-        const redirect = empty?.redirectTo as () => string;
-        return TestBed.runInInjectionContext(() => redirect());
-    }
-
-    it('sends an anonymous visitor to a public page, not the sign-in wall', () => {
-        expect(resolveRedirect(false)).toBe('/explore');
-    });
-
-    it('still sends a signed-in user to Cost Overview', () => {
-        expect(resolveRedirect(true)).toBe('/costs');
+        expect((empty?.redirectTo as () => string)()).toBe('/costs');
+        expect(landingPath()).toBe('/costs');
     });
 
     it('applies the same rule to unknown URLs', () => {
         const wildcard = routes.find(r => r.path === '**');
-        expect(typeof wildcard?.redirectTo).toBe('function');
-    });
-});
-
-/**
- * Anything that sends a user somewhere by default shares this rule, so a guarded page can never
- * become the destination for someone who cannot open it. The shell's logo uses it too.
- */
-describe('landingPath', () => {
-    it('sends an anonymous visitor to a public page', () => {
-        expect(landingPath(false)).toBe('/explore');
+        expect((wildcard?.redirectTo as () => string)()).toBe('/costs');
     });
 
-    it('sends a signed-in user to Cost Overview', () => {
-        expect(landingPath(true)).toBe('/costs');
+    it('guards no page: the sign-in in front of the app does', () => {
+        expect(routes.filter(r => r.canActivate)).toEqual([]);
+    });
+
+    it('lists every page in the menu', () => {
+        const pages = routes.filter(r => r.loadComponent).map(r => `/${r.path}`);
+        expect(menuLinks.map(l => l.path).sort()).toEqual(pages.sort());
     });
 });
 
 /**
  * /graphs was renamed to /explore and /home was removed. Both would otherwise fall through to
- * the wildcard, which resolves per-user — sending a signed-in visitor following an old /graphs
- * link to Cost Overview instead of the page that link meant.
+ * the wildcard, sending a visitor following an old /graphs link to Cost Overview instead of the
+ * page that link meant.
  */
 describe('legacy routes', () => {
     it('sends /graphs to Explore, whoever is asking', () => {

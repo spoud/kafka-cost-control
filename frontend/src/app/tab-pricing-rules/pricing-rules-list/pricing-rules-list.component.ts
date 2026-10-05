@@ -24,7 +24,6 @@ import { IntlDatePipe } from '../../common/intl-date.pipe';
 import { UnpricedMetricsService } from '../../common/unpriced-metrics';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { LoggedInDirective } from '../../auth/logged-in.directive';
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
 import {
     PricingRuleSaveComponent,
@@ -50,7 +49,6 @@ const RULE_STORE_CATCH_UP_MS = 2000;
         IntlDatePipe,
         MatButton,
         MatIconButton,
-        LoggedInDirective,
     ],
 })
 export class PricingRulesListComponent implements OnInit, AfterViewInit {
