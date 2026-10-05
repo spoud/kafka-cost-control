@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.graphql;
 
-import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.data.PricingRuleEntity;
 import io.spoud.kcc.aggregator.graphql.data.PricingRuleDeleteRequest;
 import io.spoud.kcc.aggregator.graphql.data.PricingRuleSaveRequest;
@@ -33,7 +32,6 @@ public class PricingRulesResource {
     }
 
     @POST
-    @Authenticated
     @Mutation("savePricingRule")
     public @NonNull PricingRuleEntity savePricingRule(PricingRuleSaveRequest request) {
         final PricingRule saved = pricingRulesStreamRepository.save(request.toAvro());
@@ -41,7 +39,6 @@ public class PricingRulesResource {
     }
 
     @DELETE
-    @Authenticated
     @Mutation("deletePricingRule")
     public PricingRuleEntity deletePricingRule(PricingRuleDeleteRequest request) {
         final PricingRule deleted = pricingRulesStreamRepository.deletePricingRule(request.metricName());

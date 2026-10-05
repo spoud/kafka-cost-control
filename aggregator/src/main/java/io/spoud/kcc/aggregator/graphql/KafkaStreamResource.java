@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.graphql;
 
-import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.stream.KafkaStreamManager;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -20,7 +19,6 @@ import java.time.Instant;
 @Consumes(MediaType.APPLICATION_JSON)
 @GraphQLApi
 @RequiredArgsConstructor
-@Authenticated
 public class KafkaStreamResource {
   private final KafkaStreamManager kafkaStreamStarter;
 

@@ -124,6 +124,23 @@ aggregator:
   # How much of the total pod memory is DuckDB allowed to use (30% is the default if not set)
   olapDatabaseMemoryLimitPercent: 30
   appId: kcc-aggregator
+  # Who may use KCC. All or nothing: in basic and oidc mode every page and query needs a sign-in.
+  auth:
+    # none (e.g. behind an authenticating proxy) | basic (the admin user) | oidc (an OpenID Connect provider)
+    mode: basic
+    # Secret with the admin password under the key "password". Without it the password is "admin".
+    # In oidc mode the admin user still works with basic auth, for scripts.
+    adminPasswordSecret: ""
+    oidc:
+      # a provider Quarkus knows (e.g. google, microsoft, github), or authServerUrl for any other
+      provider: ""
+      authServerUrl: ""
+      clientId: ""
+      # Secret with the client secret under the key "client-secret"
+      clientSecretSecret: ""
+      # comma-separated e-mail domains that may sign in; leave empty only for a provider that
+      # contains nobody but your own users (not Google or Microsoft)
+      allowedDomains: ""
   image: spoud/kafka-cost-control:0.9.0
   # Labels that will be added to the pod
   labels: { }

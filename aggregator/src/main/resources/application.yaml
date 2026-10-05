@@ -35,6 +35,9 @@ cc:
     # limits bound how many calls and how long each query runs, not what a question costs.
     max-tokens-per-question: ${CC_AI_MAX_TOKENS_PER_QUESTION:200000}
   admin-password: admin
+  auth:
+    # none | basic | oidc - see AuthConfigProperties
+    mode: basic
   metrics:
     # Gauges that report a current level are sampled many times per window; summing them
     # multiplies the value by the number of samples (60 per hour at a 1-minute scrape).
@@ -107,8 +110,40 @@ quarkus:
         roles:
           admin: ADMIN
   http:
+    # behind an ingress: the OIDC redirect URI must use the external scheme and host
+    proxy:
+      proxy-address-forwarding: true
+      allow-x-forwarded: true
+      enable-forwarded-host: true
     auth:
+      # the admin user (cc.admin-password): the sign-in in basic mode, and for scripts in oidc mode
       basic: true
+      # All or nothing, set by cc.auth.mode: KccAccessPolicy guards every path except these.
+      permission:
+        open:
+          paths: /q/health,/q/health/*,/q/metrics,/q/dev-ui,/q/dev-ui/*,/auth/me,/auth/logout
+          policy: permit
+        app:
+          paths: /*
+          policy: kcc
+  # Used when cc.auth.mode=oidc, which also switches it on (AuthModeSwitch). The provider comes
+  # from the installation: QUARKUS_OIDC_PROVIDER=google or QUARKUS_OIDC_AUTH_SERVER_URL, plus
+  # QUARKUS_OIDC_CLIENT_ID and QUARKUS_OIDC_CREDENTIALS_SECRET.
+  oidc:
+    application-type: web-app
+    authentication:
+      scopes: email,profile
+      # register https://<host>/auth/callback at the provider
+      redirect-path: /auth/callback
+      restore-path-after-redirect: true
+      # the UI's requests get 499 instead of a redirect they can't follow, and send the browser to /auth/login
+      java-script-auto-redirect: false
+    token-state-manager:
+      # only the ID token's claims are needed; keeps the session cookie small
+      strategy: id-token
+  keycloak:
+    devservices:
+      enabled: false
   smallrye-graphql:
     schema-include-scalars: true
     error-extension-fields: exception,code,classification

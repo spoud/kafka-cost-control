@@ -41,6 +41,9 @@ spec:
                 secretKeyRef:
                   name: kafka-cost-control-secret
                   key: CC_ADMIN_PASSWORD
+            # Sign-in: CC_AUTH_MODE is basic (the admin user) unless set, e.g. in the secret, to
+            # none or oidc. oidc also needs QUARKUS_OIDC_PROVIDER (or QUARKUS_OIDC_AUTH_SERVER_URL),
+            # QUARKUS_OIDC_CLIENT_ID, QUARKUS_OIDC_CREDENTIALS_SECRET and usually CC_AUTH_ALLOWED_DOMAINS.
             # AI assistant, off by default. No model is set here: that is a per-environment
             # choice. To enable, set CC_AI_ENABLED=true plus CC_AI_BASE_URL (any OpenAI-compatible
             # endpoint, e.g. http://ollama:11434/v1 in-cluster - a Service name, not localhost)
@@ -122,6 +125,13 @@ spec:
       http:
         paths:
           - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: kafka-cost-control
+                port:
+                  number: 8080
+          - path: /auth
             pathType: Prefix
             backend:
               service:

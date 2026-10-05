@@ -3,6 +3,7 @@ package io.spoud.kcc.aggregator.filter;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.Mock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import io.smallrye.config.SmallRyeConfig;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -17,6 +18,8 @@ import static io.restassured.RestAssured.given;
 import static io.restassured.RestAssured.when;
 
 @QuarkusTest
+// every endpoint needs a signed-in user (KccAccessPolicy); this test is about something else
+@TestSecurity(user = "admin", roles = "ADMIN")
 class BasePathFilterTest {
 
     @Inject

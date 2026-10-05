@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.graphql;
 
-import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
 import io.spoud.kcc.aggregator.data.ContextTestResponse;
 import io.spoud.kcc.aggregator.data.UnassignedEntity;
@@ -42,33 +41,28 @@ public class ContextDataResource {
 
     @GET
     @Path("/test")
-    @Authenticated
     @Query("contextTest")
     public @NonNull List<@NonNull ContextTestResponse> testContextData(@QueryParam("testString") String testString) {
         return contextDataStreamRepository.testContext(testString);
     }
 
     @POST
-    @Authenticated
     @Mutation("saveContextData")
     public @NonNull ContextDataEntity saveContextData(@Valid ContextDataSaveRequest request) {
         return contextDataStreamRepository.save(request.id(), request.toAvro());
     }
 
     @DELETE
-    @Authenticated
     @Mutation("deleteContextData")
     public ContextDataEntity deleteContextData(ContextDataDeleteRequest request) {
         return contextDataStreamRepository.deleteContext(request.id());
     }
 
-    @Authenticated
     @Query("existingContextKeys")
     public @NonNull Set<@NonNull String> getAllExistingContextKeys() {
         return contextDataOlapRepository.getAllExistingContextKeys();
     }
 
-    @Authenticated
     @Query("unassignedEntities")
     @org.eclipse.microprofile.graphql.Description(
             "Topics and principals no context rule assigns (or without a value for contextKey), most expensive "

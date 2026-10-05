@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.graphql;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import io.restassured.RestAssured;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * the moment the shape changes.
  */
 @QuarkusTest
+// every endpoint needs a signed-in user (KccAccessPolicy); this test is about something else
+@TestSecurity(user = "admin", roles = "ADMIN")
 class ChatSchemaTest {
 
     private String schema() {

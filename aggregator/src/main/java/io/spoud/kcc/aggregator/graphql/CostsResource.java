@@ -1,6 +1,5 @@
 package io.spoud.kcc.aggregator.graphql;
 
-import io.quarkus.security.Authenticated;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.PricingRuleCostRequest;
@@ -17,7 +16,6 @@ public class CostsResource {
 
     private final AggregatedMetricsRepository aggregatedMetricsRepository;
 
-    @Authenticated
     @Query("calculateTable")
     public @NonNull TableResponse calculateTable(CostOverviewRequest request) {
         return aggregatedMetricsRepository.calculateTable(request);
@@ -26,7 +24,6 @@ public class CostsResource {
     /**
      * End price (e.g. from confluent) to a distribution (according to consumption percentage)
      */
-    @Authenticated
     @Query("costOverview")
     public @NonNull CostOverviewResponse calculateCosts(CostOverviewRequest request) {
         return aggregatedMetricsRepository.calculateCosts(request);
@@ -36,7 +33,6 @@ public class CostsResource {
      * Costs computed by the pricing rules (bottom-up), distributed by context. Prices are in
      * cents, like costOverview.
      */
-    @Authenticated
     @Query("pricingRuleCosts")
     public @NonNull CostOverviewResponse pricingRuleCosts(PricingRuleCostRequest request) {
         return aggregatedMetricsRepository.calculatePricingRuleCosts(request);
