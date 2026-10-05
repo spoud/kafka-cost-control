@@ -9,6 +9,15 @@ A metric without a pricing rule gets no cost, so costs from pricing rules leave 
 
 Nothing re-creates rules on its own: restarts and redeployments keep them. The sample loader (`config-sample`) saves every rule in its file when you run it, so running it again overwrites rules with the same metric name, including ones changed or deleted in the UI.
 
+==== Pricing rules or the invoice split
+
+Kafka Cost Control has two ways to put costs on topics and principals:
+
+* *Pricing rules* are a rate card: every window costs `baseCost + costFactor × value`, per entity. Use them where there is no bill to share (e.g. a self-hosted cluster), or to estimate.
+* *Splitting an invoice* (the _Costs_ page) shares a real bill's amounts among the entities, in proportion to their usage.
+
+Free tiers, commitments and discounts are not part of pricing rules: the bill already contains them. For example, Confluent Cloud bills partitions beyond the first 10 per cluster; a rule at $0.0046 per partition-hour charges all of them at list price, while splitting the invoice shares the bill's partition line, which is already net of the free ones. For the costs you actually pay, split the invoice.
+
 ==== Listing pricing rules
 
 ===== From the UI
