@@ -77,6 +77,13 @@ export class AuthService {
                 throw new Error(`HTTP ${response.status}`);
             }
             const status = (await response.json()) as AuthStatus;
+            // The admin password is for scripts in OIDC mode; in the browser it is a leftover
+            // (e.g. stored by a tab while the instance was in basic mode). Kept, it would sign the
+            // tab in as admin with no way to sign out.
+            if (status.mode === 'oidc' && this.headers.getHeaders()[HEADER_AUTHORIZATION]) {
+                this.forgetPassword();
+                return this.load();
+            }
             this._status.set(status);
             return status;
         } catch (e) {
@@ -108,13 +115,13 @@ export class AuthService {
     }
 
     signOut(): void {
+        this.forgetPassword();
         if (this.mode() === 'oidc') {
             window.location.assign(
                 `${this.baseHref}auth/logout?redirect=${encodeURIComponent(this.baseHref)}`
             );
             return;
         }
-        this.forgetPassword();
         void this.load();
     }
 
