@@ -11,10 +11,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Sign-in for the UI. {@code /auth/me} is open, so the UI can find out which sign-in to offer
@@ -34,7 +37,16 @@ public class AuthResource {
     @Inject
     Instance<OidcSession> oidcSession;
 
-    public record AuthStatus(String mode, boolean authenticated, boolean allowed, String user) {
+    @ConfigProperty(name = "quarkus.oidc.provider")
+    Optional<String> oidcProvider;
+
+    /**
+     * {@code provider} (e.g. "google") and {@code domains} only in OIDC mode, so the sign-in page can
+     * say "Continue with Google" and which account to use. Single allowed e-mails are not listed:
+     * this endpoint is open.
+     */
+    public record AuthStatus(String mode, boolean authenticated, boolean allowed, String user,
+                             String provider, List<String> domains) {
     }
 
     @GET
@@ -42,8 +54,13 @@ public class AuthResource {
     @Produces(MediaType.APPLICATION_JSON)
     public AuthStatus me() {
         boolean open = config.mode() == AuthConfigProperties.Mode.NONE;
+        boolean oidc = config.mode() == AuthConfigProperties.Mode.OIDC;
         return new AuthStatus(config.mode().name().toLowerCase(Locale.ROOT), !identity.isAnonymous(),
-                open || AccessRules.isAllowed(identity, config), AccessRules.displayName(identity));
+                open || AccessRules.isAllowed(identity, config), AccessRules.displayName(identity),
+                oidc ? oidcProvider.map(p -> p.toLowerCase(Locale.ROOT)).orElse(null) : null,
+                oidc ? config.allowedDomains().orElse(List.of()).stream()
+                        .map(d -> d.trim().toLowerCase(Locale.ROOT)).filter(d -> !d.isEmpty()).toList()
+                        : List.of());
     }
 
     @GET

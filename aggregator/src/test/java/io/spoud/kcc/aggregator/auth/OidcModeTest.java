@@ -14,8 +14,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 
 @QuarkusTest
 @TestProfile(OidcModeTest.OidcProfile.class)
@@ -72,7 +74,10 @@ class OidcModeTest {
                 .then().statusCode(200)
                 .body("mode", equalTo("oidc"))
                 .body("allowed", equalTo(true))
-                .body("user", equalTo("ana@example.com"));
+                .body("user", equalTo("ana@example.com"))
+                // for "use your example.com account" on the sign-in page; the provider is set by URL here
+                .body("domains", contains("example.com"))
+                .body("provider", nullValue());
     }
 
     @Test
