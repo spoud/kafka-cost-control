@@ -2,6 +2,7 @@
 {{ $aggregatedTopic := (include "aggregatedTopic" .) }}
 {{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
 {{ $contextTopic := (include "contextTopic" .) }}
+{{ $billsTopic := (include "billsTopic" .) }}
 {{ $rawMetricsTopicList := split "," (include "rawMetricsTopics" .) }}
 
 {{ if .Values.aggregator.enabled -}}
@@ -52,6 +53,13 @@ spec:
       - All
       resource:
         name: {{ $contextTopic }}
+        patternType: literal
+        type: topic
+    - host: '*'
+      operations:
+      - All
+      resource:
+        name: {{ $billsTopic }}
         patternType: literal
         type: topic
     - host: "*"

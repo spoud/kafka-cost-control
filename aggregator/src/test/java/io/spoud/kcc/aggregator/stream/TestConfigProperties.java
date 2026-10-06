@@ -80,6 +80,11 @@ public class TestConfigProperties implements CostControlConfigProperties {
     }
 
     @Override
+    public String topicBills() {
+        return "bills";
+    }
+
+    @Override
     public Map<String, String> metricsAggregations() {
         return metricsAggregations;
     }

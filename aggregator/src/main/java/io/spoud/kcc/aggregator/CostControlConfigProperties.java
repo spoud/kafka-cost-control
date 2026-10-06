@@ -49,6 +49,11 @@ public interface CostControlConfigProperties {
     @WithName("topics.aggregated-table-friendly")
     String topicAggregatedTableFriendly();
 
+    /** Compacted topic with the monthly bills, keyed by month. Created by the application when missing. */
+    @WithName("topics.bills")
+    @WithDefault("bills")
+    String topicBills();
+
     @WithName("metrics.aggregations")
     Map<String, String> metricsAggregations();
 

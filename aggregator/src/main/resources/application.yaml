@@ -51,6 +51,8 @@ cc:
     context-data: context-data
     aggregated: aggregated
     aggregated-table-friendly: aggregated-table-friendly
+    # monthly bills; created when missing (compacted, one partition)
+    bills: bills
     raw-data:
       - metrics-raw-telegraf-env
 

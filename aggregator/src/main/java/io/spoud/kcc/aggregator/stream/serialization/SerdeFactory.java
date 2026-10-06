@@ -54,6 +54,10 @@ public class SerdeFactory {
         return getAvroSerde(false, AggregatedDataWindowed.class);
     }
 
+    public Serde<Bill> getBillSerde() {
+        return getAvroSerde(false, Bill.class);
+    }
+
     public Serde<PricingRule> getPricingRuleSerde() {
         return getAvroSerde(false, PricingRule.class);
     }

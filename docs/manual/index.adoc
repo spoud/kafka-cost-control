@@ -14,6 +14,9 @@ include::src/cost_control_config.adoc[]
 include::src/pricing_rules.adoc[]
 
 <<<
+include::src/bills.adoc[]
+
+<<<
 include::src/context_data.adoc[]
 
 <<<

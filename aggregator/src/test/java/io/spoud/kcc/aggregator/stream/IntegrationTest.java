@@ -4,6 +4,8 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
+import io.spoud.kcc.aggregator.bills.BillEntity;
+import io.spoud.kcc.aggregator.bills.BillsRepository;
 import io.spoud.kcc.aggregator.graphql.ContextDataResource;
 import io.spoud.kcc.aggregator.graphql.MetricsResource;
 import io.spoud.kcc.aggregator.graphql.PricingRulesResource;
@@ -15,6 +17,7 @@ import io.spoud.kcc.data.EntityType;
 import io.spoud.kcc.data.PricingRule;
 import jakarta.inject.Inject;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -52,6 +55,8 @@ public class IntegrationTest {
 
     @Inject
     KafkaStreams kafkaStreams;
+    @Inject
+    BillsRepository billsRepository;
 
     KafkaProducer<String, RawTelegrafData> rawMetricProducer;
     KafkaProducer<String, ContextData> contextDataProducer;
@@ -124,6 +129,26 @@ public class IntegrationTest {
         await()
                 .atMost(Duration.ofSeconds(10))
                 .untilAsserted(() -> assertThat(contextDataResource.contextData()).hasSize(1));
+    }
+
+    @Test
+    void should_keep_bills_in_a_compacted_topic_it_creates() throws Exception {
+        // the repository creates the topic; a bill written by someone else shows up
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(billsRepository.all()).isNotNull());
+        var description = adminClient.describeConfigs(List.of(
+                new ConfigResource(ConfigResource.Type.TOPIC, "bills"))).all().get().values().iterator().next();
+        assertThat(description.get("cleanup.policy").value()).isEqualTo("compact");
+
+        try (KafkaProducer<String, io.spoud.kcc.data.Bill> billProducer = KafkaTestUtils.createAvroProducer()) {
+            billProducer.send(new ProducerRecord<>("bills", "2026-08", new BillEntity("2026-08", null, 1.0, 2.0,
+                    3.0, 4.0, null, Instant.now(), "elsewhere").toAvro())).get();
+        }
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                assertThat(billsRepository.all()).extracting(BillEntity::month).contains("2026-08"));
+
+        billsRepository.save(new BillEntity("2026-09", null, 0.27, 0.22, 8.12, 22.5, null, Instant.now(), "test"));
+        billsRepository.delete("2026-08");
+        assertThat(billsRepository.all()).extracting(BillEntity::month).containsExactly("2026-09");
     }
 
     @Test

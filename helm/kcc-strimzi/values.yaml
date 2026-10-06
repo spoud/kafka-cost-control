@@ -22,6 +22,8 @@ topics:
   pricingRules:
     #topicName: "pricing-rules" # if unset, the topic name is generated from the release name
     partitions: 1
+  bills: { } # monthly bills, compacted, one partition
+    #topicName: "bills" # if unset, the topic name is generated from the release name
   aggregated:
     #topicName: "aggregated" # if unset, the topic name is generated from the release name
     partitions: 1
