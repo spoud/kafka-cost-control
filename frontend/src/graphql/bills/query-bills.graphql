@@ -1,0 +1,34 @@
+query bills {
+    bills {
+        month
+        coveredUntil
+        networkWrite
+        networkRead
+        storage
+        partitions
+        other
+        updatedAt
+        updatedBy
+    }
+}
+
+query billedCosts($request: BilledCostRequestInput!) {
+    billedCosts(request: $request) {
+        metrics {
+            metric
+            shares {
+                name
+                contextValues
+                price
+                estimatedPrice
+            }
+        }
+        months {
+            month
+            billed
+            from
+            to
+            billedUntil
+        }
+    }
+}

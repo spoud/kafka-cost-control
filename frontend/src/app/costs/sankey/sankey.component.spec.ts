@@ -1,37 +1,36 @@
 import { TestBed } from '@angular/core/testing';
 import { SankeyComponent } from './sankey.component';
-import { CostOverviewQuery } from '../../../generated/graphql/sdk';
-import { CostOverviewRequestInput } from '../../../generated/graphql/types';
+import { BilledCostsQuery } from '../../../generated/graphql/sdk';
 
 type Node = { name: string; itemStyle: { color: string } };
+type Costs = BilledCostsQuery['billedCosts'];
+type Series = {
+    series: {
+        data: Node[];
+        links: { source: string; target: string; value: number }[];
+        label: { formatter: (params: { name?: string }) => string };
+    };
+};
 
-function build(entryCount: number, request: Partial<CostOverviewRequestInput> = {}) {
+function render(costs: Costs, groupBy: string[]) {
     const fixture = TestBed.createComponent(SankeyComponent);
-    const nameToPriceList = Array.from({ length: entryCount }, (_, i) => ({
+    fixture.componentRef.setInput('inputData', costs);
+    fixture.componentRef.setInput('groupBy', groupBy);
+    return fixture.componentInstance;
+}
+
+function build(entryCount: number) {
+    const shares = Array.from({ length: entryCount }, (_, i) => ({
         name: `tenant=t${i % 3} › application=app${i}`,
         price: (entryCount - i) * 100,
+        estimatedPrice: 0,
         contextValues: [`t${i % 3}`, `app${i}`],
     }));
-    fixture.componentRef.setInput('inputData', {
-        costOverview: {
-            metricToDistributionMapList: [
-                { metric: 'confluent_kafka_server_retained_bytes', nameToPriceList },
-            ],
-        },
-    } as unknown as CostOverviewQuery);
-    fixture.componentRef.setInput('lastRequest', {
-        totalCents: 100000,
-        kafkaStorageCents: 40000,
-        kafkaNetworkReadCents: 30000,
-        kafkaNetworkWriteCents: 30000,
-        contextKeysToGroupBy: ['tenant', 'application'],
-        ...request,
-    } as CostOverviewRequestInput);
-
-    const options = fixture.componentInstance.sankeyOptions() as {
-        series: { data: Node[]; links: { source: string; target: string; value: number }[] };
-    };
-    return { options, height: fixture.componentInstance.chartHeight() };
+    const sankey = render(
+        { metrics: [{ metric: 'confluent_kafka_server_retained_bytes', shares }], months: [] },
+        ['tenant', 'application']
+    );
+    return { options: sankey.sankeyOptions() as Series, height: sankey.chartHeight() };
 }
 
 describe('SankeyComponent', () => {
@@ -66,65 +65,40 @@ describe('SankeyComponent', () => {
         colors.forEach(c => expect(c).toMatch(/^hsl\(\d+(\.\d+)?, \d+%, \d+%\)$/));
     });
 
-    it('routes the write invoice to produce (request) bytes and the read invoice to fetch (response) bytes', () => {
-        const { links } = build(1, { kafkaNetworkWriteCents: 70000, kafkaNetworkReadCents: 10000 })
-            .options.series;
+    it('roots each cost at the sum of its shares, the shared part included', () => {
+        const costs: Costs = {
+            metrics: [
+                {
+                    metric: 'confluent_kafka_server_request_bytes',
+                    shares: [
+                        { name: 'tenant=a', price: 250, estimatedPrice: 0, contextValues: ['a'] },
+                        { name: 'tenant=b', price: 150, estimatedPrice: 50, contextValues: ['b'] },
+                    ],
+                },
+                {
+                    metric: 'platform',
+                    shares: [
+                        {
+                            name: 'Platform / shared',
+                            price: 100,
+                            estimatedPrice: 0,
+                            contextValues: ['<platform>'],
+                        },
+                    ],
+                },
+            ],
+            months: [],
+        };
+        const { series } = render(costs, ['tenant']).sankeyOptions() as Series;
         const fromTotal = (target: string) =>
-            links.find(l => l.source === 'total' && l.target === target)?.value;
+            series.links.find(l => l.source === 'total' && l.target === target)?.value;
 
-        expect(fromTotal('confluent_kafka_server_request_bytes')).toBe(700);
-        expect(fromTotal('confluent_kafka_server_response_bytes')).toBe(100);
-    });
-
-    it('adds a partitions branch only when the invoice has a partition line', () => {
-        const fromTotal = (
-            links: { source: string; target: string; value: number }[],
-            target: string
-        ) => links.find(l => l.source === 'total' && l.target === target)?.value;
-
-        const without = build(1).options.series.links;
-        expect(fromTotal(without, 'kafka_topic_partition_count')).toBeUndefined();
-
-        const withPartitions = build(1, { kafkaPartitionsCents: 20000, kafkaStorageCents: 20000 })
-            .options.series.links;
-        expect(fromTotal(withPartitions, 'kafka_topic_partition_count')).toBe(200);
-        // total 1000 = storage 200 + write 300 + read 300 + partitions 200, nothing left over
-        expect(fromTotal(withPartitions, 'other')).toBe(0);
-    });
-
-    it('in pricing-rules mode, roots each metric at the sum of its costs with no invoice nodes', () => {
-        const fixture = TestBed.createComponent(SankeyComponent);
-        fixture.componentRef.setInput('source', 'pricingRules');
-        fixture.componentRef.setInput('inputData', {
-            costOverview: {
-                metricToDistributionMapList: [
-                    {
-                        metric: 'kafka_log_log_size',
-                        nameToPriceList: [
-                            { name: 'tenant=a', price: 250, contextValues: ['a'] },
-                            { name: 'tenant=b', price: 150, contextValues: ['b'] },
-                        ],
-                    },
-                ],
-            },
-        } as unknown as CostOverviewQuery);
-        fixture.componentRef.setInput('lastRequest', { contextKeysToGroupBy: ['tenant'] });
-
-        const { data, links } = (
-            fixture.componentInstance.sankeyOptions() as {
-                series: {
-                    data: Node[];
-                    links: { source: string; target: string; value: number }[];
-                };
-            }
-        ).series;
-
-        expect(links.find(l => l.source === 'total')).toEqual({
-            source: 'total',
-            target: 'kafka_log_log_size',
-            value: 4,
-        });
-        expect(data.map(n => n.name)).not.toContain('other');
-        expect(data.map(n => n.name)).not.toContain('confluent_kafka_server_request_bytes');
+        expect(fromTotal('confluent_kafka_server_request_bytes')).toBe(4);
+        expect(fromTotal('platform')).toBe(1);
+        // readable names for the bill's lines
+        expect(series.label.formatter({ name: 'confluent_kafka_server_request_bytes' })).toBe(
+            'Network write'
+        );
+        expect(series.label.formatter({ name: 'platform' })).toBe('Platform / shared');
     });
 });

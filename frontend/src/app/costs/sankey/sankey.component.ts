@@ -1,7 +1,5 @@
 import { Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
-import { CostOverviewQuery } from '../../../generated/graphql/sdk';
-import { CostOverviewRequestInput } from '../../../generated/graphql/types';
-import { CostSource } from '../store/cost-overview.store';
+import { BilledCostsQuery } from '../../../generated/graphql/sdk';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import { EChartsType } from 'echarts/core';
 import { MatIconButton } from '@angular/material/button';
@@ -13,6 +11,15 @@ import { SankeyChart } from 'echarts/charts';
 import { ThemeService } from '../../services/theme.service';
 
 echarts.use([SankeyChart]);
+
+/** Names for the metrics the bill lines follow; anything else shows its metric name. */
+export const METRIC_LABELS: Record<string, string> = {
+    confluent_kafka_server_request_bytes: 'Network write',
+    confluent_kafka_server_response_bytes: 'Network read',
+    confluent_kafka_server_retained_bytes: 'Storage',
+    kafka_topic_partition_count: 'Partitions',
+    platform: 'Platform / shared',
+};
 
 /** Vertical room to reserve per node in the busiest column, so labels are not stacked on top of
  * each other. The canvas grows with the data instead of collapsing the data to fit the canvas. */
@@ -89,9 +96,9 @@ export class SankeyComponent {
         this.chart?.setOption(this.sankeyOptions(), { notMerge: true });
     }
 
-    inputData = input.required<CostOverviewQuery | undefined>();
-    lastRequest = input.required<CostOverviewRequestInput | undefined>();
-    source = input<CostSource>('invoice');
+    inputData = input.required<BilledCostsQuery['billedCosts'] | undefined>();
+    /** The grouping keys of the costs shown, in order. */
+    groupBy = input.required<string[]>();
 
     /**
      * Nodes, links and the busiest column, built once. `sankeyOptions` and `chartHeight` both
@@ -100,14 +107,6 @@ export class SankeyComponent {
      */
     private model = computed(() => {
         this.resetCount(); // a reset produces a new option object; see resetView
-        const storage = (this.lastRequest()?.kafkaStorageCents ?? 0) / 100; // dollar amount...
-        const networkWrite = (this.lastRequest()?.kafkaNetworkWriteCents ?? 0) / 100;
-        const networkRead = (this.lastRequest()?.kafkaNetworkReadCents ?? 0) / 100;
-        const partitions = (this.lastRequest()?.kafkaPartitionsCents ?? 0) / 100;
-        // above together with some other things added, e.g. base costs
-        const total = (this.lastRequest()?.totalCents ?? 0) / 100;
-        const other = total - storage - networkWrite - networkRead - partitions;
-
         const dataSet = new Set<string>();
         // node id -> short label shown in the diagram; nodes not listed here (metrics, total, other)
         // just display their own name. The full breadcrumb id is still what shows up in tooltips.
@@ -130,58 +129,32 @@ export class SankeyComponent {
         };
 
         dataSet.add('total');
-        const distributions = this.inputData()?.costOverview.metricToDistributionMapList ?? [];
-        if (this.source() === 'pricingRules') {
-            // no invoice to start from: each metric's branch is what its pricing rule charged
-            distributions.forEach(entry => {
-                if (entry?.metric) {
-                    dataSet.add(entry.metric);
-                    const cents = (entry.nameToPriceList ?? []).reduce(
-                        (sum, p) => sum + (p?.price ?? 0),
-                        0
-                    );
-                    addLink('total', entry.metric, cents / 100);
-                }
-            });
-        } else {
-            dataSet.add('confluent_kafka_server_retained_bytes');
-            dataSet.add('confluent_kafka_server_request_bytes');
-            dataSet.add('confluent_kafka_server_response_bytes');
-            dataSet.add('other');
-
-            addLink('total', 'confluent_kafka_server_retained_bytes', storage);
-            // same mapping as the backend: produce (request) is billed as write, fetch (response) as read
-            addLink('total', 'confluent_kafka_server_request_bytes', networkWrite);
-            addLink('total', 'confluent_kafka_server_response_bytes', networkRead);
-            if (partitions > 0) {
-                // per-topic partition-hours from the kafka-scraper, like the backend
-                dataSet.add('kafka_topic_partition_count');
-                addLink('total', 'kafka_topic_partition_count', partitions);
-            }
-            addLink('total', 'other', other);
-        }
-
-        const groupByKeys = this.lastRequest()?.contextKeysToGroupBy ?? [];
+        const distributions = this.inputData()?.metrics ?? [];
+        // each metric's branch is what its costs add up to: its bill line, or the estimate
         distributions.forEach(entry => {
-            const metric = entry?.metric;
-            if (!metric) {
-                return;
-            }
-            dataSet.add(metric);
-            const entries = entry?.nameToPriceList?.filter(x => !!x) ?? [];
+            dataSet.add(entry.metric);
+            shortLabels.set(entry.metric, METRIC_LABELS[entry.metric] ?? entry.metric);
+            const cents = entry.shares.reduce((sum, share) => sum + share.price, 0);
+            addLink('total', entry.metric, cents / 100);
+        });
+
+        const groupByKeys = this.groupBy();
+        distributions.forEach(entry => {
+            const metric = entry.metric;
+            const entries = entry.shares;
 
             // Everything is drawn - no "N smaller" roll-up. The canvas height is derived from the
             // node count below, so a high-cardinality group-by produces a tall diagram rather than
             // a truncated one.
-            const shown = [...entries].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+            const shown = [...entries].sort((a, b) => b.price - a.price);
 
             shown.forEach(nameToPrice => {
                 // Keep positions: values are paired with groupByKeys by index below, so
                 // dropping an empty value would shift every later one onto the wrong key and
                 // merge the mislabelled node with a real one. The backend uses "<other>" for a
                 // missing context value, so match it rather than inventing a second spelling.
-                const values = (nameToPrice.contextValues ?? []).map(v => v || '<other>');
-                const price = (nameToPrice.price ?? 0) / 100;
+                const values = nameToPrice.contextValues.map(v => v || '<other>');
+                const price = nameToPrice.price / 100;
 
                 // walk the ordered group-by values, turning each prefix into its own hierarchy
                 // level: metric -> customer -> customer+app -> ..., instead of one flat leaf node

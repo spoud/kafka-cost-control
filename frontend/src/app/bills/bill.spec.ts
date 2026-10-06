@@ -1,0 +1,42 @@
+import {
+    billTotal,
+    coveredUntilFromLastDay,
+    lastDayFromCoveredUntil,
+    monthLastDay,
+    recentMonths,
+} from './bill';
+
+describe('bill helpers', () => {
+    it('adds every line, "other" included', () => {
+        expect(
+            billTotal({
+                networkWrite: 1,
+                networkRead: 2,
+                storage: null,
+                partitions: 3,
+                other: -0.5,
+            })
+        ).toBe(5.5);
+    });
+
+    it('turns the last day a month-to-date bill includes into where it stops, and back', () => {
+        const lastDay = new Date(2026, 9, 5); // 5 October, local
+        const coveredUntil = coveredUntilFromLastDay(lastDay);
+
+        expect(coveredUntil).toBe('2026-10-06T00:00:00.000Z');
+        const back = lastDayFromCoveredUntil(coveredUntil);
+        expect([back.getFullYear(), back.getMonth(), back.getDate()]).toEqual([2026, 9, 5]);
+    });
+
+    it('lists recent months newest first, across a year boundary', () => {
+        expect(recentMonths(new Date(Date.UTC(2026, 1, 15)), 3)).toEqual([
+            '2026-02',
+            '2026-01',
+            '2025-12',
+        ]);
+    });
+
+    it('knows the last day of a month', () => {
+        expect(monthLastDay('2026-02').toISOString()).toBe('2026-02-28T00:00:00.000Z');
+    });
+});

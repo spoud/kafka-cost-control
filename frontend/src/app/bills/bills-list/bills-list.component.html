@@ -1,0 +1,105 @@
+<app-page-header
+    title="Bills"
+    subtitle="What your provider billed, per month. Cost Overview shares each bill by usage; months without one are estimated from the pricing rules."
+>
+    <ng-container actions>
+        <button mat-flat-button type="button" (click)="openSaveDialog()">
+            <mat-icon>add</mat-icon>
+            Add bill
+        </button>
+    </ng-container>
+</app-page-header>
+
+<app-data-table
+    [loading]="loading()"
+    [error]="error()"
+    [empty]="empty()"
+    emptyMessage="No bills yet. Add last month's bill to see what each team really costs."
+>
+    <table mat-table [dataSource]="bills()">
+        <ng-container matColumnDef="month">
+            <th mat-header-cell *matHeaderCellDef>Month</th>
+            <td mat-cell *matCellDef="let bill">
+                <div class="month">{{ monthLabel(bill.month) }}</div>
+                @if (bill.coveredUntil) {
+                    <div class="sub">
+                        to date, up to {{ lastDay(bill.coveredUntil).toLocaleDateString() }}
+                    </div>
+                }
+            </td>
+        </ng-container>
+
+        @for (line of lines; track line.key) {
+            <ng-container [matColumnDef]="line.key">
+                <th mat-header-cell *matHeaderCellDef class="amount">{{ line.label }}</th>
+                <td mat-cell *matCellDef="let bill" class="amount">
+                    @if (bill[line.key] !== null) {
+                        ${{ bill[line.key] | number: '1.2-4' }}
+                    } @else {
+                        <span class="sub" matTooltip="Estimated from the pricing rules"
+                            >estimated</span
+                        >
+                    }
+                </td>
+            </ng-container>
+        }
+
+        <ng-container matColumnDef="other">
+            <th mat-header-cell *matHeaderCellDef class="amount">Other</th>
+            <td mat-cell *matCellDef="let bill" class="amount">
+                @if (bill.other !== null) {
+                    ${{ bill.other | number: '1.2-4' }}
+                } @else {
+                    <span class="sub">–</span>
+                }
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="total">
+            <th mat-header-cell *matHeaderCellDef class="amount">Total</th>
+            <td mat-cell *matCellDef="let bill" class="amount">
+                <strong>${{ billTotal(bill) | number: '1.2-2' }}</strong>
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="updated">
+            <th mat-header-cell *matHeaderCellDef>Last changed</th>
+            <td mat-cell *matCellDef="let bill">
+                <div>{{ bill.updatedAt | intlDate }}</div>
+                @if (bill.updatedBy) {
+                    <div class="sub">by {{ bill.updatedBy }}</div>
+                }
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="buttons">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let bill" class="buttons">
+                <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="Edit bill"
+                    (click)="openSaveDialog(bill)"
+                >
+                    <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="Delete bill"
+                    (click)="delete(bill)"
+                >
+                    <mat-icon>delete</mat-icon>
+                </button>
+            </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns"></tr>
+    </table>
+</app-data-table>
+
+<ng-template #deleteConfirmContent let-bill>
+    Delete the bill for <strong>{{ monthLabel(bill.month) }}</strong
+    >? Its costs are then estimated from the pricing rules.
+</ng-template>

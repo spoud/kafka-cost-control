@@ -1,0 +1,19 @@
+mutation saveBill($request: BillSaveRequestInput!) {
+    saveBill(request: $request) {
+        month
+        coveredUntil
+        networkWrite
+        networkRead
+        storage
+        partitions
+        other
+        updatedAt
+        updatedBy
+    }
+}
+
+mutation deleteBill($month: String!) {
+    deleteBill(month: $month) {
+        month
+    }
+}

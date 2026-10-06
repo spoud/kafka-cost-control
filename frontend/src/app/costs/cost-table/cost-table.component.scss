@@ -3,3 +3,12 @@
     justify-content: flex-end;
     margin-bottom: 0.5rem;
 }
+
+.amount {
+    text-align: right;
+}
+
+.estimated {
+    color: var(--mat-sys-on-surface-variant);
+    font-style: italic;
+}

@@ -1,0 +1,81 @@
+<h2 mat-dialog-title>{{ editing ? 'Edit bill' : 'Add bill' }}</h2>
+<form [formGroup]="form" (ngSubmit)="save()">
+    <mat-dialog-content>
+        <mat-form-field class="full-width">
+            <mat-label>Month</mat-label>
+            <mat-select formControlName="month">
+                @for (month of months; track month) {
+                    <mat-option [value]="month">{{ monthLabel(month) }}</mat-option>
+                }
+            </mat-select>
+            @if (editing) {
+                <mat-hint>To enter another month, add a bill.</mat-hint>
+            } @else if (replacesExisting()) {
+                <mat-hint class="warning">This month has a bill; saving replaces it.</mat-hint>
+            }
+        </mat-form-field>
+
+        <div class="month-to-date">
+            <mat-checkbox formControlName="monthToDate">
+                Month to date (the month isn't over yet)
+            </mat-checkbox>
+            @if (form.controls.monthToDate.value) {
+                <mat-form-field>
+                    <mat-label>Up to and including</mat-label>
+                    <input
+                        matInput
+                        [matDatepicker]="lastDayPicker"
+                        formControlName="lastDay"
+                        [min]="firstDay()"
+                        [max]="lastDayOfMonth()"
+                    />
+                    <mat-datepicker-toggle matIconSuffix [for]="lastDayPicker" />
+                    <mat-datepicker #lastDayPicker />
+                    <mat-hint>Later days are estimated from the pricing rules.</mat-hint>
+                </mat-form-field>
+            }
+        </div>
+
+        <div class="lines">
+            @for (line of lines; track line.key) {
+                <!-- always floated: with the $ prefix, an empty field read "$Network write" -->
+                <mat-form-field floatLabel="always">
+                    <mat-label>{{ line.label }}</mat-label>
+                    <span matTextPrefix>$&nbsp;</span>
+                    <input
+                        matInput
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        [formControlName]="line.key"
+                    />
+                    <mat-hint>Split by {{ line.hint }}</mat-hint>
+                </mat-form-field>
+            }
+            <mat-form-field floatLabel="always">
+                <mat-label>Other (optional)</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input matInput type="number" step="0.01" formControlName="other" />
+                <mat-hint>Connectors, support; negative for a credit. Not split.</mat-hint>
+            </mat-form-field>
+        </div>
+
+        <p class="total">
+            Total <strong>${{ total() | number: '1.2-4' }}</strong>
+        </p>
+        <p class="note">
+            Leave a line empty to estimate it from the pricing rules. "Other" is shown as Platform /
+            shared.
+        </p>
+        @if (negativeLine()) {
+            <p class="failure" role="alert">Only "other" can be negative.</p>
+        }
+        @if (failure()) {
+            <p class="failure" role="alert">{{ failure() }}</p>
+        }
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" mat-dialog-close>Cancel</button>
+        <button mat-flat-button type="submit" [disabled]="!canSave()">Save</button>
+    </mat-dialog-actions>
+</form>
