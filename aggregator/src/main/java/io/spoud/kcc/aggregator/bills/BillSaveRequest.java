@@ -24,7 +24,7 @@ public record BillSaveRequest(
         Double storage,
         Double partitions,
         @Description("Everything else on the bill, line by line; an amount may be negative for a credit")
-        List<OtherLine> otherLines) {
+        List<OtherLineRequest> otherLines) {
 
     public BillEntity toEntity(Instant now, String user) {
         YearMonth parsed;
@@ -49,9 +49,12 @@ public record BillSaveRequest(
         return new BillEntity(parsed.toString(), until, networkWrite, networkRead, storage, partitions, others, now, user);
     }
 
-    private static OtherLine checked(OtherLine line) {
+    private static OtherLine checked(OtherLineRequest line) {
         if (line.description() == null || line.description().isBlank()) {
             throw new BadRequestException("Every other line needs a description, e.g. Connect or Support.");
+        }
+        if (line.amount() == null) {
+            throw new BadRequestException("\"" + line.description().trim() + "\" needs an amount.");
         }
         if (line.allocation() == null) {
             throw new BadRequestException("Say where \"" + line.description().trim() + "\" goes: a context, spread by usage, or shared.");
@@ -60,9 +63,9 @@ public record BillSaveRequest(
         if (line.allocation() == OtherLine.Allocation.CONTEXT) {
             context = new TreeMap<>();
             if (line.context() != null) {
-                for (var entry : line.context().entrySet()) {
-                    if (entry.getKey() != null && !entry.getKey().isBlank() && entry.getValue() != null && !entry.getValue().isBlank()) {
-                        context.put(entry.getKey().trim(), entry.getValue().trim());
+                for (var pair : line.context()) {
+                    if (pair != null && pair.key() != null && !pair.key().isBlank() && pair.value() != null && !pair.value().isBlank()) {
+                        context.put(pair.key().trim(), pair.value().trim());
                     }
                 }
             }
