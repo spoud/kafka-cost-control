@@ -325,7 +325,7 @@ input PricingRuleSaveRequestInput {
   "Price per priceUnit; the cost factor is derived from it"
   price: Float
   priceUnit: PriceUnit
-  "Empty: correct the current price, everywhere it applies. A time: a new price from then on; the current price keeps the hours before it. (ISO-8601)"
+  "Empty: correct the current price, everywhere it applies. The start of a day in UTC: a new price from that day on; the current price keeps the days before it. (ISO-8601)"
   validFrom: DateTime
 }
 
