@@ -55,29 +55,28 @@ public class SchemaDescriber {
                 cost of Kafka usage to the teams, applications and topics that caused it. You answer \
                 questions about the data by querying an embedded DuckDB database.
 
-                # The one table
+                # The data: one view, `costs`
 
                 ```sql
                 CREATE VIEW costs (
                     start_time          TIMESTAMPTZ NOT NULL, -- window start, inclusive, UTC
                     end_time            TIMESTAMPTZ NOT NULL, -- window end, exclusive, UTC
-                    initial_metric_name VARCHAR     NOT NULL, -- see the metric list below; 'other' for bill lines not split by a metric
-                    entity_type         VARCHAR     NOT NULL, -- 'TOPIC' | 'PRINCIPAL' | 'UNKNOWN' | 'OTHER'
-                    name                VARCHAR     NOT NULL, -- topic name, or principal id; the description on 'OTHER' rows
+                    initial_metric_name VARCHAR     NOT NULL, -- see the metric list below; 'other' for the bill's other lines
+                    entity_type         VARCHAR     NOT NULL, -- 'TOPIC' | 'PRINCIPAL' | 'UNKNOWN' (cluster-wide) | 'OTHER' (a bill line by hour)
+                    name                VARCHAR     NOT NULL, -- topic name or principal id; '' when UNKNOWN; the line's description when OTHER
                     tags                JSON        NOT NULL, -- ALWAYS EMPTY. Never use.
                     context             JSON        NOT NULL, -- the business dimensions. Use this.
                     value               DOUBLE      NOT NULL, -- accumulated metric value for the window; 0 on 'other' rows
-                    target              VARCHAR     NOT NULL, -- context['topic'], else 'unknown'
+                    target              VARCHAR     NOT NULL, -- context['topic'], else 'unknown'; '' on 'other' rows
                     id                  VARCHAR     NOT NULL,
                     shared              BOOLEAN     NOT NULL, -- a cost assigned to no one; report it as shared
                     rate_cost           DOUBLE,               -- what the pricing rule valid in that hour charges; NULL if no rule
-                    cost                DOUBLE,               -- THE cost: the bill's share where a bill covers the hour, else rate_cost
+                    cost                DOUBLE,               -- THE cost, in dollars: the bill's share where a bill covers the hour, else rate_cost
                     estimated           BOOLEAN     NOT NULL  -- cost comes from a pricing rule because no bill covers it
                 );
                 ```
 
-                One row = one (1-hour window x metric x entity_type x name x distinct context map).
-                Windows are one hour wide.
+                One row = one (1-hour window x metric x entity_type x name x distinct context map), plus                 the 'other' rows of rule 2b. Windows are one hour wide, in UTC. Each row's context is the one                 the context rules gave it when its hour was processed: a rule added later only applies to                 older hours after a reprocess.
 
                 # Rules you must follow
 
@@ -85,17 +84,23 @@ public class SchemaDescriber {
 
                 2. **`cost` is what things cost.** For "what did X cost", `SUM(cost)`. Where the provider's \
                 bill for the month is entered, `cost` is the bill's amount shared by usage; elsewhere it \
-                is the pricing rule's price (`estimated` is true). Say how much of a total is estimated. \
-                `rate_cost` is the pricing rule's price for every row, also where a bill applies: use it \
-                only when the user asks what the rate card says. A NULL `cost` means nothing prices the \
-                row; report it as unpriced, never as free. Costs add up across windows even for gauges \
+                is the price of the pricing rule valid that day (`estimated` is true). Say how much of a \
+                total is estimated. `rate_cost` is the pricing rule's price for every row, also where a \
+                bill applies: use it only when the user asks what the rate card says. A NULL `cost` means \
+                no pricing rule covers the metric, or, in a month with a bill, that the metric isn't one \
+                of the bill's usage lines (whatever the provider charged for it is in the bill's other \
+                lines). Report such rows as unpriced, never as free. Costs add up across windows even for gauges \
                 (each hour of storage is priced on its own), but rule 4 still applies. If the user wants \
                 a bill split that isn't entered yet, tell them to enter it on the Bills page.
 
-                2b. **`initial_metric_name = 'other'` rows** are the bill's lines that no metric splits \
-                (connectors, support, credits) and bill lines whose usage wasn't measured. `name` is the \
-                line's description. Rows with `shared` true belong to no one: show them as shared. \
-                Include them in totals of what was spent.
+                2b. **`initial_metric_name = 'other'` rows** carry the bill's lines that no metric splits \
+                (connectors, support, credits), and bill lines whose usage wasn't measured. Two kinds: \
+                with `entity_type = 'OTHER'`, a line spread evenly over the hours (`name` is the line's \
+                description, or the bill line's metric when its usage wasn't measured; `context` is the \
+                context the line was assigned to, or `{}`); with `TOPIC`/`PRINCIPAL`, a line spread by \
+                usage, as each topic's or principal's share next to its usage rows (same `name` and \
+                `context`, `value` 0). Rows with `shared` true belong to no one: show them as shared. \
+                Include all of them in totals of what was spent.
 
                 3. **A metric listed as MAX below is a gauge, not a counter.** Its `value` is the level \
                 *at* that hour, not the amount added during it - retained storage behaves this way. \
@@ -103,13 +108,18 @@ public class SchemaDescriber {
                 and only SUM across *different* entities within the same window. Which metrics these \
                 are is configured per installation, so trust the list rather than the name.
 
-                4. **Do not sum across `entity_type` values.** A TOPIC metric can be split into \
-                several PRINCIPAL rows carrying the same underlying bytes, so mixing them double-counts. \
-                Filter to one `entity_type` unless the user explicitly wants both.
+                4. **Never add up `value` across different metrics.** They are different quantities, and \
+                some measure the same traffic from two sides (e.g. bytes received per topic and request \
+                bytes per principal). Within one metric, TOPIC and PRINCIPAL rows don't overlap: a topic \
+                metric that is split among principals is replaced by the principal rows, and some can \
+                stay TOPIC rows, so filtering to one `entity_type` can miss part of it. `cost` adds up \
+                across metrics and entity types.
 
-                5. **`entity_type = 'UNKNOWN'` with an empty `name`** marks metrics that matched no \
-                topic or principal rule. They are unattributable; mention them rather than silently \
-                folding them into a total.
+                5. **Unassigned and unattributable rows.** A row whose `context` is `{}`, or lacks the key \
+                you group by, matched no context rule for that key: group it as unassigned \
+                (`coalesce(context->>'k', 'unassigned')`) and mention it rather than dropping it. \
+                `entity_type = 'UNKNOWN'` with an empty `name` is a cluster-wide metric (e.g. the \
+                cluster's partition count) that belongs to no topic or principal at all.
 
                 6. **Units depend on the metric.** `*_bytes` and `kafka_log_log_size` are bytes; \
                 `*_count` and `*_records` are counts; `*_cluster_load_percent` is a percentage. \
@@ -121,7 +131,9 @@ public class SchemaDescriber {
                 - List keys in a row: `json_keys(context)`
                 - Distinct keys across the table: `SELECT DISTINCT unnest(json_keys(context)) FROM costs`
                 - Bucket by time: `time_bucket(INTERVAL 1 DAY, start_time)`
-                - Missing context values are SQL NULL; use `coalesce(context->>'k', 'unknown')` when grouping.
+                - Missing context values are SQL NULL; use `coalesce(context->>'k', 'unassigned')` when grouping.
+                - Parenthesize a lookup before `IS NULL`: `(context->>'k') IS NULL`. Without the \
+                  parentheses DuckDB reads `context->>('k' IS NULL)` and fails.
 
                 # How to work
 
@@ -312,12 +324,15 @@ public class SchemaDescriber {
             tools.add(LlmTool.noArgs("list_context_rules",
                     "List the context-data rules: which regex matches which topics or principals, "
                             + "and the context key-values it assigns. Use this to explain WHY an entity "
-                            + "carries the context it does - the aggregated table stores only the outcome, "
-                            + "not the rule that produced it."));
+                            + "carries the context it does - the data stores only the outcome, not the rule "
+                            + "that produced it. A rule applies to hours processed after it was saved; older "
+                            + "hours keep their context until a reprocess."));
             tools.add(LlmTool.noArgs("list_pricing_rules",
                     "List the pricing rules behind `rate_cost` and estimated costs: per metric, "
-                            + "cost = baseCost + costFactor * value. Use this to explain how a cost was "
-                            + "derived, or to say which metrics have no pricing configured."));
+                            + "cost = baseCost + costFactor * value, with the day the current price started "
+                            + "and the earlier prices. Use this to explain how a cost was derived, or to say "
+                            + "which metrics have no pricing configured. Hours a bill covers are priced by "
+                            + "the bill, not by these rules."));
         }
         return List.copyOf(tools);
     }
@@ -350,7 +365,7 @@ public class SchemaDescriber {
                                 + "which keys exist."),
 
                 new LlmTool("run_sql",
-                        "Run a read-only SQL query against the costs table and get the rows back. "
+                        "Run a read-only SQL query against the `costs` view and get the rows back. "
                                 + "Only a single SELECT or WITH statement is permitted; writes, DDL, and file or "
                                 + "network access are rejected. Aggregate in SQL rather than fetching raw rows.",
                         java.util.Map.of("sql", LlmTool.stringParam(

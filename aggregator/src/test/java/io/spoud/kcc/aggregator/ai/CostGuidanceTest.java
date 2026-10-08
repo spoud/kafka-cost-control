@@ -44,6 +44,23 @@ class CostGuidanceTest {
     }
 
     @Test
+    @DisplayName("The prompt describes how the app works today, not as it once did")
+    void promptMatchesHowTheAppWorks() {
+        String prompt = describer().buildSystemPrompt();
+
+        assertThat(prompt).contains("# The data: one view, `costs`").doesNotContain("The one table");
+        // a topic metric split among principals is replaced, so entity types don't overlap
+        assertThat(prompt).contains("Never add up `value` across different metrics")
+                .doesNotContain("Do not sum across `entity_type`");
+        // UNKNOWN means cluster-wide; rows without context are the unassigned ones
+        assertThat(prompt).contains("cluster-wide metric").contains("matched no context rule")
+                .doesNotContain("matched no topic or principal rule");
+        // spread-by-usage lines sit on topic and principal rows, named after them
+        assertThat(prompt).contains("with `TOPIC`/`PRINCIPAL`, a line spread by usage");
+        assertThat(prompt).contains("after a reprocess");
+    }
+
+    @Test
     @DisplayName("There is no tool to split an amount typed into the chat any more")
     void noInvoiceSplitTool() {
         assertThat(describer().tools()).extracting(LlmTool::name).doesNotContain("cost_overview");

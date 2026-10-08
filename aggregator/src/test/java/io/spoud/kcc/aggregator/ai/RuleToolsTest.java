@@ -83,6 +83,23 @@ class RuleToolsTest {
     }
 
     @Test
+    @DisplayName("A dated rule lists when its price started and the earlier prices")
+    void listsPriceHistory() {
+        var rule = new PricingRuleEntity(Instant.parse("2026-11-01T00:00:00Z"),
+                "confluent_kafka_server_request_bytes", 0.0, 0.16, null, null, null, null,
+                Instant.parse("2026-11-01T00:00:00Z"), List.of(new PricingRuleEntity.EarlierPrice(
+                        null, Instant.parse("2026-11-01T00:00:00Z"), 0.0, 0.1495, null, null, null, null)));
+        var pricing = Mockito.mock(PricingRulesStreamRepository.class);
+        Mockito.when(pricing.getPricingRules()).thenReturn(List.of(rule));
+        var registry = new ToolRegistry(null, null, new TestAiConfig(),
+                Mockito.mock(ContextDataStreamRepository.class), pricing);
+
+        assertThat(invoke(registry, "list_pricing_rules"))
+                .contains("cost = 0.0 + 0.16 * value since 2026-11-01T00:00:00Z")
+                .contains("earlier, always until 2026-11-01T00:00:00Z: cost = 0.0 + 0.1495 * value");
+    }
+
+    @Test
     @DisplayName("Private mode refuses both, since rules carry tenant names")
     void privateModeRefusesBoth() {
         var config = new TestAiConfig();
@@ -107,6 +124,6 @@ class RuleToolsTest {
 
         assertThat(invoke(registry, "list_context_rules")).contains("No context-data rules");
         // the model must not answer a cost question by inventing a rate
-        assertThat(invoke(registry, "list_pricing_rules")).contains("costs cannot be calculated");
+        assertThat(invoke(registry, "list_pricing_rules")).contains("only hours a bill covers have a cost");
     }
 }

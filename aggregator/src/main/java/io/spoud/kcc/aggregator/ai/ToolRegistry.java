@@ -225,12 +225,18 @@ public class ToolRegistry {
     private String listPricingRules() {
         var rules = pricingRulesRepository.getPricingRules();
         if (rules.isEmpty()) {
-            return "No pricing rules are configured, so costs cannot be calculated.";
+            return "No pricing rules are configured: only hours a bill covers have a cost.";
         }
         return rules.stream()
                 .sorted(Comparator.comparing(PricingRuleEntity::metricName))
-                .map(r -> "%s: cost = %s + %s * value%s".formatted(
-                        r.metricName(), r.baseCost(), r.costFactor(), priceAsEntered(r)))
+                .map(r -> "%s: cost = %s + %s * value%s%s%s".formatted(
+                        r.metricName(), r.baseCost(), r.costFactor(), priceAsEntered(r),
+                        r.validFrom() == null ? "" : " since " + r.validFrom(),
+                        r.earlierPrices().stream()
+                                .map(p -> "\n  earlier, %s until %s: cost = %s + %s * value".formatted(
+                                        p.validFrom() == null ? "always" : "from " + p.validFrom(),
+                                        p.validUntil(), p.baseCost(), p.costFactor()))
+                                .collect(Collectors.joining())))
                 .collect(Collectors.joining("\n"));
     }
 
