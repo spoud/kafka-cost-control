@@ -30,7 +30,10 @@ class BilledCostsTest {
     private static final Instant NOW = Instant.parse("2026-12-01T00:00:00Z");
 
     private AggregatedMetricsRepository repo;
+    private CostsView view;
     private final Map<YearMonth, BillEntity> bills = new HashMap<>();
+    /** The pricing rules' rates; estimates come from them, computed when asked. */
+    private final List<CostsView.RatePeriod> rates = new java.util.ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -40,6 +43,11 @@ class BilledCostsTest {
         var costConfig = TestConfigProperties.builder().build();
         repo = new AggregatedMetricsRepository(olapConfig, costConfig, olapInfra,
                 new MetricNameRepository(new MetricReducer(costConfig), olapInfra));
+        view = new CostsView(olapInfra, null, null);
+    }
+
+    private void rate(String metric, double costFactor) {
+        rates.add(new CostsView.RatePeriod(metric, null, null, 0, costFactor));
     }
 
     @Test
@@ -94,8 +102,10 @@ class BilledCostsTest {
     @Test
     @DisplayName("A month without a bill uses the rate card and says it is estimated")
     void withoutABillTheRateCardIsAnEstimate() {
-        usage("2026-11-02T10:00:00Z", "a", WRITE, 10, 0.25);
-        usage("2026-11-02T10:00:00Z", "b", READ, 10, 0.5);
+        usage("2026-11-02T10:00:00Z", "a", WRITE, 10, null);
+        usage("2026-11-02T10:00:00Z", "b", READ, 10, null);
+        rate(WRITE, 0.025);
+        rate(READ, 0.05);
 
         var costs = costs("2026-11-01T00:00:00Z", "2026-12-01T00:00:00Z");
 
@@ -108,8 +118,9 @@ class BilledCostsTest {
     @Test
     @DisplayName("After a month-to-date bill's end, the rate card takes over")
     void monthToDateBillThenEstimate() {
-        usage("2026-10-05T10:00:00Z", "a", WRITE, 10, 0.5);
-        usage("2026-10-15T10:00:00Z", "b", WRITE, 10, 0.7);
+        usage("2026-10-05T10:00:00Z", "a", WRITE, 10, null);
+        usage("2026-10-15T10:00:00Z", "b", WRITE, 10, null);
+        rate(WRITE, 0.07);
         bill("2026-10", "2026-10-10T00:00:00Z", 10.0, null);
 
         var costs = costs("2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z");
@@ -123,9 +134,12 @@ class BilledCostsTest {
     @Test
     @DisplayName("A line the bill doesn't have is estimated; billed months don't add other priced metrics")
     void missingLineIsEstimated() {
-        usage("2026-09-03T10:00:00Z", "a", WRITE, 10, 0.1);
-        usage("2026-09-03T10:00:00Z", "a", READ, 10, 0.3);
-        usage("2026-09-03T10:00:00Z", "a", "some_other_priced_metric", 10, 9.0);
+        usage("2026-09-03T10:00:00Z", "a", WRITE, 10, null);
+        usage("2026-09-03T10:00:00Z", "a", READ, 10, null);
+        usage("2026-09-03T10:00:00Z", "a", "some_other_priced_metric", 10, null);
+        rate(WRITE, 0.01);
+        rate(READ, 0.03);
+        rate("some_other_priced_metric", 0.9);
         bill("2026-09", null, 5.0, null);
 
         var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z");
@@ -147,14 +161,15 @@ class BilledCostsTest {
                 new OtherLine("Credit", -2.0, OtherLine.Allocation.SHARED, null)),
                 NOW, "test"));
 
-        // the first 15 of September's 30 days: half of every line
+        // the first 15 of September's 30 days
         var costs = costs("2026-09-01T00:00:00Z", "2026-09-16T00:00:00Z");
 
         assertThat(prices(costs, WRITE)).containsOnly(Map.entry("a", 750.0), Map.entry("b", 250.0));
-        // Connect half -> etl 200; Support half 400 by write costs 3:1 -> a 300, b 100;
-        // credit half -100 and the unmeasured read line half 300 -> shared 200
+        // by time: Connect half -> etl 200; credit half -100 and the unmeasured read line half 300
+        // -> shared 200. Support follows the billed usage, all of which is on 3 September: all 800,
+        // by write costs 3:1 -> a 600, b 200
         assertThat(prices(costs, AggregatedMetricsRepository.OTHER)).containsOnly(
-                Map.entry("etl", 200.0), Map.entry("a", 300.0), Map.entry("b", 100.0), Map.entry("<shared>", 200.0));
+                Map.entry("etl", 200.0), Map.entry("a", 600.0), Map.entry("b", 200.0), Map.entry("<shared>", 200.0));
     }
 
     @Test
@@ -169,14 +184,40 @@ class BilledCostsTest {
     }
 
     @Test
+    @DisplayName("Estimates use the rules as they are now: a correction applies to the past at once")
+    void estimatesFollowTheRulesWhenAsked() {
+        usage("2026-11-02T10:00:00Z", "a", WRITE, 10, null);
+        rate(WRITE, 0.01);
+        assertThat(prices(costs("2026-11-01T00:00:00Z", "2026-12-01T00:00:00Z"), WRITE)).containsOnly(Map.entry("a", 10.0));
+
+        rates.clear();
+        rate(WRITE, 0.02);
+
+        // no reprocess: the next query prices the same hour with the corrected rule
+        assertThat(prices(costs("2026-11-01T00:00:00Z", "2026-12-01T00:00:00Z"), WRITE)).containsOnly(Map.entry("a", 20.0));
+    }
+
+    @Test
+    @DisplayName("A dated price change keeps the earlier price for the hours before it")
+    void datedPriceChange() {
+        Instant change = Instant.parse("2026-11-15T00:00:00Z");
+        usage("2026-11-02T10:00:00Z", "a", WRITE, 10, null);
+        usage("2026-11-20T10:00:00Z", "b", WRITE, 10, null);
+        rates.add(new CostsView.RatePeriod(WRITE, null, change, 0, 0.01));
+        rates.add(new CostsView.RatePeriod(WRITE, change, null, 0, 0.05));
+
+        assertThat(prices(costs("2026-11-01T00:00:00Z", "2026-12-01T00:00:00Z"), WRITE))
+                .containsOnly(Map.entry("a", 10.0), Map.entry("b", 50.0));
+    }
+
+    @Test
     @DisplayName("Without grouping, each metric has one total")
     void withoutGroupingOneTotalPerMetric() {
         usage("2026-09-03T10:00:00Z", "a", WRITE, 30, null);
         usage("2026-09-20T10:00:00Z", "b", WRITE, 10, null);
         bill("2026-09", null, 10.0, null);
 
-        var costs = repo.calculateBilledCosts(new BilledCostRequest(Instant.parse("2026-09-01T00:00:00Z"),
-                Instant.parse("2026-10-01T00:00:00Z"), List.of()), bills, NOW);
+        var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z", List.of());
 
         assertThat(costs.metrics()).singleElement().satisfies(m -> assertThat(m.shares()).singleElement()
                 .satisfies(share -> {
@@ -190,7 +231,7 @@ class BilledCostsTest {
         repo.insertRow(AggregatedDataWindowed.newBuilder()
                 .setStartTime(start).setEndTime(start.plus(Duration.ofHours(1)))
                 .setEntityType(EntityType.TOPIC).setName(team).setInitialMetricName(metric)
-                .setValue(value).setCost(cost).setTags(Map.of()).setContext(Map.of("team", team))
+                .setValue(value).setTags(Map.of()).setContext(Map.of("team", team))
                 .build());
         repo.flushToDb();
     }
@@ -201,8 +242,12 @@ class BilledCostsTest {
     }
 
     private BilledCostResponse costs(String from, String to) {
-        return repo.calculateBilledCosts(new BilledCostRequest(Instant.parse(from), Instant.parse(to),
-                List.of("team")), bills, NOW);
+        return costs(from, to, List.of("team"));
+    }
+
+    private BilledCostResponse costs(String from, String to, List<String> keys) {
+        view.define(rates, bills.values());
+        return repo.calculateBilledCosts(new BilledCostRequest(Instant.parse(from), Instant.parse(to), keys), bills, NOW);
     }
 
     private static Map<String, Double> prices(BilledCostResponse costs, String metric) {

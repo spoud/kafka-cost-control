@@ -66,6 +66,17 @@ public class PricingRulesStreamRepository {
         return StoreReads.retrying("pricing rules store", () -> getStore().get(metricName));
     }
 
+    /** The rules as stored, with their earlier prices. */
+    public List<PricingRule> getRawPricingRules() {
+        return StoreReads.retrying("pricing rules store", () -> {
+            List<PricingRule> list = new ArrayList<>();
+            try (final KeyValueIterator<String, PricingRule> iterator = getStore().all()) {
+                iterator.forEachRemaining(kv -> list.add(kv.value));
+            }
+            return list;
+        });
+    }
+
     public List<PricingRuleEntity> getPricingRules() {
         return StoreReads.retrying("pricing rules store", () -> {
             List<PricingRuleEntity> list = new ArrayList<>();

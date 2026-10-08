@@ -23,6 +23,18 @@ So costs follow how much was really used, not the number of days. Nothing needs 
 
 If Kafka Cost Control has data for only part of a month, the month's bill is shared over what it has. A bill line for usage it hasn't measured at all goes to `other` as `<shared>`.
 
+==== How costs are computed
+
+Every place that shows a cost - Cost Overview, Explore, the unassigned topics and service accounts - reads the same view, `costs`, in the OLAP database. It gives each stored hour:
+
+* in a month with a bill: the bill line's share by usage, as above; a metric that isn't one of the bill's lines costs nothing there, since everything else the provider billed is in the bill's other lines;
+* otherwise - no bill, after a month-to-date bill stops, or a line the bill leaves empty - the pricing rule's cost for that hour, marked as estimated;
+* and the bill's other lines and unmeasured lines, under `other`.
+
+The view is rebuilt when the rules or bills change (at the latest after 10 seconds), so it always reflects them.
+
+The `aggregated` and `aggregated-table-friendly` topics, and the `cost` column of an OLAP export, still carry the cost computed when the hour was processed, with the price valid then: the rate card at that time, without bills.
+
 ==== Storage
 
 Bills are kept in a compacted Kafka topic (`cc.topics.bills`, default `bills`), keyed by month. Kafka Cost Control creates it when it is missing; where its user may not create topics, create it beforehand with `cleanup.policy=compact` and one partition. Until the topic can be read, bills are unavailable and the rest of the application works as before.
