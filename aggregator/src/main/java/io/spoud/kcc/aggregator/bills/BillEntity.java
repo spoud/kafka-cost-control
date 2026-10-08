@@ -1,5 +1,6 @@
 package io.spoud.kcc.aggregator.bills;
 
+import io.spoud.kcc.aggregator.stream.serialization.AvroTrust;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.spoud.kcc.data.Bill;
 import org.eclipse.microprofile.graphql.Description;
@@ -24,6 +25,10 @@ public record BillEntity(
         @NonNull List<@NonNull OtherLine> otherLines,
         @NonNull Instant updatedAt,
         String updatedBy) {
+
+    static {
+        AvroTrust.ensure();
+    }
 
     public static BillEntity fromAvro(Bill bill) {
         return new BillEntity(bill.getMonth(), bill.getCoveredUntil(), bill.getNetworkWrite(),
