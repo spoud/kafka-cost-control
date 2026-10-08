@@ -111,8 +111,8 @@ export class PricingRuleSaveComponent {
         priceUnit: [this.start.priceUnit, Validators.required],
         multiplier: [this.start.multiplier as number | null, Validators.min(0.000001)],
         multiplierLabel: [this.data.rule?.multiplierLabel ?? ''],
-        // 'always': correct the current price (or, for a new rule, price every hour);
-        // 'from': a new price from a day on, the current one keeps the hours before
+        // 'always': correct the current price (or, for a new rule, price every day);
+        // 'from': a new price from a day on, the current one keeps the days before
         applies: ['always' as 'always' | 'from'],
         from: [null as Date | null],
     });
@@ -120,6 +120,18 @@ export class PricingRuleSaveComponent {
     /** The current price's start, for the hint; null when it has always applied. */
     protected currentFrom = this.data.rule?.validFrom
         ? new Date(String(this.data.rule.validFrom))
+        : null;
+
+    /**
+     * The first day a new price can start: the day after the current price's, as the picker's
+     * local calendar day (the picked day is read as that day in UTC).
+     */
+    protected earliestFrom = this.currentFrom
+        ? new Date(
+              this.currentFrom.getUTCFullYear(),
+              this.currentFrom.getUTCMonth(),
+              this.currentFrom.getUTCDate() + 1
+          )
         : null;
 
     private metricName = toSignal(this.form.controls.metricName.valueChanges, {

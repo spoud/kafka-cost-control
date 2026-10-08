@@ -182,13 +182,7 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
 
     /** The earlier prices, one per line, for the tooltip. */
     protected history(rule: PricingRuleEntity): string {
-        const day = (t: unknown) =>
-            t ? new Date(String(t)).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'always';
-        return rule.earlierPrices
-            .map(
-                p => `${day(p.validFrom)} – ${day(p.validUntil)}: ${formatPrice({ ...rule, ...p })}`
-            )
-            .join('\n');
+        return priceHistory(rule);
     }
 
     undo(rule: PricingRuleEntity) {
@@ -246,4 +240,18 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
             this._liveAnnouncer.announce('Sorting cleared');
         }
     }
+}
+
+/** A rule's earlier prices, one per line, each with the first and last day (UTC) it covered. */
+export function priceHistory(rule: PricingRuleEntity): string {
+    const day = (time: number) => new Date(time).toLocaleDateString(undefined, { timeZone: 'UTC' });
+    const from = (t: unknown) => (t ? day(Date.parse(String(t))) : 'always');
+    // validUntil is exclusive: that day already has the next price
+    const lastDay = (t: unknown) => day(Date.parse(String(t)) - 24 * 60 * 60 * 1000);
+    return rule.earlierPrices
+        .map(
+            p =>
+                `${from(p.validFrom)} – ${lastDay(p.validUntil)}: ${formatPrice({ ...rule, ...p })}`
+        )
+        .join('\n');
 }

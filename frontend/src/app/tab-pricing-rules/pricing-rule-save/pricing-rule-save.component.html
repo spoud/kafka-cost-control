@@ -74,7 +74,7 @@
                                 : ''
                         }}
                     } @else {
-                        Every hour
+                        Always
                     }
                 </mat-radio-button>
                 <mat-radio-button value="from">
@@ -84,14 +84,26 @@
             @if (form.controls.applies.value === 'from') {
                 <mat-form-field>
                     <mat-label>From (UTC)</mat-label>
-                    <input matInput [matDatepicker]="fromPicker" formControlName="from" />
+                    <input
+                        matInput
+                        [matDatepicker]="fromPicker"
+                        [min]="earliestFrom"
+                        formControlName="from"
+                    />
                     <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
                     <mat-datepicker #fromPicker />
                     <mat-hint>{{
                         editing
-                            ? 'The current price keeps the hours before this day.'
-                            : 'Hours before this day get no price from this rule.'
+                            ? 'The current price keeps the days before this one.'
+                            : 'Days before this one get no price from this rule.'
                     }}</mat-hint>
+                    @if (form.controls.from.hasError('matDatepickerMin') && earliestFrom) {
+                        <mat-error>
+                            Pick a day after
+                            {{ currentFrom | date: 'mediumDate' : 'UTC' }}, when the current price
+                            started. To change the current price itself, correct it.
+                        </mat-error>
+                    }
                 </mat-form-field>
             }
         </div>
