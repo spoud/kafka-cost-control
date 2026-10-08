@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.duckdb</groupId>
             <artifactId>duckdb_jdbc</artifactId>
-            <version>1.5.5.1</version>
+            <version>1.5.6.0</version>
         </dependency>
         <!--
           One dependency for every LLM vendor. Ollama, OpenAI, Anthropic, Gemini, OpenRouter,
