@@ -1,0 +1,50 @@
+=== Monthly bills
+
+Enter what your provider billed for a month, and Kafka Cost Control shares it among topics and principals by their usage. Where no bill applies, the costs come from the pricing rules and are marked as estimated - so a running month shows estimates until its bill is in.
+
+A bill has, in dollars:
+
+* one amount per usage-billed line, named after the metric it is shared by: `confluent_kafka_server_request_bytes` (network write), `confluent_kafka_server_response_bytes` (network read), `confluent_kafka_server_retained_bytes` (storage) and `kafka_topic_partition_count` (partitions);
+* optionally *other lines*: everything else on the bill (connectors, support, credits as a negative amount), each with a description and where it goes:
+** *to a context*, e.g. `tenant=data-platform` or `application=etl`: all of it, shown under that context;
+** *spread by usage*: shared out like overhead, in proportion to each group's usage-based costs that month;
+** *shared*: assigned to no one, shown as `<shared>`;
+* optionally *covers up to*: for a month-to-date bill, where its amounts stop. After that, the month is estimated.
+
+All other lines appear under the cost `other`.
+
+Saving a bill for a month that already has one replaces it. A line you leave empty is estimated from the pricing rules.
+
+==== How a bill is shared
+
+Each month is taken on its own (UTC). A topic's part of a line is its usage in the month divided by the month's usage, up to where the bill stops. For a date range that covers only part of a month, that is the usage in the range: 10 to 20 September gets the usage of those days divided by September's usage, times September's line. A range across months adds up each month's part of its own bill.
+
+So costs follow how much was really used, not the number of days. Nothing needs to be recalculated when a bill is added or corrected: the costs are computed when you look at them. (Context rules are different: a change there needs a reprocess.)
+
+If Kafka Cost Control has data for only part of a month, the month's bill is shared over what it has. A bill line for usage it hasn't measured at all goes to `other` as `<shared>`.
+
+==== Storage
+
+Bills are kept in a compacted Kafka topic (`cc.topics.bills`, default `bills`), keyed by month. Kafka Cost Control creates it when it is missing; where its user may not create topics, create it beforehand with `cleanup.policy=compact` and one partition. Until the topic can be read, bills are unavailable and the rest of the application works as before.
+
+===== Using GraphQL
+[source,graphql]
+----
+mutation saveBill {
+  saveBill(request: {month: "2026-09", networkWrite: 0.27, networkRead: 0.22, storage: 8.12, partitions: 22.50,
+      otherLines: [{description: "Support", amount: 50, allocation: USAGE},
+                   {description: "Connect", amount: 12, allocation: CONTEXT, context: [{key: "application", value: "etl"}]}]}) {
+    month
+    updatedBy
+  }
+}
+
+query costs {
+  billedCosts(request: {from: "2026-09-10T00:00:00Z", to: "2026-10-10T00:00:00Z", contextKeysToGroupBy: ["tenant"]}) {
+    metrics { metric shares { name price estimatedPrice } }
+    months { month billed billedUntil }
+  }
+}
+----
+
+`billedCosts` returns cents. `estimatedPrice` is the part of `price` that comes from the pricing rules.

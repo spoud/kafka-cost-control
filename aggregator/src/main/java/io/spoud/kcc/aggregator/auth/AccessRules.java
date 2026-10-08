@@ -8,7 +8,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /** Whether a signed-in user may use the application, and the name to show for them. */
-final class AccessRules {
+public final class AccessRules {
 
     private AccessRules() {
     }
@@ -34,7 +34,7 @@ final class AccessRules {
         return emails.contains(email) || domains.contains(email.substring(email.lastIndexOf('@') + 1));
     }
 
-    static String displayName(SecurityIdentity identity) {
+    public static String displayName(SecurityIdentity identity) {
         if (identity == null || identity.isAnonymous()) {
             return null;
         }

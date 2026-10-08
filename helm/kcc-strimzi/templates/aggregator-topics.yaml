@@ -18,6 +18,11 @@
 {{- end -}}
 {{ $contextTopic := (include "contextTopic" .) }}
 
+{{- define "billsTopic" -}}
+{{- if .Values.topics.bills.topicName }}{{ .Values.topics.bills.topicName }}{{ else }}{{ printf "%s-bills" .Release.Name }}{{ end }}
+{{- end -}}
+{{ $billsTopic := (include "billsTopic" .) }}
+
 {{- define "rawMetricsTopics" -}}
 {{ $fallbackTopic := (include "telegrafTopic" .) }}
 {{- if .Values.topics.toAggregate }}{{ join "," .Values.topics.toAggregate }}{{ else }}{{ $fallbackTopic }}{{ end }}
@@ -35,6 +40,20 @@ metadata:
     spoud.io/kcc-context.application: kafka-cost-control
 spec:
   partitions: {{ .Values.topics.pricingRules.partitions }}
+  config:
+    cleanup.policy: compact
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: {{ $billsTopic }}
+  labels:
+    strimzi.io/cluster: {{ .Values.strimzi.clusterName }}
+  annotations:
+    spoud.io/kcc-context.application: kafka-cost-control
+spec:
+  # one record per month; compacted, so every bill stays
+  partitions: 1
   config:
     cleanup.policy: compact
 ---

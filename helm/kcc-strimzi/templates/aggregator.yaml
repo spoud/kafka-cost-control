@@ -1,4 +1,5 @@
 {{ $pricingRulesTopic := (include "pricingRulesTopic" .) }}
+{{ $billsTopic := (include "billsTopic" .) }}
 {{ $aggregatedTopic := (include "aggregatedTopic" .) }}
 {{ $aggregatedTableFriendlyTopic := (include "aggregatedTableFriendlyTopic" .) }}
 {{ $contextTopic := (include "contextTopic" .) }}
@@ -94,6 +95,8 @@ spec:
               value: {{ .Values.strimzi.bootstrapServer }}
             - name: CC_TOPICS_PRICING_RULES
               value: {{ $pricingRulesTopic }}
+            - name: CC_TOPICS_BILLS
+              value: {{ $billsTopic }}
             - name: CC_TOPICS_AGGREGATED
               value: {{ $aggregatedTopic }}
             - name: CC_TOPICS_AGGREGATED_TABLE_FRIENDLY
