@@ -6,7 +6,7 @@ import org.eclipse.microprofile.graphql.NonNull;
 import java.time.Instant;
 import java.util.List;
 
-/** In cents, like costOverview. */
+/** In cents. */
 public record BilledCostResponse(
         @NonNull List<@NonNull MetricCosts> metrics,
         @Description("Each month the range touches, and whether a bill covers it") @NonNull List<@NonNull MonthBilling> months) {

@@ -32,7 +32,7 @@ describe('CostOverviewStore hydration', () => {
 
     it('rejects stored state whose dates would revive as Invalid Date', () => {
         // reviveDates on an object without from/to yields Invalid Date, which would flow into the
-        // form and then into the costOverview GraphQL variables.
+        // form and then into the billedCosts GraphQL variables.
         localStorage.setItem(CURRENT_STATE_KEY, JSON.stringify({ groupBy: [] }));
 
         const store = TestBed.inject(CostOverviewStore);

@@ -15,7 +15,7 @@ public record UnassignedEntity(
         @NonNull String name,
         @Description("Metrics recorded for it in the period")
         @NonNull List<@NonNull String> metrics,
-        @Description("What its pricing rules charged in the period, in dollars")
+        @Description("What it cost in the period, in dollars, as on Cost Overview")
         @NonNull double cost,
         @Description("End of the last window it appeared in")
         @NonNull Instant lastSeen) {

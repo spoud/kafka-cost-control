@@ -12,10 +12,7 @@ import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.bills.BillEntity;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
-import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
-import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
-import io.spoud.kcc.aggregator.graphql.data.TableResponse;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.data.AggregatedDataWindowed;
 import io.spoud.kcc.olap.domain.tables.AggregatedData;
@@ -24,12 +21,9 @@ import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.eclipse.microprofile.graphql.NonNull;
 import org.jooq.*;
-import org.jooq.Record;
 import org.jooq.impl.DSL;
 
-import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -42,12 +36,10 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static io.spoud.kcc.olap.domain.Tables.AGGREGATED_DATA;
-import static org.jooq.impl.DSL.sum;
 
 @Startup
 @ApplicationScoped
@@ -343,114 +335,6 @@ public class AggregatedMetricsRepository {
         return metricToAggregatedValue;
     }
 
-    // Request bytes flow client->broker (produce), which Confluent bills as network write;
-    // response bytes flow broker->client (fetch), billed as network read. Partitions follow the
-    // kafka-scraper's per-topic count (hourly max, so each topic's share is its partition-hours):
-    // Confluent's own partition_count is per cluster and can't be split by topic.
-    Map<String, Function<CostOverviewRequest, Integer>> metricToProvidedValue = Map.of(
-            "confluent_kafka_server_retained_bytes", CostOverviewRequest::kafkaStorageCents,
-            "confluent_kafka_server_request_bytes", CostOverviewRequest::kafkaNetworkWriteCents,
-            "confluent_kafka_server_response_bytes", CostOverviewRequest::kafkaNetworkReadCents,
-            "kafka_topic_partition_count", CostOverviewRequest::kafkaPartitionsCents
-    );
-
-    public @NonNull TableResponse calculateTable(CostOverviewRequest request) {
-        return olapInfra.getDSLContext().map((dslContext) -> {
-                    AggregatedData a = AGGREGATED_DATA.as("a");
-
-                    Map<String, Double> metricToTotal = dslContext
-                            .select(a.INITIAL_METRIC_NAME, sum(a.VALUE))
-                            .from(a)
-                            .where(withinWindow(a, request.from(), request.to()))
-                            .groupBy(a.INITIAL_METRIC_NAME)
-                            .stream()
-                            .collect(Collectors.toMap(
-                                    record -> record.value1(),
-                                    record -> record.value2().doubleValue()
-                            ));
-
-                    List<Field<String>> contextKeys = request.contextKeysToGroupBy().stream()
-                            .map(key -> DSL.field("context->>{0}", String.class, DSL.val(key)).as(key))
-                            .toList();
-                    List<Field<?>> combined = new ArrayList<>(contextKeys);
-                    combined.add(a.INITIAL_METRIC_NAME);
-
-                    List<TableResponse.TableEntry> entries = dslContext
-                            .select(a.INITIAL_METRIC_NAME)
-                            .select(contextKeys)
-                            .select(sum(a.VALUE))
-                            .from(a)
-                            .where(withinWindow(a, request.from(), request.to()))
-                            .groupBy(combined)
-                            .orderBy(contextKeys)
-                            .stream()
-                            .map(record -> {
-                                List<String> context = contextKeys.stream()
-                                        .map(record::get)
-                                        .map(contextValue -> Objects.requireNonNullElse(contextValue, "<unknown>"))
-                                        .toList();
-
-                                String initialMetricName = record.get(a.INITIAL_METRIC_NAME);
-                                double total = record.get(sum(a.VALUE)).doubleValue();
-                                Double totalForMetric = metricToTotal.get(initialMetricName);
-                                return new TableResponse.TableEntry(
-                                        initialMetricName,
-                                        context,
-                                        total,
-                                        total / totalForMetric
-                                );
-                            }).toList();
-                    return new TableResponse(entries);
-                }).
-
-                orElseGet(() -> new
-
-                        TableResponse(List.of()));
-    }
-
-    /**
-     * Per metric!
-     * <p>
-     * could be other context
-     * context-1      context-2   percentage
-     * dev              app-1       10%
-     * prod             app-1       2.5%
-     * dev              app-2       5%
-     * null             null        30%   <-- "other"
-     * ...              ...         ...
-     */
-    public CostOverviewResponse calculateCosts(CostOverviewRequest request) {
-        List<CostOverviewResponse.MetricToDistributionMap> metricToDistributionMapList = new ArrayList<>();
-
-        metricToProvidedValue.forEach((metricName, value) -> {
-            Integer priceInCents = value.apply(request);
-            if (priceInCents == null || priceInCents == 0) {
-                // if we have a zero amount of costs we don't do any calculations for that metric
-                return;
-            }
-            double totalForMetric = getTotalForMetric(request.from(), request.to(), metricName);
-            if (totalForMetric == 0) {
-                // this is surprising and unexpected since we have a total price (costs) associated with this metric but nothing in our metrics
-                Log.warnf("No aggregated data for metric %s in range %s–%s, skipping cost distribution", metricName, request.from(), request.to());
-                return;
-            }
-
-            // no context keys selected means "no grouping" - just show the metric-level total, without a further breakdown
-            List<CostOverviewResponse.MetricToDistributionMap.NameToPrice> nameToPrices = request.contextKeysToGroupBy().isEmpty()
-                    ? List.of()
-                    : getTotalGroupedByContext(request.from(), request.to(), request.contextKeysToGroupBy(), metricName).stream()
-                            .map(aggregatedTotal -> new CostOverviewResponse.MetricToDistributionMap.NameToPrice(
-                                    formatContextLabel(request.contextKeysToGroupBy(), aggregatedTotal.contextValues()),
-                                    (aggregatedTotal.total() / totalForMetric) * priceInCents,
-                                    aggregatedTotal.contextValues()
-                            ))
-                            .toList();
-            metricToDistributionMapList.add(new CostOverviewResponse.MetricToDistributionMap(metricName, nameToPrices));
-
-        });
-        return new CostOverviewResponse(metricToDistributionMapList);
-    }
-
     /** The bill's amounts that aren't split by a metric's usage, named like the bill's field. */
     public static final String OTHER = "other";
     /** Context value of what isn't assigned to anyone; distinct from {@code <other>}, which means "no value". */
@@ -540,28 +424,9 @@ public class AggregatedMetricsRepository {
         return to == null ? condition : condition.and(a.END_TIME.le(to.atOffset(ZoneOffset.UTC)));
     }
 
-    private double getTotalForMetric(Instant startDate, @Nullable Instant endDate, String initialMetricName) {
-        return olapInfra.getDSLContext().map(dslContext -> {
-            AggregatedData a = AGGREGATED_DATA.as("a");
-            Record1<BigDecimal> record = dslContext
-                    .select(sum(a.VALUE))
-                    .from(a)
-                    .where(withinWindow(a, startDate, endDate)
-                            .and(a.INITIAL_METRIC_NAME.eq(initialMetricName)))
-                    .fetchOne();
-            if (record == null || record.value1() == null) {
-                return 0.0;
-            }
-            return record.value1().doubleValue();
-        }).orElse(0.0);
-    }
-
-    private record AggregatedTotal(List<String> contextValues, double total) {
-    }
-
     /**
      * Renders a grouped-by context tuple as a single label, e.g. {@code "team=platform, topic=orders"},
-     * so that grouping by multiple context keys stays distinguishable in the cost distribution response
+     * so that grouping by multiple context keys stays distinguishable in the cost response
      * instead of collapsing to just the last key's value.
      */
     private static String formatContextLabel(List<String> contextKeys, List<String> contextValues) {
@@ -571,48 +436,6 @@ public class AggregatedMetricsRepository {
                         : contextValues.get(i))
                 .collect(Collectors.joining(", "));
     }
-
-    /** Sums the usage per combination of context values. */
-    private List<AggregatedTotal> getTotalGroupedByContext(Instant startDate, @Nullable Instant endDate, List<String> contextKeysToGroupBy, String initialMetricName) {
-        List<AggregatedTotal> aggregatedTotals = new ArrayList<>();
-        return olapInfra.getDSLContext().map((dslContext) -> {
-            List<Field<String>> contextKeys = contextKeysToGroupBy.stream()
-                    .map(key -> DSL.field("context->>{0}", String.class, DSL.val(key)).as(key))
-                    .toList();
-
-            AggregatedData a = AGGREGATED_DATA.as("a");
-            var total = sum(a.VALUE).as("total");
-            SelectSeekStepN<Record> select = dslContext
-                    .select(contextKeys)
-                    .select(total)
-                    .from(a)
-                    .where(withinWindow(a, startDate, endDate)
-                            .and(a.INITIAL_METRIC_NAME.eq(initialMetricName)))
-                    .groupBy(contextKeys)
-                    .orderBy(contextKeys);
-
-            select.fetch().forEach(record -> {
-                if (record.get(total) == null) {
-                    return; // no grouping and no rows: one row with a null sum
-                }
-                List<String> values = new ArrayList<>();
-                for (String contextKey : contextKeysToGroupBy) {
-                    Object value = record.get(DSL.field(contextKey));
-                    if (value == null) {
-                        values.add("<other>");
-                    } else {
-                        values.add(value.toString());
-                    }
-                }
-                aggregatedTotals.add(new AggregatedTotal(
-                        values,
-                        record.get(total).doubleValue()
-                ));
-            });
-            return aggregatedTotals;
-        }).orElse(Collections.emptyList());
-    }
-
 
     public List<MetricEO> getHistory(Instant startDate, Instant endDate, Set<String> metricNames) {
         return olapInfra.getConnection().map((conn) -> {

@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.UnassignedEntity;
-import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
-import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
@@ -592,62 +590,6 @@ class AggregatedMetricsRepositoryTest {
     }
 
     @Test
-    @DisplayName("Invoice split: network write follows produce (request) bytes, network read follows fetch (response) bytes")
-    void invoiceSplitMapsWriteToRequestAndReadToResponseBytes() {
-        Instant start = Instant.parse("2026-01-01T00:00:00Z");
-        Instant end = start.plus(Duration.ofHours(1));
-        insertTeamBytes(start, end, "producer", "confluent_kafka_server_request_bytes", 90);
-        insertTeamBytes(start, end, "producer", "confluent_kafka_server_response_bytes", 10);
-        insertTeamBytes(start, end, "consumer", "confluent_kafka_server_request_bytes", 10);
-        insertTeamBytes(start, end, "consumer", "confluent_kafka_server_response_bytes", 90);
-        repo.flushToDb();
-
-        var response = repo.calculateCosts(new CostOverviewRequest(
-                start, end, 1200, null, 200, 1000, null, List.of("team")));
-
-        assertThat(pricesByTeam(response, "confluent_kafka_server_request_bytes"))
-                .containsEntry("producer", 900.0).containsEntry("consumer", 100.0);
-        assertThat(pricesByTeam(response, "confluent_kafka_server_response_bytes"))
-                .containsEntry("producer", 20.0).containsEntry("consumer", 180.0);
-    }
-
-    @Test
-    @DisplayName("Invoice split: the partition line follows each topic's partition-hours")
-    void invoiceSplitsPartitionsByPartitionHours() {
-        Instant start = Instant.parse("2026-01-01T00:00:00Z");
-        for (int hour = 0; hour < 2; hour++) {
-            Instant from = start.plus(Duration.ofHours(hour));
-            Instant to = from.plus(Duration.ofHours(1));
-            insertTeamBytes(from, to, "big", "kafka_topic_partition_count", 6);
-            insertTeamBytes(from, to, "small", "kafka_topic_partition_count", 2);
-        }
-        // Confluent's cluster-wide count has no topic to split by; it must not take part
-        insertTeamBytes(start, start.plus(Duration.ofHours(1)), "cluster", "confluent_kafka_server_partition_count", 13);
-        repo.flushToDb();
-
-        var response = repo.calculateCosts(new CostOverviewRequest(
-                start, start.plus(Duration.ofHours(2)), null, null, null, null, 800, List.of("team")));
-
-        assertThat(response.metricToDistributionMapList()).extracting(m -> m.metric())
-                .containsExactly("kafka_topic_partition_count");
-        assertThat(pricesByTeam(response, "kafka_topic_partition_count"))
-                .containsOnly(Map.entry("big", 600.0), Map.entry("small", 200.0));
-    }
-
-    private void insertTeamBytes(Instant start, Instant end, String team, String metric, double value) {
-        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setName(team)
-                .setInitialMetricName(metric).setValue(value).setContext(Map.of("team", team)).build());
-    }
-
-    private static Map<String, Double> pricesByTeam(CostOverviewResponse response, String metric) {
-        var distribution = response.metricToDistributionMapList().stream()
-                .filter(m -> m.metric().equals(metric)).findFirst().orElseThrow();
-        var prices = new HashMap<String, Double>();
-        distribution.nameToPriceList().forEach(p -> prices.put(p.contextValues().getFirst(), p.price()));
-        return prices;
-    }
-
-    @Test
     @DisplayName("A database with the stream's old cost column loses it in place and keeps its rows")
     void existingDatabaseDropsCostColumn(@TempDir Path dir) throws SQLException {
         var url = "jdbc:duckdb:" + dir.resolve("with-cost.duckdb");
@@ -729,20 +671,6 @@ class AggregatedMetricsRepositoryTest {
                 assertThat(series.getCosts()).containsExactly((Double) null);
             }
         });
-    }
-
-    @Test
-    @DisplayName("Cost queries without an end include every window from the start on")
-    void missingToMeansNoEnd() {
-        Instant start = Instant.parse("2026-01-01T00:00:00Z");
-        Instant farFuture = Instant.parse("2031-06-01T00:00:00Z");
-        repo.insertRow(teamRow(farFuture, farFuture.plus(Duration.ofHours(1)), "a", "confluent_kafka_server_retained_bytes", 5).build());
-        repo.flushToDb();
-
-        var invoice = repo.calculateCosts(new CostOverviewRequest(start, null, null, 1000, null, null, null, List.of("team")));
-
-        assertThat(invoice.metricToDistributionMapList()).singleElement()
-                .satisfies(d -> assertThat(d.nameToPriceList()).extracting(p -> p.price()).containsExactly(1000.0));
     }
 
     @Test

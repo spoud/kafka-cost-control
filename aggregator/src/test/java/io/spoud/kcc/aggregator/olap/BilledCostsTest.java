@@ -226,6 +226,23 @@ class BilledCostsTest {
                 }));
     }
 
+    @Test
+    @DisplayName("The partition line follows each topic's partition-hours, not the cluster's count")
+    void partitionsFollowPartitionHours() {
+        for (String hour : List.of("2026-09-03T10:00:00Z", "2026-09-03T11:00:00Z")) {
+            usage(hour, "big", "kafka_topic_partition_count", 6, null);
+            usage(hour, "small", "kafka_topic_partition_count", 2, null);
+        }
+        // Confluent's cluster-wide count has no topic to split by; it must not take part
+        usage("2026-09-03T10:00:00Z", "cluster", "confluent_kafka_server_partition_count", 13, null);
+        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, null, null, null, 8.0, List.of(), NOW, "test"));
+
+        var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z");
+
+        assertThat(prices(costs, "kafka_topic_partition_count")).containsOnly(Map.entry("big", 600.0), Map.entry("small", 200.0));
+        assertThat(prices(costs, "confluent_kafka_server_partition_count")).isEmpty();
+    }
+
     private void usage(String hour, String team, String metric, double value, Double cost) {
         Instant start = Instant.parse(hour);
         repo.insertRow(AggregatedDataWindowed.newBuilder()
