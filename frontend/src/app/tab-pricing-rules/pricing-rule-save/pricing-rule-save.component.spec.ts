@@ -1,5 +1,6 @@
 import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { SavePricingRuleGQL } from '../../../generated/graphql/sdk';
@@ -20,6 +21,8 @@ function setup(data: PricingRuleSaveData) {
             { provide: SavePricingRuleGQL, useValue: { mutate } },
             { provide: MatDialogRef, useValue: { close } },
             { provide: MAT_DIALOG_DATA, useValue: data },
+            // the app provides it in app.config
+            provideNativeDateAdapter(),
         ],
     });
     const fixture = TestBed.createComponent(PricingRuleSaveComponent);
@@ -61,7 +64,90 @@ describe('PricingRuleSaveComponent', () => {
             priceUnit: PriceUnit.GbHour,
             multiplier: 3,
             multiplierLabel: 'replicas',
+            validFrom: null,
         });
+    });
+
+    it('starts a new price from a day on, as a whole UTC day', () => {
+        const rule = {
+            metricName: 'confluent_kafka_server_request_bytes',
+            baseCost: 0,
+            costFactor: 0.1495 / GB,
+            price: 0.1495,
+            priceUnit: PriceUnit.Gb,
+            creationTime: '2026-09-29T00:00:00Z',
+            earlierPrices: [],
+        };
+        const { fixture, submit, sent } = setup({
+            rule,
+            metricNames: [],
+            pricedMetricNames: [rule.metricName],
+        });
+        const form = (
+            fixture.componentInstance as unknown as {
+                form: { patchValue(v: Record<string, unknown>): void };
+            }
+        ).form;
+        form.patchValue({ price: 0.16, applies: 'from', from: new Date(2026, 10, 1) });
+        fixture.detectChanges();
+        submit();
+
+        expect(sent()).toMatchObject({ price: 0.16, validFrom: '2026-11-01T00:00:00.000Z' });
+    });
+
+    it('only offers days after the current price started', () => {
+        const rule = {
+            metricName: 'confluent_kafka_server_request_bytes',
+            baseCost: 0,
+            costFactor: 0.1495 / GB,
+            price: 0.1495,
+            priceUnit: PriceUnit.Gb,
+            creationTime: '2026-09-29T00:00:00Z',
+            validFrom: '2026-10-01T00:00:00Z',
+            earlierPrices: [],
+        };
+        const { fixture, el, submit, sent, mutate } = setup({
+            rule,
+            metricNames: [],
+            pricedMetricNames: [rule.metricName],
+        });
+        const form = (
+            fixture.componentInstance as unknown as {
+                form: { patchValue(v: Record<string, unknown>): void };
+            }
+        ).form;
+        form.patchValue({ price: 0.16, applies: 'from' });
+        fixture.detectChanges();
+
+        // the day the current price started: the API would refuse it
+        form.patchValue({ from: new Date(2026, 9, 1) });
+        fixture.detectChanges();
+        submit();
+        expect(mutate).not.toHaveBeenCalled();
+        expect(el.textContent).toContain('Pick a day after');
+
+        form.patchValue({ from: new Date(2026, 9, 2) });
+        fixture.detectChanges();
+        submit();
+        expect(sent()).toMatchObject({ validFrom: '2026-10-02T00:00:00.000Z' });
+    });
+
+    it('does not save a new price from a day without the day', () => {
+        const { fixture, submit, mutate } = setup({
+            metricName: 'confluent_kafka_server_request_bytes',
+            metricNames: [],
+            pricedMetricNames: [],
+        });
+        const form = (
+            fixture.componentInstance as unknown as {
+                form: { patchValue(v: Record<string, unknown>): void };
+            }
+        ).form;
+        form.patchValue({ price: 0.16, applies: 'from' });
+        fixture.detectChanges();
+        submit();
+
+        expect(mutate).not.toHaveBeenCalled();
     });
 
     it('drops the multiplier label when there is no multiplier', () => {
@@ -88,6 +174,7 @@ describe('PricingRuleSaveComponent', () => {
             baseCost: 0,
             costFactor: 0.1495 / GB,
             creationTime: '2026-09-29T00:00:00Z',
+            earlierPrices: [],
         };
         const { input, submit, sent, close } = setup({
             rule,

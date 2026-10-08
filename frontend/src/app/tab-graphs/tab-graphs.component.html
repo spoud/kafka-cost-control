@@ -26,7 +26,7 @@
     } @else if (noCostData()) {
         <app-empty-state
             icon="sell"
-            message="No pricing rule priced this metric in the selected range. Rules price data processed after they exist."
+            message="No cost for this metric in the selected range: no bill covers it and no pricing rule prices it."
         >
             <a actions mat-stroked-button routerLink="/pricing-rules">Open Pricing Rules</a>
         </app-empty-state>

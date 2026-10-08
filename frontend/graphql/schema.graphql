@@ -64,6 +64,19 @@ type CostOverviewResponse {
   metricToDistributionMapList: [MetricToDistributionMap]
 }
 
+type EarlierPrice {
+  baseCost: Float!
+  costFactor: Float!
+  multiplier: Float
+  multiplierLabel: String
+  price: Float
+  priceUnit: PriceUnit
+  "ISO-8601"
+  validFrom: DateTime
+  "ISO-8601"
+  validUntil: DateTime!
+}
+
 type Entry_String_String {
   key: String
   value: String
@@ -128,6 +141,8 @@ type Mutation {
   saveBill(request: BillSaveRequestInput!): BillEntity!
   saveContextData(request: ContextDataSaveRequestInput): ContextDataEntity!
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
+  "Drops the current price and makes the previous one current again"
+  undoPricingRuleChange(request: PricingRuleDeleteRequestInput): PricingRuleEntity!
 }
 
 type NameToPrice {
@@ -154,6 +169,8 @@ type PricingRuleEntity {
   costFactor: Float!
   "ISO-8601"
   creationTime: DateTime!
+  "The prices before the current one, oldest first"
+  earlierPrices: [EarlierPrice!]!
   metricName: String!
   "Factor on top of the price, e.g. 3 replicas; null means 1"
   multiplier: Float
@@ -161,6 +178,8 @@ type PricingRuleEntity {
   "Price per priceUnit as entered; null for rules saved with a bare cost factor"
   price: Float
   priceUnit: PriceUnit
+  "When the current price started; null: it has always applied (ISO-8601)"
+  validFrom: DateTime
 }
 
 "Query root"
@@ -356,6 +375,8 @@ input PricingRuleSaveRequestInput {
   "Price per priceUnit; the cost factor is derived from it"
   price: Float
   priceUnit: PriceUnit
+  "Empty: correct the current price, everywhere it applies. A time: a new price from then on; the current price keeps the hours before it. (ISO-8601)"
+  validFrom: DateTime
 }
 
 input UnassignedEntitiesRequestInput {

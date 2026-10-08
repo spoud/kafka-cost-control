@@ -64,14 +64,59 @@
                 for one window.
             </p>
         }
+        <div class="applies">
+            <mat-radio-group formControlName="applies" aria-label="When this price applies">
+                <mat-radio-button value="always">
+                    @if (editing) {
+                        Correct the current price{{
+                            currentFrom
+                                ? ' (since ' + (currentFrom | date: 'mediumDate' : 'UTC') + ')'
+                                : ''
+                        }}
+                    } @else {
+                        Always
+                    }
+                </mat-radio-button>
+                <mat-radio-button value="from">
+                    {{ editing ? 'New price from a day on' : 'From a day on' }}
+                </mat-radio-button>
+            </mat-radio-group>
+            @if (form.controls.applies.value === 'from') {
+                <mat-form-field>
+                    <mat-label>From (UTC)</mat-label>
+                    <input
+                        matInput
+                        [matDatepicker]="fromPicker"
+                        [min]="earliestFrom"
+                        formControlName="from"
+                    />
+                    <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+                    <mat-datepicker #fromPicker />
+                    <mat-hint>{{
+                        editing
+                            ? 'The current price keeps the days before this one.'
+                            : 'Days before this one get no price from this rule.'
+                    }}</mat-hint>
+                    @if (form.controls.from.hasError('matDatepickerMin') && earliestFrom) {
+                        <mat-error>
+                            Pick a day after
+                            {{ currentFrom | date: 'mediumDate' : 'UTC' }}, when the current price
+                            started. To change the current price itself, correct it.
+                        </mat-error>
+                    }
+                </mat-form-field>
+            }
+        </div>
         <p class="note">
-            The rule prices data processed from now on. Past windows keep the price they were
-            processed with until the data is reprocessed.
+            Costs are computed when you look at them: the change shows at once, for every hour it
+            covers. Months with a bill use the bill instead.
         </p>
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
         <button mat-stroked-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button color="primary" [disabled]="form.invalid">Save</button>
+        <button mat-flat-button color="primary" [disabled]="form.invalid || missingFrom()">
+            Save
+        </button>
     </mat-dialog-actions>
 </form>
