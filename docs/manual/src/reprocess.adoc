@@ -1,6 +1,8 @@
 === Reprocess
 
-Reprocessing applies the context rules and pricing rules *as they are now* to data you already have: for example after fixing a wrong price, or after adding a rule for a service account or topic that showed up without context. Everything from the chosen start time on is rebuilt from the raw metrics; data before it is left as it is.
+Reprocessing applies the context rules *as they are now* to data you already have: for example after adding a rule for a service account or topic that showed up without context. Everything from the chosen start time on is rebuilt from the raw metrics; data before it is left as it is.
+
+Prices don't need it: costs are computed when you look at them, from the pricing rules (with their dates) and the bills as they are now. A corrected price or a new bill shows at once.
 
 While the rebuild runs, data from the start time on is incomplete and fills up again: depending on how much raw data there is, this takes minutes to hours. The `kcc_*` Prometheus gauges replay the historical values during that time.
 

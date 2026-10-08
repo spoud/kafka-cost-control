@@ -45,6 +45,7 @@ public class OlapInfra {
             getConnection().ifPresent((conn) -> {
                 try {
                     createTableIfNotExists(conn);
+                    CostsView.createEmpty(this);
                 } catch (SQLException e) {
                     Log.error("Failed to create OLAP table", e);
                 }

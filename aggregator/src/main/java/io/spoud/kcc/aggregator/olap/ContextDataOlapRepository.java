@@ -53,7 +53,8 @@ public class ContextDataOlapRepository {
      */
     public @NonNull List<@NonNull UnassignedEntity> unassignedEntities(Instant from, Instant to, @Nullable String contextKey) {
         return olapInfra.getDSLContext().map(dslContext -> {
-            AggregatedData a = AGGREGATED_DATA.as("a");
+            // the costs view, so the cost shown is the one Cost Overview uses
+            AggregatedData a = AGGREGATED_DATA.rename(CostsView.NAME).as("a");
             Condition assigned = contextKey == null
                     ? DSL.condition("len(json_keys({0})) > 0", a.CONTEXT)
                     // parenthesized: DuckDB would read `context->>key IS NULL` as `context->>(key IS NULL)`

@@ -682,15 +682,19 @@ class AggregatedMetricsRepositoryTest {
     void historyReturnsCostsAlongsideValues() {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = start.plus(Duration.ofHours(1));
-        repo.insertRow(teamRow(start, end, "priced", "metric", 10).setCost(2.5).build());
-        repo.insertRow(teamRow(start, end, "unpriced", "metric", 20).build());
+        repo.insertRow(teamRow(start, end, "priced", "metric", 10).build());
+        repo.insertRow(teamRow(start, end, "unpriced", "other_metric", 20).build());
         repo.flushToDb();
+        // a rule for one metric only, from the start of the hour on
+        new CostsView(olapInfra, null, null).define(List.of(
+                new CostsView.RatePeriod("metric", start, null, 0, 0.25)), List.of());
 
-        var history = repo.getHistoryGrouped(start, end, Set.of("metric"), "team", 1L);
+        var history = repo.getHistoryGrouped(start, end, Set.of("metric", "other_metric"), "team", 1L);
 
-        assertThat(history).extracting(MetricHistoryTO::getName).containsExactlyInAnyOrder("priced", "unpriced");
+        assertThat(history).extracting(MetricHistoryTO::getName)
+                .containsExactlyInAnyOrder("metric · priced", "other_metric · unpriced");
         history.forEach(series -> {
-            if (series.getName().equals("priced")) {
+            if (series.getName().equals("metric · priced")) {
                 assertThat(series.getValues()).containsExactly(10.0);
                 assertThat(series.getCosts()).containsExactly(2.5);
             } else {
@@ -744,28 +748,33 @@ class AggregatedMetricsRepositoryTest {
         Instant end = start.plus(Duration.ofHours(1));
         repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
                 .setName("sa-assigned").setInitialMetricName("confluent_kafka_server_request_bytes")
-                .setContext(Map.of("tenant", "acme")).setCost(5.0).build());
+                .setContext(Map.of("tenant", "acme")).setValue(5.0).build());
         repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
                 .setName("sa-new").setInitialMetricName("confluent_kafka_server_request_bytes")
-                .setContext(Map.of("service_account", "sa-new")).setCost(2.0).build());
+                .setContext(Map.of("service_account", "sa-new")).setValue(2.0).build());
         repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
                 .setName("sa-new").setInitialMetricName("confluent_kafka_server_response_bytes")
-                .setContext(Map.of()).setCost(1.0).build());
+                .setContext(Map.of()).setValue(1.0).build());
         repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.TOPIC)
                 .setName("odd-topic").setInitialMetricName("confluent_kafka_server_retained_bytes")
-                .setContext(Map.of()).setCost(null).build());
+                .setContext(Map.of()).setValue(4.0).build());
         // a cluster-wide metric has no entity a rule could match
         repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.UNKNOWN)
                 .setName("").setInitialMetricName("confluent_kafka_server_partition_count")
-                .setContext(Map.of()).setCost(9.0).build());
+                .setContext(Map.of()).setValue(9.0).build());
         // assigned since its latest window (a rule was added), though its first hour had no tenant
         repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(end).setEntityType(EntityType.PRINCIPAL)
                 .setName("sa-fixed").setInitialMetricName("confluent_kafka_server_request_bytes")
-                .setContext(Map.of()).setCost(7.0).build());
+                .setContext(Map.of()).setValue(7.0).build());
         repo.insertRow(randomDatapoint().setStartTime(end).setEndTime(end.plus(Duration.ofHours(1)))
                 .setEntityType(EntityType.PRINCIPAL).setName("sa-fixed").setInitialMetricName("confluent_kafka_server_request_bytes")
-                .setContext(Map.of("tenant", "acme")).setCost(1.0).build());
+                .setContext(Map.of("tenant", "acme")).setValue(1.0).build());
         repo.flushToDb();
+        // costs come from the pricing rules when asked: 1 per unit for network, nothing for storage
+        new CostsView(olapInfra, null, null).define(List.of(
+                new CostsView.RatePeriod("confluent_kafka_server_request_bytes", null, null, 0, 1),
+                new CostsView.RatePeriod("confluent_kafka_server_response_bytes", null, null, 0, 1),
+                new CostsView.RatePeriod("confluent_kafka_server_partition_count", null, null, 0, 1)), List.of());
 
         var unassigned = new ContextDataOlapRepository(olapInfra).unassignedEntities(start, null, "tenant");
 

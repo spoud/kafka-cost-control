@@ -8,6 +8,7 @@ import io.spoud.kcc.aggregator.bills.BillsRepository;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
+import io.spoud.kcc.aggregator.olap.CostsView;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.graphql.Description;
@@ -35,6 +36,9 @@ public class BillsResource {
     @Inject
     SecurityIdentity identity;
 
+    @Inject
+    CostsView costsView;
+
     @Query("bills")
     @Description("All bills, newest month first, in dollars")
     public @NonNull List<@NonNull BillEntity> bills() {
@@ -44,12 +48,16 @@ public class BillsResource {
     @Mutation("saveBill")
     @Description("Saves a month's bill, replacing the month's previous one")
     public @NonNull BillEntity saveBill(@NonNull BillSaveRequest request) {
-        return billsRepository.save(request.toEntity(Instant.now(), AccessRules.displayName(identity)));
+        var saved = billsRepository.save(request.toEntity(Instant.now(), AccessRules.displayName(identity)));
+        costsView.refresh(); // so the next cost query already uses it
+        return saved;
     }
 
     @Mutation("deleteBill")
     public BillEntity deleteBill(@NonNull @Name("month") String month) {
-        return billsRepository.delete(month).orElse(null);
+        var deleted = billsRepository.delete(month).orElse(null);
+        costsView.refresh();
+        return deleted;
     }
 
     @Query("billedCosts")
