@@ -67,7 +67,7 @@ public class ContextDataOlapRepository {
             }
             var metrics = DSL.field("string_agg(DISTINCT {0}, ',' ORDER BY {0}) FILTER (WHERE NOT ({1}))",
                     String.class, a.INITIAL_METRIC_NAME, assigned);
-            var cost = DSL.coalesce(DSL.sum(a.COST).filterWhere(DSL.not(assigned)), BigDecimal.ZERO);
+            var cost = DSL.coalesce(DSL.sum(CostsView.cost(a)).filterWhere(DSL.not(assigned)), BigDecimal.ZERO);
             var lastSeen = DSL.max(a.END_TIME);
             var lastAssigned = DSL.max(a.END_TIME).filterWhere(assigned);
             return dslContext

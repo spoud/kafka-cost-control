@@ -226,9 +226,12 @@ public class OlapInfra {
         }
     }
 
-    // By name, so exports written before and after the cost column was added both load.
+    // The table's columns only, so exports of the table (older versions) and of the costs view
+    // both load: the view adds cost columns and the bills' "other" rows, which it computes again.
     private void loadDataExport(String path, Connection conn) {
-        try (var statement = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data BY NAME SELECT * FROM '" + path + "'")) {
+        try (var statement = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data BY NAME "
+                + "SELECT start_time, end_time, initial_metric_name, entity_type, name, tags, context, value, target, id "
+                + "FROM '" + path + "' WHERE initial_metric_name <> '" + AggregatedMetricsRepository.OTHER + "'")) {
             statement.execute();
             Log.infof("Loaded seed data from %s", path);
         } catch (SQLException e) {

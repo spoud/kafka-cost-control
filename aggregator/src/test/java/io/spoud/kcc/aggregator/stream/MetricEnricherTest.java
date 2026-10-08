@@ -296,54 +296,22 @@ class MetricEnricherTest {
     }
 
     @Test
-    void should_use_pricing_rule() {
+    void should_leave_the_cost_empty_even_with_a_pricing_rule() {
+        // costs are computed when asked (the costs view), so a later bill or price change applies
         pricingRulesTopic.pipeInput(
                 "confluent_kafka_server_sent_bytes",
                 new PricingRule(Instant.now(), "confluent_kafka_server_sent_bytes", 0.1, 0.05, null, null, null, null, null, java.util.List.of()));
 
         rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 5));
-        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 5));
-
-        final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
-        assertThat(list).hasSize(2);
-        final AggregatedDataWindowed aggregated = list.get(1);
-        assertThat(aggregated.getValue()).isEqualTo(10);
-        assertThat(aggregated.getCost()).isEqualTo(0.6);
-        assertThat(aggregated.getName()).isEqualTo("spoud_topic_1");
-        assertThat(aggregated.getInitialMetricName()).isEqualTo("confluent_kafka_server_sent_bytes");
-        assertThat(aggregated.getEntityType()).isEqualTo(EntityType.TOPIC);
-        assertThat(aggregated.getTags()).isEmpty();
-    }
-
-    @Test
-    void should_price_each_hour_with_the_price_valid_then() {
-        Instant change = Instant.parse("2026-10-01T00:00:00Z");
-        pricingRulesTopic.pipeInput("confluent_kafka_server_sent_bytes", PricingRule.newBuilder()
-                .setCreationTime(Instant.now()).setMetricName("confluent_kafka_server_sent_bytes")
-                .setBaseCost(0).setCostFactor(0.1).setValidFrom(change)
-                .setEarlierPrices(List.of(io.spoud.kcc.data.PricePeriod.newBuilder()
-                        .setValidUntil(change).setBaseCost(0).setCostFactor(0.05).build()))
-                .build());
-
-        pipe(Instant.parse("2026-09-30T10:00:00Z"), "spoud_topic_1", 10);
-        pipe(Instant.parse("2026-10-01T10:00:00Z"), "spoud_topic_1", 10);
-        // a later record closes the second window
-        pipe(Instant.parse("2026-10-01T12:00:00Z"), "spoud_topic_1", 1);
-
-        var costs = aggregatedTopic.readValuesToList().stream()
-                .collect(java.util.stream.Collectors.toMap(a -> a.getStartTime().toString(), AggregatedDataWindowed::getCost, (a, b) -> b));
-        assertThat(costs.get("2026-09-30T10:00:00Z")).isCloseTo(0.5, org.assertj.core.data.Offset.offset(1e-9));
-        assertThat(costs.get("2026-10-01T10:00:00Z")).isCloseTo(1.0, org.assertj.core.data.Offset.offset(1e-9));
-    }
-
-    @Test
-    void should_produce_null_cost_when_no_pricing_rule() {
-        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_1", 5));
         rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("spoud_topic_2", 5));
 
         final List<AggregatedDataWindowed> list = aggregatedTopic.readValuesToList();
         assertThat(list).hasSize(2);
+        assertThat(list).extracting(AggregatedDataWindowed::getValue).containsOnly(5.0);
         assertThat(list).extracting(AggregatedDataWindowed::getCost).containsOnlyNulls();
+        assertThat(aggregatedTableFriendlyTopic.readValuesToList())
+                .hasSize(2)
+                .extracting(AggregatedDataTableFriendly::getCost).containsOnlyNulls();
     }
 
     @Test

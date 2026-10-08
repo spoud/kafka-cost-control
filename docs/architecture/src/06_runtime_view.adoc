@@ -112,21 +112,17 @@ left to right direction
     queue "raw-metrics-n" #line.dashed
 
 queue "context-data"
-queue "pricing-rules-data"
 queue "aggregated-metrics"
 component MetricsProcessor
 database "context"
-database "pricing-rules"
 database "query-database"
 
 
-"pricing-rules-data" -down-> "pricing-rules": populate
 "context-data" -down-> "context": populate
 
 "raw-metrics-1" -down-> [MetricsProcessor]: consume
 "raw-metrics-n" -down-> [MetricsProcessor]: consume
 MetricsProcessor -left-> "context": lookup
-MetricsProcessor -right-> "pricing-rules": lookup
 MetricsProcessor -down-> "aggregated-metrics" : produce
 
 "aggregated-metrics" -down-> "query-database": sink
@@ -138,9 +134,11 @@ MetricsProcessor -down-> "aggregated-metrics" : produce
 Here we:
  * aggregate by hours
  * attach context
- * attach pricing rule
 . The aggregates are stored in the `aggregated-metrics` topic.
 . The aggregated metrics are stored into the query database.
+. Costs are not part of the aggregates: they are computed when queried, in the query database's
+`costs` view, from the pricing rules (with their dates) and the monthly bills. A price change or a
+new bill applies at once, without reprocessing.
 
 The storage procedure into the query database must be idempotent in order to reprocess the enrichment in case of reprocessing.
 

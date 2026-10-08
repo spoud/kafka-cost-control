@@ -193,13 +193,13 @@ type Query {
   calculateTable(request: CostOverviewRequestInput): TableResponse!
   contextData: [ContextDataEntity!]!
   contextTest(testString: String): [ContextTestResponse!]!
+  "Deprecated: enter the bill on the Bills page and query billedCosts"
   costOverview(request: CostOverviewRequestInput): CostOverviewResponse!
   currentUser: String!
   existingContextKeys: [String!]!
   history(from: DateTimeParameterInput!, groupByContextKeys: [String]!, metricNames: [String]!, to: DateTimeParameterInput): [MetricHistory!]!
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
-  pricingRuleCosts(request: PricingRuleCostRequestInput): CostOverviewResponse!
   pricingRules: [PricingRuleEntity!]!
   "Topics and principals no context rule assigns (or without a value for contextKey), most expensive first; no from = the last 7 days"
   unassignedEntities(request: UnassignedEntitiesRequestInput): [UnassignedEntity!]!
@@ -349,14 +349,6 @@ input OtherLineRequestInput {
   "For CONTEXT: the context the amount belongs to, e.g. [{key: \"tenant\", value: \"data-platform\"}]"
   context: [ContextPairInput]
   description: String
-}
-
-input PricingRuleCostRequestInput {
-  contextKeysToGroupBy: [String]
-  "ISO-8601"
-  from: DateTime
-  "ISO-8601"
-  to: DateTime
 }
 
 input PricingRuleDeleteRequestInput {
