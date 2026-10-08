@@ -77,7 +77,7 @@ The optional `multiplier` applies on top of the price, e.g. `3` for storage that
 A rule can have a price history. Saving a rule either:
 
 * *corrects* its current price (no `validFrom`): the new price applies everywhere the current one did, e.g. to fix a mistake;
-* or sets a *new price from a date* (`validFrom`): the current price keeps the hours before that date, the new one applies from it on. Use this when the provider's price changes.
+* or sets a *new price from a date* (`validFrom`, the start of a day in UTC such as `2026-11-01T00:00:00Z`): the current price keeps the days before it, the new one applies from it on. Use this when the provider's price changes, usually on the 1st of a month.
 
 Each hour is priced with the price valid at its start. `undoPricingRuleChange(request: {metricName: "..."})` drops the current price and makes the previous one current again.
 

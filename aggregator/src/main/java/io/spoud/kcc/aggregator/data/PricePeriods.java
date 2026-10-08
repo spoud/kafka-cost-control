@@ -6,6 +6,7 @@ import io.spoud.kcc.data.PricingRule;
 import jakarta.ws.rs.BadRequestException;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -53,8 +54,16 @@ public final class PricePeriods {
                 .build();
     }
 
-    /** Starts {@code price} at {@code from}; the current price keeps the hours before it. */
+    /**
+     * Starts {@code price} at {@code from}, the start of a day in UTC; the current price keeps the
+     * hours before it. Prices change by the day at most (providers change them on the 1st of a
+     * month), and the bills' months are UTC too.
+     */
     public static PricingRule from(PricingRule existing, PricingRule price, Instant from) {
+        if (!from.equals(from.truncatedTo(ChronoUnit.DAYS))) {
+            throw new BadRequestException("A new price starts at the beginning of a day in UTC, e.g. "
+                    + from.truncatedTo(ChronoUnit.DAYS) + ", not " + from + ".");
+        }
         if (existing == null) {
             return PricingRule.newBuilder(price).setValidFrom(from).setEarlierPrices(List.of()).build();
         }

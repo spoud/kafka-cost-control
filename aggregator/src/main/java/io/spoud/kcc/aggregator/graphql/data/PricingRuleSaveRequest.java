@@ -28,7 +28,7 @@ public record PricingRuleSaveRequest(
         Double multiplier,
         @Description("What the multiplier stands for, e.g. replicas")
         String multiplierLabel,
-        @Description("Empty: correct the current price, everywhere it applies. A time: a new price from then on; the current price keeps the hours before it.")
+        @Description("Empty: correct the current price, everywhere it applies. The start of a day in UTC: a new price from that day on; the current price keeps the days before it.")
         Instant validFrom) {
 
     static {

@@ -57,6 +57,14 @@ class PricePeriodsTest {
     }
 
     @Test
+    void aNewPriceStartsAtTheBeginningOfAUtcDay() {
+        assertThatThrownBy(() -> PricePeriods.from(price(0.1), price(0.2), NOV.plusSeconds(3600)))
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("2026-11-01T00:00:00Z");
+        assertThatThrownBy(() -> PricePeriods.from(null, price(0.2), NOV.minusMillis(1)))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
     void aNewPriceMustStartAfterTheCurrentOne() {
         var dated = PricePeriods.from(price(0.1), price(0.2), NOV);
 
