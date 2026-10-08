@@ -1,8 +1,6 @@
 package io.spoud.kcc.aggregator.ai;
 
 import io.quarkus.logging.Log;
-import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
-import io.spoud.kcc.aggregator.graphql.data.CostOverviewResponse;
 import io.spoud.kcc.aggregator.data.ContextDataEntity;
 import io.spoud.kcc.aggregator.data.PricingRuleEntity;
 import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
@@ -11,14 +9,12 @@ import java.util.Comparator;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.Optional;
 import java.util.Objects;
 
 /**
@@ -83,13 +79,6 @@ public class ToolRegistry {
                     executedSql.get().add(result.executedSql());
                     yield new TerminalResult(result.columns(), result.rows(), result.truncated(), null);
                 }
-                case "cost_overview" -> {
-                    var text = costOverview(call);
-                    yield new TerminalResult(
-                            List.of("cost breakdown"),
-                            text.lines().map(List::of).map(l -> (List<String>) l).toList(),
-                            false, null);
-                }
                 default -> TerminalResult.failed("Tool '" + call.name() + "' cannot return results directly.");
             };
         } catch (SqlGuard.RejectedException e) {
@@ -129,7 +118,6 @@ public class ToolRegistry {
                                 "list_pricing_rules is unavailable in private mode.")
                         : LlmMessage.ToolResult.ok(call.id(), listPricingRules());
                 case "run_sql" -> runSql(call);
-                case "cost_overview" -> LlmMessage.ToolResult.ok(call.id(), costOverview(call));
                 default -> LlmMessage.ToolResult.error(call.id(), "Unknown tool: " + call.name());
             };
         } catch (IllegalArgumentException e) {
@@ -293,60 +281,6 @@ public class ToolRegistry {
         return sb.toString();
     }
 
-    private String costOverview(LlmMessage.ToolCall call) {
-        Instant from = parseInstant(requireString(call, "from"), "from");
-        Instant to = optionalString(call, "to").map(s -> parseInstant(s, "to")).orElse(null);
-
-        List<String> groupBy = optionalStringList(call, "groupBy");
-        if (groupBy.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "groupBy must contain at least one context key. Call list_context_keys to see the options.");
-        }
-
-        Integer storage = optionalInt(call, "storageCents");
-        Integer read = optionalInt(call, "networkReadCents");
-        Integer write = optionalInt(call, "networkWriteCents");
-        Integer partitions = optionalInt(call, "partitionsCents");
-        if (storage == null && read == null && write == null && partitions == null) {
-            throw new IllegalArgumentException(
-                    "At least one of storageCents, networkReadCents, networkWriteCents or partitionsCents is required. "
-                            + "Splitting a bill needs the amount to distribute: ask the user what they spent "
-                            + "for this period. For what the pricing rules charged, query the cost column with "
-                            + "run_sql instead.");
-        }
-
-        var request = new CostOverviewRequest(from, to, null, storage, read, write, partitions, groupBy);
-        CostOverviewResponse response = repository.calculateCosts(request);
-
-        return formatCostOverview(response, groupBy);
-    }
-
-    private String formatCostOverview(CostOverviewResponse response, List<String> groupBy) {
-        if (response.metricToDistributionMapList().isEmpty()) {
-            return "No cost data for that period. Either there is no usage in range, or none of the "
-                    + "three priced metrics (retained_bytes, request_bytes, response_bytes) are present.";
-        }
-        var sb = new StringBuilder();
-        sb.append("Cost distribution, grouped by: ").append(String.join(", ", groupBy)).append('\n');
-        sb.append("All amounts are in cents.\n\n");
-
-        for (var metricEntry : response.metricToDistributionMapList()) {
-            sb.append("## ").append(metricEntry.metric()).append('\n');
-            var entries = metricEntry.nameToPriceList().stream()
-                    .sorted((a, b) -> Double.compare(
-                            b.price() == null ? 0 : b.price(),
-                            a.price() == null ? 0 : a.price()))
-                    .toList();
-            for (var e : entries) {
-                sb.append(e.name()).append('\t')
-                        .append(e.price() == null ? "0" : String.format("%.2f", e.price()))
-                        .append('\n');
-            }
-            sb.append('\n');
-        }
-        return sb.toString();
-    }
-
     // --- argument helpers -------------------------------------------------------------------
 
     private String requireString(LlmMessage.ToolCall call, String name) {
@@ -355,52 +289,5 @@ public class ToolRegistry {
             throw new IllegalArgumentException("Missing required parameter '" + name + "'.");
         }
         return String.valueOf(value);
-    }
-
-    private Optional<String> optionalString(LlmMessage.ToolCall call, String name) {
-        Object value = call.input().get(name);
-        if (value == null || String.valueOf(value).isBlank()) {
-            return Optional.empty();
-        }
-        return Optional.of(String.valueOf(value));
-    }
-
-    private Integer optionalInt(LlmMessage.ToolCall call, String name) {
-        Object value = call.input().get(name);
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.valueOf(String.valueOf(value).trim());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Parameter '" + name + "' must be a whole number of cents.");
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<String> optionalStringList(LlmMessage.ToolCall call, String name) {
-        Object value = call.input().get(name);
-        if (value == null) {
-            return List.of();
-        }
-        if (value instanceof List<?> list) {
-            return list.stream().filter(Objects::nonNull).map(String::valueOf).toList();
-        }
-        if (value instanceof Map<?, ?> map) {
-            return ((Map<String, Object>) map).values().stream().map(String::valueOf).toList();
-        }
-        return List.of(String.valueOf(value));
-    }
-
-    private Instant parseInstant(String raw, String paramName) {
-        try {
-            return Instant.parse(raw.trim());
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(
-                    "Parameter '" + paramName + "' must be an ISO-8601 instant such as 2026-07-01T00:00:00Z, got: " + raw);
-        }
     }
 }

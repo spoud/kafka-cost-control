@@ -14,8 +14,9 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The table carries pricing-rule costs, while splitting a real bill still has to go through
- * cost_overview. The model must be told both, and which network line is which direction.
+ * The model queries the costs view: `cost` is the bill's share where a bill applies, else the
+ * pricing rule's (estimated). It must be told which is which, and that bills are entered, not split
+ * from an amount typed into the chat.
  */
 class CostGuidanceTest {
 
@@ -30,26 +31,21 @@ class CostGuidanceTest {
     }
 
     @Test
-    @DisplayName("The prompt describes the cost column and still routes bills to cost_overview")
-    void promptExplainsBothKindsOfCost() {
+    @DisplayName("The prompt describes the costs view: billed cost, estimates and the rate card")
+    void promptExplainsTheCostsView() {
         String prompt = describer().buildSystemPrompt();
 
-        assertThat(prompt).doesNotContain("There is no cost column");
-        assertThat(prompt).contains("cost                DOUBLE");
+        assertThat(prompt).contains("CREATE VIEW costs");
         assertThat(prompt).contains("`SUM(cost)`");
-        assertThat(prompt).contains("must go through the `cost_overview` tool");
+        assertThat(prompt).contains("estimated");
+        assertThat(prompt).contains("rate_cost");
+        assertThat(prompt).contains("enter it on the Bills page");
+        assertThat(prompt).doesNotContain("cost_overview").doesNotContain("FROM aggregated_data");
     }
 
     @Test
-    @DisplayName("cost_overview names read as egress and write as ingress")
-    void networkDirectionsMatchConfluentBilling() {
-        var costOverview = describer().tools().stream()
-                .filter(tool -> tool.name().equals("cost_overview"))
-                .findFirst().orElseThrow();
-
-        assertThat(costOverview.properties().get("networkReadCents").get("description").toString())
-                .contains("egress");
-        assertThat(costOverview.properties().get("networkWriteCents").get("description").toString())
-                .contains("ingress");
+    @DisplayName("There is no tool to split an amount typed into the chat any more")
+    void noInvoiceSplitTool() {
+        assertThat(describer().tools()).extracting(LlmTool::name).doesNotContain("cost_overview");
     }
 }

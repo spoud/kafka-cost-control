@@ -58,18 +58,21 @@ public class SchemaDescriber {
                 # The one table
 
                 ```sql
-                CREATE TABLE aggregated_data (
+                CREATE VIEW costs (
                     start_time          TIMESTAMPTZ NOT NULL, -- window start, inclusive, UTC
                     end_time            TIMESTAMPTZ NOT NULL, -- window end, exclusive, UTC
-                    initial_metric_name VARCHAR     NOT NULL, -- see the metric list below
-                    entity_type         VARCHAR     NOT NULL, -- 'TOPIC' | 'PRINCIPAL' | 'UNKNOWN'
-                    name                VARCHAR     NOT NULL, -- topic name, or principal id
+                    initial_metric_name VARCHAR     NOT NULL, -- see the metric list below; 'other' for bill lines not split by a metric
+                    entity_type         VARCHAR     NOT NULL, -- 'TOPIC' | 'PRINCIPAL' | 'UNKNOWN' | 'OTHER'
+                    name                VARCHAR     NOT NULL, -- topic name, or principal id; the description on 'OTHER' rows
                     tags                JSON        NOT NULL, -- ALWAYS EMPTY. Never use.
                     context             JSON        NOT NULL, -- the business dimensions. Use this.
-                    value               DOUBLE      NOT NULL, -- accumulated metric value for the window
+                    value               DOUBLE      NOT NULL, -- accumulated metric value for the window; 0 on 'other' rows
                     target              VARCHAR     NOT NULL, -- context['topic'], else 'unknown'
-                    id                  VARCHAR PRIMARY KEY,
-                    cost                DOUBLE                -- pricing-rule cost of the row; NULL if unpriced
+                    id                  VARCHAR     NOT NULL,
+                    shared              BOOLEAN     NOT NULL, -- a cost assigned to no one; report it as shared
+                    rate_cost           DOUBLE,               -- what the pricing rule valid in that hour charges; NULL if no rule
+                    cost                DOUBLE,               -- THE cost: the bill's share where a bill covers the hour, else rate_cost
+                    estimated           BOOLEAN     NOT NULL  -- cost comes from a pricing rule because no bill covers it
                 );
                 ```
 
@@ -80,17 +83,19 @@ public class SchemaDescriber {
 
                 1. **`tags` is always `{}`.** It is emptied during aggregation. Group by `context`, never `tags`.
 
-                2. **Two kinds of cost - pick the right one.**
-                   - **Pricing-rule cost** is the `cost` column: what this installation's pricing rules \
-                charged for the row (baseCost + costFactor x value), in the same currency as the rules. \
-                It is NULL where no rule priced the metric; report those rows as unpriced, never as free. \
-                For "what did X cost" in terms of our prices, `SUM(cost)` in SQL. Costs add up across \
-                windows even for gauges (each hour of storage is priced on its own), but rule 4 still \
-                applies.
-                   - **Splitting a real bill** (the user gives an invoice amount and asks who caused it) \
-                must go through the `cost_overview` tool, never SQL. If they ask about the bill without \
-                an amount, ask for the total spend for the period first.
-                   - If it is unclear which one the user means, ask.
+                2. **`cost` is what things cost.** For "what did X cost", `SUM(cost)`. Where the provider's \
+                bill for the month is entered, `cost` is the bill's amount shared by usage; elsewhere it \
+                is the pricing rule's price (`estimated` is true). Say how much of a total is estimated. \
+                `rate_cost` is the pricing rule's price for every row, also where a bill applies: use it \
+                only when the user asks what the rate card says. A NULL `cost` means nothing prices the \
+                row; report it as unpriced, never as free. Costs add up across windows even for gauges \
+                (each hour of storage is priced on its own), but rule 4 still applies. If the user wants \
+                a bill split that isn't entered yet, tell them to enter it on the Bills page.
+
+                2b. **`initial_metric_name = 'other'` rows** are the bill's lines that no metric splits \
+                (connectors, support, credits) and bill lines whose usage wasn't measured. `name` is the \
+                line's description. Rows with `shared` true belong to no one: show them as shared. \
+                Include them in totals of what was spent.
 
                 3. **A metric listed as MAX below is a gauge, not a counter.** Its `value` is the level \
                 *at* that hour, not the amount added during it - retained storage behaves this way. \
@@ -114,7 +119,7 @@ public class SchemaDescriber {
 
                 - Read a context value: `context->>'application'` or `json_value(context, 'application')`
                 - List keys in a row: `json_keys(context)`
-                - Distinct keys across the table: `SELECT DISTINCT unnest(json_keys(context)) FROM aggregated_data`
+                - Distinct keys across the table: `SELECT DISTINCT unnest(json_keys(context)) FROM costs`
                 - Bucket by time: `time_bucket(INTERVAL 1 DAY, start_time)`
                 - Missing context values are SQL NULL; use `coalesce(context->>'k', 'unknown')` when grouping.
 
@@ -310,7 +315,7 @@ public class SchemaDescriber {
                             + "carries the context it does - the aggregated table stores only the outcome, "
                             + "not the rule that produced it."));
             tools.add(LlmTool.noArgs("list_pricing_rules",
-                    "List the pricing rules behind the `cost` column: per metric, "
+                    "List the pricing rules behind `rate_cost` and estimated costs: per metric, "
                             + "cost = baseCost + costFactor * value. Use this to explain how a cost was "
                             + "derived, or to say which metrics have no pricing configured."));
         }
@@ -319,7 +324,7 @@ public class SchemaDescriber {
 
     /** Tools whose results go to the user, not the model. {@link ChatService} ends the turn. */
     public static boolean isTerminalTool(String toolName) {
-        return "run_sql".equals(toolName) || "cost_overview".equals(toolName);
+        return "run_sql".equals(toolName);
     }
 
     private LlmTool listContextValuesTool() {
@@ -345,35 +350,11 @@ public class SchemaDescriber {
                                 + "which keys exist."),
 
                 new LlmTool("run_sql",
-                        "Run a read-only SQL query against the aggregated_data table and get the rows back. "
+                        "Run a read-only SQL query against the costs table and get the rows back. "
                                 + "Only a single SELECT or WITH statement is permitted; writes, DDL, and file or "
                                 + "network access are rejected. Aggregate in SQL rather than fetching raw rows.",
                         java.util.Map.of("sql", LlmTool.stringParam(
                                 "The DuckDB SQL query to execute.")),
-                        List.of("sql")),
-
-                new LlmTool("cost_overview",
-                        "Split a known bill (an amount the user supplies) across context dimensions for a "
-                                + "time period. This is the ONLY correct way to attribute an invoice; the `cost` "
-                                + "column holds pricing-rule costs, which are a different thing. It distributes the "
-                                + "cents you supply in proportion to each group's share of the relevant metric. "
-                                + "Supply whichever of the four cent amounts the user has told you; omit the others.",
-                        java.util.Map.of(
-                                "from", LlmTool.stringParam(
-                                        "Start of the period, ISO-8601 instant, e.g. 2026-07-01T00:00:00Z."),
-                                "to", LlmTool.stringParam(
-                                        "End of the period, ISO-8601 instant. Omit for 'up to now'."),
-                                "storageCents", LlmTool.integerParam(
-                                        "Total storage spend for the period, in cents."),
-                                "networkReadCents", LlmTool.integerParam(
-                                        "Total network read (egress: data consumed from Kafka) spend for the period, in cents."),
-                                "networkWriteCents", LlmTool.integerParam(
-                                        "Total network write (ingress: data produced to Kafka) spend for the period, in cents."),
-                                "partitionsCents", LlmTool.integerParam(
-                                        "Total partition spend for the period, in cents; split by each topic's partition-hours."),
-                                "groupBy", LlmTool.stringArrayParam(
-                                        "Context keys to break the cost down by, outermost first, "
-                                                + "e.g. [\"application\"] or [\"cost-unit\", \"topic\"].")),
-                        List.of("from", "groupBy")));
+                        List.of("sql")));
     }
 }
