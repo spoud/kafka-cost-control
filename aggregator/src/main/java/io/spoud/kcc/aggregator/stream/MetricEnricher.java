@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
+import io.spoud.kcc.aggregator.data.PricePeriods;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
@@ -162,8 +163,11 @@ public class MetricEnricher {
 
     private AggregatedDataWindowed addPriceToWindowedMetric(AggregatedDataWindowed data, PricingRule pricingRule) {
         final AggregatedDataWindowed.Builder builder = AggregatedDataWindowed.newBuilder(data);
-        if (pricingRule != null) {
-            builder.setCost(pricingRule.getBaseCost() + pricingRule.getCostFactor() * data.getValue());
+        var rate = pricingRule == null ? java.util.Optional.<PricePeriods.Rate>empty()
+                : PricePeriods.at(pricingRule, data.getStartTime());
+        if (rate.isPresent()) {
+            // the price valid for this hour, so a dated price change keeps the hours before it
+            builder.setCost(rate.get().baseCost() + rate.get().costFactor() * data.getValue());
         } else {
             Log.debugv("No pricing rules found for \"{0}\"", data.getInitialMetricName());
         }

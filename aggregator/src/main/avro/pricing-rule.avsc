@@ -47,6 +47,34 @@
       "doc": "What the multiplier stands for, e.g. replicas. Display only.",
       "type": ["null", "string"],
       "default": null
+    },
+    {
+      "name": "valid_from",
+      "doc": "When the current price (the fields above) started. Absent: it has always applied.",
+      "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+      "default": null
+    },
+    {
+      "name": "earlier_prices",
+      "doc": "The prices before the current one, oldest first; each applies from valid_from (absent: always) until valid_until.",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "PricePeriod",
+          "fields": [
+            {"name": "valid_from", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": null},
+            {"name": "valid_until", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+            {"name": "base_cost", "type": "double"},
+            {"name": "cost_factor", "type": "double"},
+            {"name": "price", "type": ["null", "double"], "default": null},
+            {"name": "price_unit", "type": ["null", "string"], "default": null},
+            {"name": "multiplier", "type": ["null", "double"], "default": null},
+            {"name": "multiplier_label", "type": ["null", "string"], "default": null}
+          ]
+        }
+      },
+      "default": []
     }
   ]
 }

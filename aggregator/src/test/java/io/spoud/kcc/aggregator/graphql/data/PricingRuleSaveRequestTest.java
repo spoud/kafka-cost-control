@@ -15,7 +15,7 @@ class PricingRuleSaveRequestTest {
 
     private static PricingRuleSaveRequest request(Double costFactor, Double price, PriceUnit unit,
                                                   Double multiplier, String label) {
-        return new PricingRuleSaveRequest("m", 0.0, costFactor, price, unit, multiplier, label);
+        return new PricingRuleSaveRequest("m", 0.0, costFactor, price, unit, multiplier, label, null);
     }
 
     @Test

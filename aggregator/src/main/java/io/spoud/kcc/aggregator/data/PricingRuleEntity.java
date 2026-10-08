@@ -6,6 +6,7 @@ import org.eclipse.microprofile.graphql.Description;
 import org.eclipse.microprofile.graphql.NonNull;
 
 import java.time.Instant;
+import java.util.List;
 
 @RegisterForReflection
 public record PricingRuleEntity(
@@ -19,7 +20,24 @@ public record PricingRuleEntity(
     PriceUnit priceUnit,
     @Description("Factor on top of the price, e.g. 3 replicas; null means 1")
     Double multiplier,
-    String multiplierLabel) {
+    String multiplierLabel,
+    @Description("When the current price started; null: it has always applied")
+    Instant validFrom,
+    @Description("The prices before the current one, oldest first")
+    @NonNull List<@NonNull EarlierPrice> earlierPrices) {
+
+  /** A price that applied from validFrom (null: always) until validUntil. */
+  public record EarlierPrice(
+      Instant validFrom,
+      @NonNull Instant validUntil,
+      @NonNull double baseCost,
+      @NonNull double costFactor,
+      Double price,
+      PriceUnit priceUnit,
+      Double multiplier,
+      String multiplierLabel) {
+  }
+
   public static PricingRuleEntity fromAvro(PricingRule pricingRule) {
     if (pricingRule == null) {
       return null;
@@ -32,6 +50,11 @@ public record PricingRuleEntity(
         pricingRule.getPrice(),
         PriceUnit.fromStored(pricingRule.getPriceUnit()),
         pricingRule.getMultiplier(),
-        pricingRule.getMultiplierLabel());
+        pricingRule.getMultiplierLabel(),
+        pricingRule.getValidFrom(),
+        pricingRule.getEarlierPrices().stream()
+            .map(p -> new EarlierPrice(p.getValidFrom(), p.getValidUntil(), p.getBaseCost(), p.getCostFactor(),
+                p.getPrice(), PriceUnit.fromStored(p.getPriceUnit()), p.getMultiplier(), p.getMultiplierLabel()))
+            .toList());
   }
 }

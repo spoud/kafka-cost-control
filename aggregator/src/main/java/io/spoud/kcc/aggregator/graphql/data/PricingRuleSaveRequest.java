@@ -1,5 +1,6 @@
 package io.spoud.kcc.aggregator.graphql.data;
 
+import io.spoud.kcc.aggregator.stream.serialization.AvroTrust;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.spoud.kcc.aggregator.data.PriceUnit;
 import io.spoud.kcc.data.PricingRule;
@@ -26,7 +27,13 @@ public record PricingRuleSaveRequest(
         @Description("Factor on top of the price, e.g. 3 for storage billed per replica. Default 1.")
         Double multiplier,
         @Description("What the multiplier stands for, e.g. replicas")
-        String multiplierLabel) {
+        String multiplierLabel,
+        @Description("Empty: correct the current price, everywhere it applies. A time: a new price from then on; the current price keeps the hours before it.")
+        Instant validFrom) {
+
+    static {
+        AvroTrust.ensure();
+    }
 
     public PricingRule toAvro() {
         var rule = PricingRule.newBuilder()

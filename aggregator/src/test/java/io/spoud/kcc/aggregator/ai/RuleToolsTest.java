@@ -28,7 +28,7 @@ class RuleToolsTest {
 
     private static final PricingRuleEntity PRICE = new PricingRuleEntity(
             Instant.parse("2026-01-01T00:00:00Z"), "confluent_kafka_server_request_bytes", 1.5, 0.25,
-            null, null, null, null);
+            null, null, null, null, null, List.of());
 
     private static ToolRegistry registry(TestAiConfig config) {
         var context = Mockito.mock(ContextDataStreamRepository.class);
@@ -72,7 +72,7 @@ class RuleToolsTest {
     void listsThePriceAsEntered() {
         var storage = new PricingRuleEntity(Instant.parse("2026-01-01T00:00:00Z"),
                 "confluent_kafka_server_retained_bytes", 0.0, 3.52e-13,
-                0.00012603, PriceUnit.GB_HOUR, 3.0, "replicas");
+                0.00012603, PriceUnit.GB_HOUR, 3.0, "replicas", null, List.of());
         var pricing = Mockito.mock(PricingRulesStreamRepository.class);
         Mockito.when(pricing.getPricingRules()).thenReturn(List.of(storage));
         var registry = new ToolRegistry(null, null, new TestAiConfig(),

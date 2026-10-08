@@ -61,6 +61,11 @@ public class PricingRulesStreamRepository {
     return pricingRule;
   }
 
+    /** The rule as stored, or null. */
+    public PricingRule get(String metricName) {
+        return StoreReads.retrying("pricing rules store", () -> getStore().get(metricName));
+    }
+
     public List<PricingRuleEntity> getPricingRules() {
         return StoreReads.retrying("pricing rules store", () -> {
             List<PricingRuleEntity> list = new ArrayList<>();
