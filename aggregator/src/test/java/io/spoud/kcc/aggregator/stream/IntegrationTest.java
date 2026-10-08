@@ -6,6 +6,7 @@ import io.quarkus.test.security.TestSecurity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.bills.BillEntity;
 import io.spoud.kcc.aggregator.bills.BillsRepository;
+import io.spoud.kcc.aggregator.bills.OtherLine;
 import io.spoud.kcc.aggregator.graphql.ContextDataResource;
 import io.spoud.kcc.aggregator.graphql.MetricsResource;
 import io.spoud.kcc.aggregator.graphql.PricingRulesResource;
@@ -141,14 +142,19 @@ public class IntegrationTest {
 
         try (KafkaProducer<String, io.spoud.kcc.data.Bill> billProducer = KafkaTestUtils.createAvroProducer()) {
             billProducer.send(new ProducerRecord<>("bills", "2026-08", new BillEntity("2026-08", null, 1.0, 2.0,
-                    3.0, 4.0, null, Instant.now(), "elsewhere").toAvro())).get();
+                    3.0, 4.0, List.of(), Instant.now(), "elsewhere").toAvro())).get();
         }
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
                 assertThat(billsRepository.all()).extracting(BillEntity::month).contains("2026-08"));
 
-        billsRepository.save(new BillEntity("2026-09", null, 0.27, 0.22, 8.12, 22.5, null, Instant.now(), "test"));
+        billsRepository.save(new BillEntity("2026-09", null, 0.27, 0.22, 8.12, 22.5,
+                List.of(new OtherLine("Support", 5.0, OtherLine.Allocation.CONTEXT, Map.of("tenant", "data-platform"))),
+                Instant.now(), "test"));
         billsRepository.delete("2026-08");
         assertThat(billsRepository.all()).extracting(BillEntity::month).containsExactly("2026-09");
+        // other lines round-trip through the topic with their context
+        assertThat(billsRepository.all().getFirst().otherLines()).singleElement()
+                .satisfies(line -> assertThat(line.context()).containsEntry("tenant", "data-platform"));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.olap;
 
 import io.spoud.kcc.aggregator.bills.BillEntity;
+import io.spoud.kcc.aggregator.bills.OtherLine;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
@@ -136,25 +137,35 @@ class BilledCostsTest {
     }
 
     @Test
-    @DisplayName("'Other' and lines without measured usage are shared, by the time of the month covered")
-    void otherAndUnmeasuredGoToPlatform() {
-        usage("2026-09-03T10:00:00Z", "a", WRITE, 10, null);
-        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, 10.0, 6.0, null, null, 9.0,
+    @DisplayName("Other lines go to their context, are spread by usage costs, or stay shared; an unmeasured line is shared")
+    void otherLines() {
+        usage("2026-09-03T10:00:00Z", "a", WRITE, 30, null);
+        usage("2026-09-03T10:00:00Z", "b", WRITE, 10, null);
+        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, 10.0, 6.0, null, null, List.of(
+                new OtherLine("Connect", 4.0, OtherLine.Allocation.CONTEXT, Map.of("team", "etl")),
+                new OtherLine("Support", 8.0, OtherLine.Allocation.USAGE, null),
+                new OtherLine("Credit", -2.0, OtherLine.Allocation.SHARED, null)),
                 NOW, "test"));
 
-        // the first 15 of September's 30 days
+        // the first 15 of September's 30 days: half of every line
         var costs = costs("2026-09-01T00:00:00Z", "2026-09-16T00:00:00Z");
 
-        // other $9 and the unmeasured read line $6: half each -> 450 + 300
-        assertThat(costs.metrics()).filteredOn(m -> m.metric().equals(AggregatedMetricsRepository.PLATFORM))
-                .singleElement().satisfies(m -> {
-                    assertThat(m.shares()).singleElement().satisfies(share -> {
-                        assertThat(share.price()).isCloseTo(750.0, within(1e-9));
-                        assertThat(share.contextValues()).containsExactly("<platform>");
-                        assertThat(share.name()).isEqualTo("Platform / shared");
-                    });
-                });
-        assertThat(prices(costs, WRITE)).containsOnly(Map.entry("a", 1000.0));
+        assertThat(prices(costs, WRITE)).containsOnly(Map.entry("a", 750.0), Map.entry("b", 250.0));
+        // Connect half -> etl 200; Support half 400 by write costs 3:1 -> a 300, b 100;
+        // credit half -100 and the unmeasured read line half 300 -> shared 200
+        assertThat(prices(costs, AggregatedMetricsRepository.OTHER)).containsOnly(
+                Map.entry("etl", 200.0), Map.entry("a", 300.0), Map.entry("b", 100.0), Map.entry("<shared>", 200.0));
+    }
+
+    @Test
+    @DisplayName("A line spread by usage is shared when nothing usage-based was billed")
+    void usageSpreadWithoutUsageIsShared() {
+        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, null, null, null, null,
+                List.of(new OtherLine("Support", 3.0, OtherLine.Allocation.USAGE, null)), NOW, "test"));
+
+        var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z");
+
+        assertThat(prices(costs, AggregatedMetricsRepository.OTHER)).containsOnly(Map.entry("<shared>", 300.0));
     }
 
     @Test
@@ -186,7 +197,7 @@ class BilledCostsTest {
 
     private void bill(String month, String coveredUntil, Double write, Double read) {
         bills.put(YearMonth.parse(month), new BillEntity(month,
-                coveredUntil == null ? null : Instant.parse(coveredUntil), write, read, null, null, null, NOW, "test"));
+                coveredUntil == null ? null : Instant.parse(coveredUntil), write, read, null, null, List.of(), NOW, "test"));
     }
 
     private BilledCostResponse costs(String from, String to) {

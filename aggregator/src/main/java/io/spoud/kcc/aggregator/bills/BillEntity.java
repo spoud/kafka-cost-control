@@ -8,6 +8,7 @@ import org.eclipse.microprofile.graphql.NonNull;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.List;
 
 /** What the provider billed for one month (UTC), in dollars. A missing line wasn't entered. */
 @RegisterForReflection
@@ -19,14 +20,15 @@ public record BillEntity(
         Double networkRead,
         Double storage,
         Double partitions,
-        @Description("Everything else on the bill, shown as platform / shared rather than split by usage")
-        Double other,
+        @Description("Everything else on the bill, line by line, each with where it goes")
+        @NonNull List<@NonNull OtherLine> otherLines,
         @NonNull Instant updatedAt,
         String updatedBy) {
 
     public static BillEntity fromAvro(Bill bill) {
         return new BillEntity(bill.getMonth(), bill.getCoveredUntil(), bill.getNetworkWrite(),
-                bill.getNetworkRead(), bill.getStorage(), bill.getPartitions(), bill.getOther(),
+                bill.getNetworkRead(), bill.getStorage(), bill.getPartitions(),
+                bill.getOtherLines().stream().map(OtherLine::fromAvro).toList(),
                 bill.getUpdatedAt(), bill.getUpdatedBy());
     }
 
@@ -38,7 +40,7 @@ public record BillEntity(
                 .setNetworkRead(networkRead)
                 .setStorage(storage)
                 .setPartitions(partitions)
-                .setOther(other)
+                .setOtherLines(otherLines.stream().map(OtherLine::toAvro).toList())
                 .setUpdatedAt(updatedAt)
                 .setUpdatedBy(updatedBy)
                 .build();

@@ -4,6 +4,8 @@ import jakarta.ws.rs.BadRequestException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,10 +45,28 @@ class BillSaveRequestTest {
     }
 
     @Test
-    void aCreditMayBeNegative() {
-        var bill = new BillSaveRequest("2026-09", null, null, null, null, null, -5.0).toEntity(NOW, null);
+    void otherLinesKeepWhereTheyGoAndMayBeACredit() {
+        var bill = new BillSaveRequest("2026-09", null, null, null, null, null, List.of(
+                new OtherLine(" Connect ", 12.0, OtherLine.Allocation.CONTEXT, Map.of(" application ", " etl ", "tenant", " ")),
+                new OtherLine("Support", 50.0, OtherLine.Allocation.USAGE, Map.of("ignored", "x")),
+                new OtherLine("Promo credit", -5.0, OtherLine.Allocation.SHARED, null)))
+                .toEntity(NOW, null);
 
-        assertThat(bill.other()).isEqualTo(-5.0);
+        assertThat(bill.otherLines()).extracting(OtherLine::description).containsExactly("Connect", "Support", "Promo credit");
+        // blank pairs are dropped; a context only belongs to a CONTEXT line
+        assertThat(bill.otherLines().getFirst().context()).containsExactly(Map.entry("application", "etl"));
+        assertThat(bill.otherLines().get(1).context()).isNull();
+        assertThat(bill.otherLines().get(2).amount()).isEqualTo(-5.0);
+    }
+
+    @Test
+    void anOtherLineNeedsADescriptionAndAContextWhenItGoesToOne() {
+        assertThatThrownBy(() -> new BillSaveRequest("2026-09", null, null, null, null, null,
+                List.of(new OtherLine(" ", 1.0, OtherLine.Allocation.SHARED, null))).toEntity(NOW, null))
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("description");
+        assertThatThrownBy(() -> new BillSaveRequest("2026-09", null, null, null, null, null,
+                List.of(new OtherLine("Connect", 1.0, OtherLine.Allocation.CONTEXT, Map.of()))).toEntity(NOW, null))
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("tenant=data-platform");
     }
 
     @Test

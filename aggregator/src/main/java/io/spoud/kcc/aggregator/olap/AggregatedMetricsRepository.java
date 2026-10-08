@@ -11,6 +11,7 @@ import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.bills.BillEntity;
 import io.spoud.kcc.aggregator.bills.BillLine;
+import io.spoud.kcc.aggregator.bills.OtherLine;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
 import io.spoud.kcc.aggregator.graphql.data.CostOverviewRequest;
@@ -479,9 +480,10 @@ public class AggregatedMetricsRepository {
         return new CostOverviewResponse(distributions);
     }
 
-    public static final String PLATFORM = "platform";
-    static final String PLATFORM_LABEL = "Platform / shared";
-    static final String PLATFORM_VALUE = "<platform>";
+    /** The bill's amounts that aren't split by a metric's usage, named like the bill's field. */
+    public static final String OTHER = "other";
+    /** Context value of what isn't assigned to anyone; distinct from {@code <other>}, which means "no value". */
+    static final String SHARED_VALUE = "<shared>";
 
     /**
      * Costs from the monthly bills, in cents. The range is taken month by month (UTC):
@@ -489,8 +491,10 @@ public class AggregatedMetricsRepository {
      *     <li>a bill line goes to each group in proportion to its usage of the line's metric, relative to
      *     the month's usage up to where the bill stops - so a range covering part of a month gets the
      *     usage-weighted part of that month's line, and a range across months adds up the months;</li>
-     *     <li>what can't be split by usage - the bill's "other" amount, or a line for a metric with no
-     *     usage measured - goes to {@link #PLATFORM}, in proportion to the time of the month covered;</li>
+     *     <li>the bill's other lines and a line for a metric with no usage measured go to {@link #OTHER}, in
+     *     proportion to the time of the month covered: an other line to its context, spread over the groups
+     *     by their share of the month's usage-based costs, or shared ({@code <shared>}); an unmeasured line
+     *     is shared;</li>
      *     <li>where no bill applies (no bill for the month, past a month-to-date bill's end, or a line the
      *     bill doesn't have) the rate card's costs are used and also reported as estimated. In a month
      *     without a bill that is every priced metric; in a billed month only the lines' metrics, since
@@ -523,6 +527,8 @@ public class AggregatedMetricsRepository {
             double billedShareOfTime = pieceStart.isBefore(billedEnd)
                     ? (double) Duration.between(pieceStart, billedEnd).toMillis() / Duration.between(monthStart, billedUntil).toMillis()
                     : 0;
+            // the usage-based costs of this part of the month per group, for spreading other lines
+            var usageCosts = new LinkedHashMap<List<String>, Double>();
             for (BillLine line : BillLine.values()) {
                 Double amount = line.amount(bill);
                 if (amount == null) {
@@ -533,22 +539,44 @@ public class AggregatedMetricsRepository {
                     double monthUsage = getTotalForMetric(monthStart, billedUntil, line.metric());
                     if (monthUsage > 0) {
                         getTotalGroupedByContext(pieceStart, billedEnd, keys, line.metric(), AGGREGATED_DATA.VALUE)
-                                .forEach(group -> costs.add(line.metric(), group.contextValues(),
-                                        amount * 100 * group.total() / monthUsage, 0));
+                                .forEach(group -> {
+                                    double cents = amount * 100 * group.total() / monthUsage;
+                                    costs.add(line.metric(), group.contextValues(), cents, 0);
+                                    usageCosts.merge(group.contextValues(), cents, Double::sum);
+                                });
                     } else {
-                        costs.addPlatform(amount * 100 * billedShareOfTime);
+                        costs.add(OTHER, costs.sharedValues(), amount * 100 * billedShareOfTime, 0);
                     }
                 }
                 if (billedEnd.isBefore(pieceEnd)) {
                     addEstimate(costs, max(pieceStart, billedEnd), pieceEnd, line.metric());
                 }
             }
-            if (bill.other() != null && billedShareOfTime > 0) {
-                costs.addPlatform(bill.other() * 100 * billedShareOfTime);
+            if (billedShareOfTime > 0) {
+                for (OtherLine other : bill.otherLines()) {
+                    addOtherLine(costs, other, other.amount() * 100 * billedShareOfTime, usageCosts);
+                }
             }
             months.add(new BilledCostResponse.MonthBilling(month.toString(), true, pieceStart, pieceEnd, billedUntil));
         }
         return new BilledCostResponse(costs.toMetricCosts(), months);
+    }
+
+    private static void addOtherLine(BilledCosts costs, OtherLine line, double cents, Map<List<String>, Double> usageCosts) {
+        double usageTotal = usageCosts.values().stream().mapToDouble(Double::doubleValue).sum();
+        switch (line.allocation()) {
+            case CONTEXT -> costs.add(OTHER, costs.keys.stream()
+                    .map(key -> line.context() == null ? "<other>" : line.context().getOrDefault(key, "<other>"))
+                    .toList(), cents, 0);
+            case USAGE -> {
+                if (usageTotal == 0) {
+                    costs.add(OTHER, costs.sharedValues(), cents, 0);
+                } else {
+                    usageCosts.forEach((group, groupCents) -> costs.add(OTHER, group, cents * groupCents / usageTotal, 0));
+                }
+            }
+            case SHARED -> costs.add(OTHER, costs.sharedValues(), cents, 0);
+        }
     }
 
     private void addEstimate(BilledCosts costs, Instant from, Instant to, String metric) {
@@ -564,11 +592,10 @@ public class AggregatedMetricsRepository {
         return a.isBefore(b) ? a : b;
     }
 
-    /** Sums of [price, estimated part] per metric and group, the shared part last. */
+    /** Sums of [price, estimated part] per metric and group. */
     private static final class BilledCosts {
         private final List<String> keys;
         private final Map<String, Map<List<String>, double[]>> byMetric = new TreeMap<>();
-        private final double[] platform = new double[2];
 
         BilledCosts(List<String> keys) {
             this.keys = keys;
@@ -581,8 +608,8 @@ public class AggregatedMetricsRepository {
             sums[1] += estimated;
         }
 
-        void addPlatform(double price) {
-            platform[0] += price;
+        List<String> sharedValues() {
+            return keys.stream().map(k -> SHARED_VALUE).toList();
         }
 
         List<BilledCostResponse.MetricCosts> toMetricCosts() {
@@ -592,11 +619,6 @@ public class AggregatedMetricsRepository {
                             .map(e -> new BilledCostResponse.Share(formatContextLabel(keys, e.getKey()),
                                     e.getKey(), e.getValue()[0], e.getValue()[1]))
                             .toList())));
-            if (platform[0] != 0) {
-                List<String> values = keys.stream().map(k -> PLATFORM_VALUE).toList();
-                result.add(new BilledCostResponse.MetricCosts(PLATFORM,
-                        List.of(new BilledCostResponse.Share(PLATFORM_LABEL, values, platform[0], 0))));
-            }
             return result;
         }
     }

@@ -40,10 +40,31 @@
       "default": null
     },
     {
-      "name": "other",
-      "doc": "Everything else on the bill (connectors, support, credits as a negative amount): shown as platform / shared, not split by usage.",
-      "type": ["null", "double"],
-      "default": null
+      "name": "other_lines",
+      "doc": "Everything else on the bill (connectors, support, credits as a negative amount), line by line, each with where it goes.",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "BillOtherLine",
+          "fields": [
+            {"name": "description", "type": "string"},
+            {"name": "amount", "type": "double"},
+            {
+              "name": "allocation",
+              "doc": "CONTEXT: all of it to the given context; USAGE: spread in proportion to the month's usage-based costs; SHARED: shown as shared, not assigned to anyone.",
+              "type": "string"
+            },
+            {
+              "name": "context",
+              "doc": "For CONTEXT: the context the amount belongs to, e.g. tenant=data-platform.",
+              "type": ["null", {"type": "map", "values": "string"}],
+              "default": null
+            }
+          ]
+        }
+      },
+      "default": []
     },
     {
       "name": "updated_at",
