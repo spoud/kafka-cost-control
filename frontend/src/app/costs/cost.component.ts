@@ -3,15 +3,14 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, filter, merge, startWith } from 'rxjs';
 import { DecimalPipe } from '@angular/common';
-import { MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix } from '@angular/material/input';
-import { MatSlider, MatSliderThumb } from '@angular/material/slider';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/input';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatChipListbox, MatChipOption } from '@angular/material/chips';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
-import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import {
     CdkDrag,
@@ -20,18 +19,8 @@ import {
     CdkDropList,
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import {
-    CalculateTableGQL,
-    CalculateTableQuery,
-    CostOverviewGQL,
-    CostOverviewQuery,
-    PricingRuleCostsGQL,
-    PricingRuleCostsQuery,
-} from '../../generated/graphql/sdk';
-import {
-    CostOverviewRequestInput,
-    PricingRuleCostRequestInput,
-} from '../../generated/graphql/types';
+import { BilledCostsGQL, BilledCostsQuery } from '../../generated/graphql/sdk';
+import { BilledCostRequestInput } from '../../generated/graphql/types';
 import { SankeyComponent } from './sankey/sankey.component';
 import {
     MatDatepickerToggle,
@@ -40,20 +29,54 @@ import {
     MatEndDate,
     MatStartDate,
 } from '@angular/material/datepicker';
-import { CostTableComponent } from './cost-table/cost-table.component';
-import { AbsPipe } from '../common/abs.pipe';
+import { CostRow, CostTableComponent } from './cost-table/cost-table.component';
 import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.service';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
 import { DateRangeQuickSelectComponent } from '../common/date-range-quick-select/date-range-quick-select.component';
-import { DateRange, endOfDay } from '../common/date-range';
-import { CostOverviewFormValues, CostOverviewStore, CostSource } from './store/cost-overview.store';
+import { DateRange, utcDayRange } from '../common/date-range';
+import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
 import { UnpricedMetricsService } from '../common/unpriced-metrics';
+import { lastDayFromCoveredUntil, monthLabel } from '../bills/bill';
 
-/** The API takes whole cents; $0.3311 * 100 is 33.11, which an Int field rejects. */
-export function toCents(dollars: number | null | undefined): number {
-    return Math.round((dollars ?? 0) * 100);
+type BilledCosts = BilledCostsQuery['billedCosts'];
+
+/** How each month of the range is costed, for the list on the page. */
+export interface MonthStatus {
+    label: string;
+    billed: boolean;
+    /** For a month-to-date bill: the last day it covers. */
+    billedUpTo: Date | null;
+}
+
+export function monthStatuses(costs: BilledCosts): MonthStatus[] {
+    return costs.months.map(month => {
+        const monthEnd = new Date(String(month.to)).getTime();
+        const partial =
+            month.billed &&
+            !!month.billedUntil &&
+            new Date(String(month.billedUntil)).getTime() < monthEnd;
+        return {
+            label: monthLabel(month.month),
+            billed: month.billed,
+            billedUpTo: partial ? lastDayFromCoveredUntil(month.billedUntil) : null,
+        };
+    });
+}
+
+/** Table rows in dollars: each group's cost per metric, and its share of the metric. */
+export function costRows(costs: BilledCosts): CostRow[] {
+    return costs.metrics.flatMap(metric => {
+        const metricCents = metric.shares.reduce((sum, share) => sum + share.price, 0);
+        return metric.shares.map(share => ({
+            metric: metric.metric,
+            context: share.contextValues,
+            total: share.price / 100,
+            estimated: share.estimatedPrice / 100,
+            percentage: metricCents ? share.price / metricCents : 0,
+        }));
+    });
 }
 
 @Component({
@@ -61,12 +84,8 @@ export function toCents(dollars: number | null | undefined): number {
         ReactiveFormsModule,
         DecimalPipe,
         MatFormField,
-        MatInput,
         MatLabel,
-        MatPrefix,
         MatSuffix,
-        MatSlider,
-        MatSliderThumb,
         MatCard,
         MatCardContent,
         MatCardHeader,
@@ -77,6 +96,7 @@ export function toCents(dollars: number | null | undefined): number {
         MatButton,
         MatIconButton,
         MatSelectModule,
+        MatProgressSpinner,
         SankeyComponent,
         EmptyStateComponent,
         MatDateRangeInput,
@@ -85,23 +105,18 @@ export function toCents(dollars: number | null | undefined): number {
         MatDatepickerToggle,
         MatDateRangePicker,
         CostTableComponent,
-        AbsPipe,
         PageHeaderComponent,
         DateRangeQuickSelectComponent,
         CdkDropList,
         CdkDrag,
         CdkDragHandle,
-        MatButtonToggleGroup,
-        MatButtonToggle,
         RouterLink,
     ],
     templateUrl: './cost.component.html',
     styleUrl: './cost.component.scss',
 })
 export class CostComponent {
-    private calcCostOverview = inject(CostOverviewGQL);
-    private calcTable = inject(CalculateTableGQL);
-    private calcPricingRuleCosts = inject(PricingRuleCostsGQL);
+    private billedCosts = inject(BilledCostsGQL);
     private fb = inject(FormBuilder);
     private _store = inject(CostOverviewStore);
     private _dialog = inject(MatDialog);
@@ -117,23 +132,8 @@ export class CostComponent {
     costs = this.fb.group({
         from: [this.restored?.from ?? this.startOfLastMonth],
         to: [this.restored?.to ?? this.endOfLastMonth],
-        kafkaStorage: [this.restored?.kafkaStorage ?? (0 as number | null)],
-        kafkaNetworkRead: [this.restored?.kafkaNetworkRead ?? (0 as number | null)],
-        kafkaNetworkWrite: [this.restored?.kafkaNetworkWrite ?? (0 as number | null)],
-        kafkaPartitions: [this.restored?.kafkaPartitions ?? (0 as number | null)],
-        total: [this.restored?.total ?? (0 as number | null)],
     });
 
-    source = signal<CostSource>(this.restored?.source ?? 'invoice');
-
-    subtitle = computed(() =>
-        this.source() === 'pricingRules'
-            ? 'Costs from your pricing rules, broken down by application and stage.'
-            : 'Distribute provider invoices across applications and stages.'
-    );
-
-    writeWeight = signal(1.0);
-    readWeight = signal(2.4);
     groupBy = signal<string[]>(this.restored?.groupBy ?? []);
 
     savedConfigs = this._store.entities;
@@ -149,24 +149,6 @@ export class CostComponent {
         return v?.from && v?.to ? { from: v.from, to: v.to } : null;
     });
 
-    inputTotal = computed(() => {
-        const v = this.costsValue();
-        return (
-            (v?.kafkaStorage ?? 0) +
-            (v?.kafkaNetworkRead ?? 0) +
-            (v?.kafkaNetworkWrite ?? 0) +
-            (v?.kafkaPartitions ?? 0)
-        );
-    });
-
-    mismatch = computed(() => {
-        const v = this.costsValue();
-        const total = v?.total ?? 0;
-        return total > 0 && Math.abs(this.inputTotal() - total) > 0.01;
-    });
-
-    contextKeysToGroupBy = computed<string[]>(() => this.groupBy());
-
     // context keys not yet in the group-by order, offered as "click to add" chips
     availableContextKeys = computed<string[]>(() =>
         this.graphFilterService.contextKeys().filter(key => !this.groupBy().includes(key))
@@ -175,25 +157,28 @@ export class CostComponent {
     currentFormValues = computed<CostOverviewFormValues>(() => {
         const v = this.costsValue();
         return {
-            source: this.source(),
             from: v?.from ?? this.startOfLastMonth,
             to: v?.to ?? this.endOfLastMonth,
-            kafkaStorage: v?.kafkaStorage ?? null,
-            kafkaNetworkRead: v?.kafkaNetworkRead ?? null,
-            kafkaNetworkWrite: v?.kafkaNetworkWrite ?? null,
-            kafkaPartitions: v?.kafkaPartitions ?? null,
-            total: v?.total ?? null,
             groupBy: this.groupBy(),
         };
     });
 
-    data = signal<CostOverviewQuery | undefined>(undefined);
-    tableData = signal<CalculateTableQuery>({ calculateTable: { entries: null } });
-    lastRequest = signal<CostOverviewRequestInput | undefined>(undefined);
+    data = signal<BilledCosts | undefined>(undefined);
+    /** The grouping the shown costs were computed with. */
+    shownGroupBy = signal<string[]>([]);
+    loading = signal(false);
+    error = signal<string | null>(null);
+
+    rows = computed(() => (this.data() ? costRows(this.data()!) : []));
+    months = computed(() => (this.data() ? monthStatuses(this.data()!) : []));
+    totalCost = computed(() => this.rows().reduce((sum, row) => sum + row.total, 0));
+    estimatedCost = computed(() => this.rows().reduce((sum, row) => sum + row.estimated, 0));
+    anyEstimated = computed(() => this.months().some(m => !m.billed || m.billedUpTo));
+    noCosts = computed(() => !!this.data() && this.rows().length === 0);
 
     constructor() {
         this.unpriced.reload();
-        merge(this.costs.valueChanges, toObservable(this.groupBy), toObservable(this.source))
+        merge(this.costs.valueChanges, toObservable(this.groupBy))
             .pipe(
                 debounceTime(600),
                 filter(() => this.canCalculate()),
@@ -205,46 +190,16 @@ export class CostComponent {
             this._store.setCurrent(this.currentFormValues());
         });
 
-        // restore previous results immediately if we brought back a usable configuration
         if (this.canCalculate()) {
             this.calculate();
         }
     }
 
-    /**
-     * Both need a valid range: a date the picker can't parse arrives as null, and the backend
-     * rejects a missing start. An invoice split also needs an amount to distribute.
-     */
+    /** A date the picker can't parse arrives as null, and the backend rejects a missing start. */
     private canCalculate(): boolean {
         const { from, to } = this.costs.value;
-        if (!isValidDate(from) || !isValidDate(to)) {
-            return false;
-        }
-        return this.source() === 'pricingRules' || (this.costs.value.total ?? 0) > 0;
+        return isValidDate(from) && isValidDate(to);
     }
-
-    /** No pricing-rule costs came back for the period, as opposed to not having asked yet. */
-    noPricingRuleCosts = computed(
-        () =>
-            this.source() === 'pricingRules' &&
-            !!this.data() &&
-            (this.data()?.costOverview.metricToDistributionMapList?.length ?? 0) === 0
-    );
-
-    setSource(source: CostSource): void {
-        if (source === this.source()) {
-            return;
-        }
-        // results belong to the other source; drop them so the page never mixes the two
-        this.data.set(undefined);
-        this.tableData.set({ calculateTable: { entries: null } });
-        this.lastRequest.set(undefined);
-        this.source.set(source);
-    }
-
-    hasResults = computed(
-        () => !!this.data() || (this.tableData()?.calculateTable.entries?.length ?? 0) > 0
-    );
 
     applyDateRange(range: DateRange): void {
         this.costs.patchValue({ from: range.from, to: range.to });
@@ -290,16 +245,7 @@ export class CostComponent {
             return;
         }
         this.selectedConfigId.set(id);
-        this.setSource(config.source);
-        this.costs.patchValue({
-            from: config.from,
-            to: config.to,
-            kafkaStorage: config.kafkaStorage,
-            kafkaNetworkRead: config.kafkaNetworkRead,
-            kafkaNetworkWrite: config.kafkaNetworkWrite,
-            kafkaPartitions: config.kafkaPartitions ?? null,
-            total: config.total,
-        });
+        this.costs.patchValue({ from: config.from, to: config.to });
         this.groupBy.set(config.groupBy);
     }
 
@@ -311,61 +257,34 @@ export class CostComponent {
     }
 
     calculate() {
-        if (this.source() === 'pricingRules') {
-            this.calculatePricingRuleCosts();
-            return;
-        }
-        const request: CostOverviewRequestInput = {
-            from: this.costs.value.from,
-            to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
-            kafkaStorageCents: toCents(this.costs.value.kafkaStorage),
-            kafkaNetworkReadCents: toCents(this.costs.value.kafkaNetworkRead),
-            kafkaNetworkWriteCents: toCents(this.costs.value.kafkaNetworkWrite),
-            kafkaPartitionsCents: toCents(this.costs.value.kafkaPartitions),
-            totalCents: toCents(this.costs.value.total),
-            contextKeysToGroupBy: this.contextKeysToGroupBy(),
+        const groupBy = this.groupBy();
+        // whole UTC days, like the bills' months
+        const range = utcDayRange({ from: this.costs.value.from!, to: this.costs.value.to! });
+        const request: BilledCostRequestInput = {
+            from: range.from,
+            to: range.to,
+            contextKeysToGroupBy: groupBy,
         };
-        this.calcCostOverview.fetch({ variables: { request } }).subscribe(response => {
-            this.lastRequest.set(request);
-            this.data.set(response.data);
-        });
-        this.calcTable.fetch({ variables: { request } }).subscribe(response => {
-            this.tableData.set(response.data!);
-        });
-    }
-
-    private calculatePricingRuleCosts() {
-        const request: PricingRuleCostRequestInput = {
-            from: this.costs.value.from,
-            to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
-            contextKeysToGroupBy: this.contextKeysToGroupBy(),
-        };
-        this.calcPricingRuleCosts.fetch({ variables: { request } }).subscribe(response => {
-            if (this.source() !== 'pricingRules') {
-                return; // switched back to the invoice split while this was in flight
-            }
-            const costs = response.data!.pricingRuleCosts;
-            this.lastRequest.set({ ...request });
-            this.data.set({ costOverview: costs });
-            this.tableData.set({ calculateTable: { entries: toTableEntries(costs) } });
+        this.loading.set(true);
+        this.billedCosts.fetch({ variables: { request } }).subscribe({
+            next: response => {
+                this.loading.set(false);
+                if (response.error || !response.data) {
+                    this.error.set(response.error?.message ?? 'The costs could not be loaded.');
+                    return;
+                }
+                this.error.set(null);
+                this.shownGroupBy.set(groupBy);
+                this.data.set(response.data.billedCosts);
+            },
+            error: err => {
+                this.loading.set(false);
+                this.error.set(err.message);
+            },
         });
     }
 }
 
 function isValidDate(value: Date | null | undefined): value is Date {
     return value instanceof Date && !isNaN(value.getTime());
-}
-
-/** Table rows for pricing-rule costs: dollars per group, and each group's share of its metric. */
-function toTableEntries(costs: PricingRuleCostsQuery['pricingRuleCosts']) {
-    return (costs.metricToDistributionMapList ?? []).flatMap(distribution => {
-        const prices = (distribution?.nameToPriceList ?? []).filter(p => !!p);
-        const metricCents = prices.reduce((sum, p) => sum + (p.price ?? 0), 0);
-        return prices.map(p => ({
-            initialMetricName: distribution?.metric ?? '',
-            context: p.contextValues ?? [],
-            total: (p.price ?? 0) / 100,
-            percentage: metricCents ? (p.price ?? 0) / metricCents : 0,
-        }));
-    });
 }

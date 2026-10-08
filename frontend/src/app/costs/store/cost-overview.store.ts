@@ -21,19 +21,13 @@ const SAVED_CONFIGS_KEY = 'kcc_cost_overview_saved_configs';
 /** Bump when CostOverviewFormValues changes in a way values written by an older build cannot satisfy. */
 const PERSISTED_VERSION = 1;
 
-/** Where the amounts come from: an invoice split by usage, or the pricing rules (bottom-up). */
-export type CostSource = 'invoice' | 'pricingRules';
-
+/**
+ * The range and grouping of a cost view. Values saved by older builds also hold invoice amounts and
+ * a cost source; costs now come from the bills, so those are ignored.
+ */
 export interface CostOverviewFormValues {
-    source: CostSource;
     from: Date;
     to: Date;
-    kafkaStorage: number | null;
-    kafkaNetworkRead: number | null;
-    kafkaNetworkWrite: number | null;
-    /** Absent in configurations saved before the partitions line existed. */
-    kafkaPartitions?: number | null;
-    total: number | null;
     groupBy: string[];
 }
 
@@ -54,9 +48,25 @@ function reviveDates<T extends { from: Date; to: Date }>(value: T): T {
     return { ...value, from: reviveDate(value.from), to: reviveDate(value.to) };
 }
 
-/** `source` postdates the first shipped shape; anything written before it was an invoice split. */
-function withSource<T extends CostOverviewFormValues>(value: T): T {
-    return { ...value, source: value.source === 'pricingRules' ? 'pricingRules' : 'invoice' };
+/** Keeps only what a cost view still uses, dropping amounts and source saved by older builds. */
+function viewOf<T extends CostOverviewFormValues>(value: T): T {
+    const { from, to, groupBy } = value;
+    return { ...stripLegacy(value), from, to, groupBy };
+}
+
+function stripLegacy<T extends object>(value: T): T {
+    const copy = { ...value } as Record<string, unknown>;
+    for (const legacy of [
+        'source',
+        'kafkaStorage',
+        'kafkaNetworkRead',
+        'kafkaNetworkWrite',
+        'kafkaPartitions',
+        'total',
+    ]) {
+        delete copy[legacy];
+    }
+    return copy as T;
 }
 
 /**
@@ -100,7 +110,7 @@ export const CostOverviewStore = signalStore(
                 isCostOverviewValues
             );
             if (storedCurrent) {
-                patchState(store, { current: withSource(reviveDates(storedCurrent)) });
+                patchState(store, { current: viewOf(reviveDates(storedCurrent)) });
             }
             const storedConfigs = readPersisted(
                 SAVED_CONFIGS_KEY,
@@ -114,7 +124,7 @@ export const CostOverviewStore = signalStore(
                     addEntities(
                         storedConfigs
                             .filter(isSavedConfig)
-                            .map(config => withSource(reviveDates(config)))
+                            .map(config => viewOf(reviveDates(config)))
                     )
                 );
             }

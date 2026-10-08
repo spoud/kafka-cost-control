@@ -3,6 +3,28 @@ type AssistantStatus {
   reason: String
 }
 
+type BillEntity {
+  "End (exclusive) of what the amounts cover, for a month-to-date bill; null: the whole month (ISO-8601)"
+  coveredUntil: DateTime
+  "The billed month, yyyy-MM"
+  month: String!
+  networkRead: Float
+  networkWrite: Float
+  "Everything else on the bill, line by line, each with where it goes"
+  otherLines: [OtherLine!]!
+  partitions: Float
+  storage: Float
+  "ISO-8601"
+  updatedAt: DateTime!
+  updatedBy: String
+}
+
+type BilledCostResponse {
+  metrics: [MetricCosts!]!
+  "Each month the range touches, and whether a bill covers it"
+  months: [MonthBilling!]!
+}
+
 type ChatAnswer {
   columns: [String!]!
   complete: Boolean!
@@ -47,6 +69,11 @@ type Entry_String_String {
   value: String
 }
 
+type MetricCosts {
+  metric: String!
+  shares: [Share!]!
+}
+
 type MetricHistory {
   context(
     "Get entry/entries for a certain key/s"
@@ -71,12 +98,25 @@ type MetricToDistributionMap {
   nameToPriceList: [NameToPrice]
 }
 
+type MonthBilling {
+  "Whether a bill exists for the month"
+  billed: Boolean!
+  "Where the bill's amounts stop; after it, the rate card applies (ISO-8601)"
+  billedUntil: DateTime
+  "The part of the range in this month (ISO-8601)"
+  from: DateTime!
+  month: String!
+  "ISO-8601"
+  to: DateTime!
+}
+
 "Mutation root"
 type Mutation {
   "Ask a natural-language question about the aggregated metrics data."
   chat(request: ChatRequestInput): ChatAnswer!
   "Forget the conversation history for one session."
   clearChat(sessionId: String!): Boolean!
+  deleteBill(month: String!): BillEntity
   deleteContextData(request: ContextDataDeleteRequestInput): ContextDataEntity
   deletePricingRule(request: PricingRuleDeleteRequestInput): PricingRuleEntity
   reprocess(
@@ -84,6 +124,8 @@ type Mutation {
     "ISO-8601"
     startTime: DateTime
   ): String!
+  "Saves a month's bill, replacing the month's previous one"
+  saveBill(request: BillSaveRequestInput!): BillEntity!
   saveContextData(request: ContextDataSaveRequestInput): ContextDataEntity!
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
 }
@@ -92,6 +134,18 @@ type NameToPrice {
   contextValues: [String]
   name: String
   price: Float
+}
+
+type OtherLine {
+  allocation: Allocation!
+  "In dollars; negative for a credit"
+  amount: Float!
+  "For CONTEXT: the context the amount belongs to, e.g. tenant=data-platform"
+  context(
+    "Get entry/entries for a certain key/s"
+    key: [String]
+  ): [Entry_String_String!]
+  description: String!
 }
 
 type PricingRuleEntity {
@@ -113,6 +167,10 @@ type PricingRuleEntity {
 type Query {
   "Whether the AI assistant is configured and able to answer questions."
   assistantStatus: AssistantStatus!
+  "Costs in cents from the monthly bills, with the rate card where no bill applies"
+  billedCosts(request: BilledCostRequestInput!): BilledCostResponse!
+  "All bills, newest month first, in dollars"
+  bills: [BillEntity!]!
   calculateTable(request: CostOverviewRequestInput): TableResponse!
   contextData: [ContextDataEntity!]!
   contextTest(testString: String): [ContextTestResponse!]!
@@ -126,6 +184,16 @@ type Query {
   pricingRules: [PricingRuleEntity!]!
   "Topics and principals no context rule assigns (or without a value for contextKey), most expensive first; no from = the last 7 days"
   unassignedEntities(request: UnassignedEntitiesRequestInput): [UnassignedEntity!]!
+}
+
+type Share {
+  "The values of the grouping keys, in their order; <other> where none, <shared> for what is assigned to no one"
+  contextValues: [String!]!
+  "The part in cents that comes from the rate card because no bill covers it"
+  estimatedPrice: Float!
+  name: String!
+  "Total in cents, the estimated part included"
+  price: Float!
 }
 
 type TableEntry {
@@ -149,6 +217,12 @@ type UnassignedEntity {
   "Metrics recorded for it in the period"
   metrics: [String!]!
   name: String!
+}
+
+enum Allocation {
+  CONTEXT
+  SHARED
+  USAGE
 }
 
 enum EntityType {
@@ -176,6 +250,27 @@ scalar BigInteger
 "Scalar for DateTime"
 scalar DateTime
 
+input BillSaveRequestInput {
+  "For a month-to-date bill: the end (exclusive) of what the amounts cover. Empty: the whole month. (ISO-8601)"
+  coveredUntil: DateTime
+  "The billed month, yyyy-MM, in UTC"
+  month: String!
+  networkRead: Float
+  networkWrite: Float
+  "Everything else on the bill, line by line; an amount may be negative for a credit"
+  otherLines: [OtherLineRequestInput]
+  partitions: Float
+  storage: Float
+}
+
+input BilledCostRequestInput {
+  contextKeysToGroupBy: [String]
+  "ISO-8601"
+  from: DateTime
+  "ISO-8601"
+  to: DateTime
+}
+
 input ChatRequestInput {
   "The question to answer."
   message: String!
@@ -200,6 +295,11 @@ input ContextDataSaveRequestInput {
   validUntil: DateTime
 }
 
+input ContextPairInput {
+  key: String
+  value: String
+}
+
 input CostOverviewRequestInput {
   contextKeysToGroupBy: [String]
   "ISO-8601"
@@ -221,6 +321,15 @@ input DateTimeParameterInput {
 input Entry_String_StringInput {
   key: String
   value: String
+}
+
+input OtherLineRequestInput {
+  allocation: Allocation
+  "In dollars; negative for a credit"
+  amount: Float
+  "For CONTEXT: the context the amount belongs to, e.g. [{key: \"tenant\", value: \"data-platform\"}]"
+  context: [ContextPairInput]
+  description: String
 }
 
 input PricingRuleCostRequestInput {

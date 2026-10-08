@@ -6,35 +6,42 @@
 </div>
 
 <app-data-table>
-    <table mat-table [dataSource]="dataSource()" matSort>
-        <ng-container matColumnDef="initialMetricName">
+    <table mat-table [dataSource]="dataSource" matSort>
+        <ng-container matColumnDef="metric">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>Metric</th>
-            <td mat-cell *matCellDef="let element">{{ element.initialMetricName }}</td>
+            <td mat-cell *matCellDef="let row">{{ row.metric }}</td>
         </ng-container>
 
-        @for (context of this.lastRequest()?.contextKeysToGroupBy!; track context; let i = $index) {
-            <ng-container matColumnDef="{{ context }}">
-                <th mat-header-cell *matHeaderCellDef>{{ context }}</th>
-                <td mat-cell *matCellDef="let element">{{ element.context.at(i) }}</td>
+        @for (key of groupBy(); track key; let i = $index) {
+            <ng-container [matColumnDef]="key">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ key }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.context.at(i) }}</td>
             </ng-container>
         }
 
         <ng-container matColumnDef="total">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>
-                {{ source() === 'pricingRules' ? 'Cost ($)' : 'Total [sum over all windows]' }}
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="amount">Cost ($)</th>
+            <td mat-cell *matCellDef="let row" class="amount">{{ row.total | number: '1.2-2' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="estimated">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="amount">
+                of which estimated ($)
             </th>
-            <td mat-cell *matCellDef="let element">
-                @if (source() === 'pricingRules') {
-                    {{ element.total | number: '1.2-2' }}
-                } @else {
-                    {{ element.total }}
+            <td mat-cell *matCellDef="let row" class="amount estimated">
+                @if (row.estimated > 0) {
+                    {{ row.estimated | number: '1.2-2' }}
                 }
             </td>
         </ng-container>
 
         <ng-container matColumnDef="percentage">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Percentage (of this metric)</th>
-            <td mat-cell *matCellDef="let element">{{ element.percentage | percent: '.2-2' }}</td>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="amount">
+                Share of this cost
+            </th>
+            <td mat-cell *matCellDef="let row" class="amount">
+                {{ row.percentage | percent: '.2-2' }}
+            </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>

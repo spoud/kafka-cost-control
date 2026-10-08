@@ -104,41 +104,39 @@ describe('CostOverviewStore hydration', () => {
         expect(store.current()?.from).toBeInstanceOf(Date);
     });
 
-    it('reads state saved before the cost source existed as an invoice split', () => {
+    it('keeps the range and grouping of views saved with invoice amounts, and drops the rest', () => {
         localStorage.setItem(
             CURRENT_STATE_KEY,
             JSON.stringify({
+                source: 'invoice',
                 from: '2026-01-01T00:00:00Z',
                 to: '2026-02-01T00:00:00Z',
-                groupBy: [],
+                kafkaStorage: 12.5,
+                total: 40,
+                groupBy: ['tenant'],
             })
         );
         localStorage.setItem(
             SAVED_CONFIGS_KEY,
             JSON.stringify([
-                { id: 'old', name: 'Old', from: '2026-01-01', to: '2026-02-01', groupBy: [] },
+                {
+                    id: 'old',
+                    name: 'Old',
+                    source: 'pricingRules',
+                    from: '2026-01-01',
+                    to: '2026-02-01',
+                    kafkaNetworkWrite: 3,
+                    groupBy: [],
+                },
             ])
         );
 
         const store = TestBed.inject(CostOverviewStore);
 
-        expect(store.current()?.source).toBe('invoice');
-        expect(store.entities()[0].source).toBe('invoice');
-    });
-
-    it('keeps a stored pricing-rules source', () => {
-        localStorage.setItem(
-            CURRENT_STATE_KEY,
-            JSON.stringify({
-                source: 'pricingRules',
-                from: '2026-01-01T00:00:00Z',
-                to: '2026-02-01T00:00:00Z',
-                groupBy: [],
-            })
-        );
-
-        const store = TestBed.inject(CostOverviewStore);
-
-        expect(store.current()?.source).toBe('pricingRules');
+        expect(store.current()?.groupBy).toEqual(['tenant']);
+        expect(store.current()).not.toHaveProperty('kafkaStorage');
+        expect(store.current()).not.toHaveProperty('source');
+        expect(store.entities()[0].name).toBe('Old');
+        expect(store.entities()[0]).not.toHaveProperty('kafkaNetworkWrite');
     });
 });

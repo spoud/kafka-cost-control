@@ -31,6 +31,11 @@ export const routes: Routes = [
             ),
     },
     {
+        path: 'bills',
+        loadComponent: () =>
+            import('./bills/bills-list/bills-list.component').then(m => m.BillsListComponent),
+    },
+    {
         path: 'costs',
         loadComponent: () => import('./costs/cost.component').then(m => m.CostComponent),
     },
@@ -99,12 +104,13 @@ export const menuLinks: NavLink[] = [
     { sortOrder: 2, path: '/explore', label: 'Explore', icon: 'explore', group: 'primary' },
     { sortOrder: 3, path: '/reporting', label: 'Reporting', icon: 'assignment', group: 'primary' },
     { sortOrder: 4, path: '/context-data', label: 'Context Data', icon: 'label', group: 'admin' },
+    { sortOrder: 5, path: '/bills', label: 'Bills', icon: 'receipt_long', group: 'admin' },
     {
-        sortOrder: 5,
+        sortOrder: 6,
         path: '/pricing-rules',
         label: 'Pricing Rules',
         icon: 'price_check',
         group: 'admin',
     },
-    { sortOrder: 6, path: '/others', label: 'Others', icon: 'build', group: 'admin' },
+    { sortOrder: 7, path: '/others', label: 'Others', icon: 'build', group: 'admin' },
 ];
