@@ -8,14 +8,20 @@ import {
     ViewChild,
     inject,
 } from '@angular/core';
-import { DeletePricingRuleGQL, GetPricingRulesGQL } from '../../../generated/graphql/sdk';
+import {
+    DeletePricingRuleGQL,
+    GetPricingRulesGQL,
+    UndoPricingRuleChangeGQL,
+} from '../../../generated/graphql/sdk';
 import { PricingRuleEntity } from '../../../generated/graphql/types';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { PricePipe } from '../price';
+import { formatPrice, PricePipe } from '../price';
+import { DatePipe } from '@angular/common';
+import { MatTooltip } from '@angular/material/tooltip';
 import { PageHeaderComponent } from '../../common/page-header/page-header.component';
 import { DataTableComponent } from '../../common/data-table/data-table.component';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -49,11 +55,14 @@ const RULE_STORE_CATCH_UP_MS = 2000;
         IntlDatePipe,
         MatButton,
         MatIconButton,
+        DatePipe,
+        MatTooltip,
     ],
 })
 export class PricingRulesListComponent implements OnInit, AfterViewInit {
     private _pricingRules = inject(GetPricingRulesGQL);
     private _deletePricingRule = inject(DeletePricingRuleGQL);
+    private _undoPricingRuleChange = inject(UndoPricingRuleChangeGQL);
     private _dialog = inject(MatDialog);
     private _liveAnnouncer = inject(LiveAnnouncer);
     private _snackbar = inject(MatSnackBar);
@@ -62,6 +71,7 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
     @ViewChild(MatSort) sort: MatSort | null = null;
     @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
     @ViewChild('deleteConfirmContent') deleteConfirmContent!: TemplateRef<unknown>;
+    @ViewChild('undoConfirmContent') undoConfirmContent!: TemplateRef<unknown>;
 
     dataSource = new MatTableDataSource<PricingRuleEntity>([]);
 
@@ -166,6 +176,55 @@ export class PricingRulesListComponent implements OnInit, AfterViewInit {
                         },
                         error: err =>
                             this._snackbar.open(`Deleting failed: ${err.message}`, 'close'),
+                    });
+            });
+    }
+
+    /** The earlier prices, one per line, for the tooltip. */
+    protected history(rule: PricingRuleEntity): string {
+        const day = (t: unknown) =>
+            t ? new Date(String(t)).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'always';
+        return rule.earlierPrices
+            .map(
+                p => `${day(p.validFrom)} – ${day(p.validUntil)}: ${formatPrice({ ...rule, ...p })}`
+            )
+            .join('\n');
+    }
+
+    undo(rule: PricingRuleEntity) {
+        this._dialog
+            .open(ConfirmDialogComponent, {
+                data: {
+                    title: 'Undo the last price change',
+                    contentTemplate: this.undoConfirmContent,
+                    templateContext: { $implicit: rule },
+                    confirmLabel: 'Yes, undo',
+                    cancelLabel: 'No, keep it',
+                },
+            })
+            .afterClosed()
+            .subscribe(confirmed => {
+                if (!confirmed) {
+                    return;
+                }
+                this._undoPricingRuleChange
+                    .mutate({ variables: { request: { metricName: rule.metricName } } })
+                    .subscribe({
+                        next: result => {
+                            if (result.error) {
+                                this._snackbar.open(
+                                    `Undo failed: ${result.error.message}`,
+                                    'close'
+                                );
+                                return;
+                            }
+                            this._snackbar.open('Previous price restored', 'close', {
+                                politeness: 'polite',
+                                duration: 2000,
+                            });
+                            setTimeout(() => this.loadPricingRules(), RULE_STORE_CATCH_UP_MS);
+                        },
+                        error: err => this._snackbar.open(`Undo failed: ${err.message}`, 'close'),
                     });
             });
     }

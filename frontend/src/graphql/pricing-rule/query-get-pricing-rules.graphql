@@ -8,5 +8,16 @@ query getPricingRules{
         priceUnit
         multiplier
         multiplierLabel
+        validFrom
+        earlierPrices {
+            validFrom
+            validUntil
+            baseCost
+            costFactor
+            price
+            priceUnit
+            multiplier
+            multiplierLabel
+        }
     }
 }

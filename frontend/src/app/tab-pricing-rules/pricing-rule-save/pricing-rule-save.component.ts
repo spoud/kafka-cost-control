@@ -12,6 +12,14 @@ import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatHint, MatLabel, MatPrefix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSelect } from '@angular/material/select';
+import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
+import {
+    MatDatepicker,
+    MatDatepickerInput,
+    MatDatepickerToggle,
+} from '@angular/material/datepicker';
+import { MatSuffix } from '@angular/material/form-field';
+import { DatePipe } from '@angular/common';
 import { MatAutocomplete, MatAutocompleteTrigger, MatOption } from '@angular/material/autocomplete';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -29,6 +37,11 @@ export interface PricingRuleSaveData {
     metricNames: string[];
     /** Metrics that already have a rule; saving one of them again replaces it. */
     pricedMetricNames: string[];
+}
+
+/** Midnight UTC at the start of the picked calendar day. */
+export function utcDayStart(day: Date): string {
+    return new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate())).toISOString();
 }
 
 /** The rule's price as entered, or, for a rule saved with only a cost factor, its equivalent. */
@@ -68,6 +81,13 @@ function initialPrice(rule: PricingRuleEntity | undefined, metricName: string) {
         MatAutocompleteTrigger,
         MatOption,
         ReactiveFormsModule,
+        MatRadioGroup,
+        MatRadioButton,
+        MatDatepicker,
+        MatDatepickerInput,
+        MatDatepickerToggle,
+        MatSuffix,
+        DatePipe,
     ],
     templateUrl: './pricing-rule-save.component.html',
     styleUrl: './pricing-rule-save.component.scss',
@@ -91,7 +111,16 @@ export class PricingRuleSaveComponent {
         priceUnit: [this.start.priceUnit, Validators.required],
         multiplier: [this.start.multiplier as number | null, Validators.min(0.000001)],
         multiplierLabel: [this.data.rule?.multiplierLabel ?? ''],
+        // 'always': correct the current price (or, for a new rule, price every hour);
+        // 'from': a new price from a day on, the current one keeps the hours before
+        applies: ['always' as 'always' | 'from'],
+        from: [null as Date | null],
     });
+
+    /** The current price's start, for the hint; null when it has always applied. */
+    protected currentFrom = this.data.rule?.validFrom
+        ? new Date(String(this.data.rule.validFrom))
+        : null;
 
     private metricName = toSignal(this.form.controls.metricName.valueChanges, {
         initialValue: this.form.controls.metricName.value,
@@ -128,12 +157,23 @@ export class PricingRuleSaveComponent {
         });
     }
 
+    /** A new price from a day needs the day, after the current price's start. */
+    protected missingFrom = computed(() => this.values().applies === 'from' && !this.values().from);
+
     save() {
-        if (this.form.invalid) {
+        if (this.form.invalid || this.missingFrom()) {
             return;
         }
-        const { metricName, baseCost, price, priceUnit, multiplier, multiplierLabel } =
-            this.form.getRawValue();
+        const {
+            metricName,
+            baseCost,
+            price,
+            priceUnit,
+            multiplier,
+            multiplierLabel,
+            applies,
+            from,
+        } = this.form.getRawValue();
         const request = {
             metricName: metricName.trim(),
             baseCost,
@@ -141,6 +181,8 @@ export class PricingRuleSaveComponent {
             priceUnit,
             multiplier: multiplier || null,
             multiplierLabel: multiplier ? multiplierLabel.trim() || null : null,
+            // whole UTC days, like the bills and Cost Overview
+            validFrom: applies === 'from' && from ? utcDayStart(from) : null,
         };
         this.savePricingRule.mutate({ variables: { request } }).subscribe({
             next: result => {

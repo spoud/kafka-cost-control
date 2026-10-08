@@ -23,3 +23,15 @@ mat-form-field {
 .warning {
     color: var(--mat-sys-error);
 }
+
+.applies {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+
+    mat-radio-group {
+        display: flex;
+        flex-direction: column;
+    }
+}

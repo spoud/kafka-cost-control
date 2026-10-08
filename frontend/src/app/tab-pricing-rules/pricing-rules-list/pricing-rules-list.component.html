@@ -1,6 +1,6 @@
 <app-page-header
     title="Pricing Rules"
-    subtitle="A rate card: price × usage, without free tiers or discounts. To share an actual bill, split the invoice on the Costs page."
+    subtitle="A rate card: price × usage, without free tiers or discounts, for every hour no bill covers. Enter the actual bills on the Bills page."
 >
     <ng-container actions>
         <button mat-flat-button type="button" (click)="openSaveDialog()">
@@ -23,7 +23,20 @@
         </ng-container>
         <ng-container matColumnDef="price">
             <th mat-header-cell *matHeaderCellDef>Price</th>
-            <td mat-cell *matCellDef="let element">{{ element | price }}</td>
+            <td mat-cell *matCellDef="let element">
+                <div>{{ element | price }}</div>
+                @if (element.validFrom || element.earlierPrices.length) {
+                    <div class="since" [matTooltip]="history(element)">
+                        @if (element.validFrom) {
+                            since {{ element.validFrom | date: 'mediumDate' : 'UTC' }}
+                        }
+                        @if (element.earlierPrices.length) {
+                            · {{ element.earlierPrices.length }} earlier
+                            {{ element.earlierPrices.length === 1 ? 'price' : 'prices' }}
+                        }
+                    </div>
+                }
+            </td>
         </ng-container>
         <ng-container matColumnDef="baseCost">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>Base cost</th>
@@ -44,6 +57,17 @@
                 >
                     <mat-icon>edit</mat-icon>
                 </button>
+                @if (element.earlierPrices.length) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        aria-label="Undo the last price change"
+                        matTooltip="Undo the last price change"
+                        (click)="undo(element)"
+                    >
+                        <mat-icon>undo</mat-icon>
+                    </button>
+                }
                 <button
                     mat-icon-button
                     type="button"
@@ -95,10 +119,17 @@
     </mat-accordion>
 }
 
+<ng-template #undoConfirmContent let-element>
+    <p>
+        Drop the current price of <code>{{ element.metricName }}</code> and make the previous one
+        current again? Costs show the change at once.
+    </p>
+</ng-template>
+
 <ng-template #deleteConfirmContent let-element>
     <p>
         Delete the pricing rule for <code>{{ element.metricName }}</code
-        >? Data processed from now on gets no cost for this metric, and it drops out of the
-        pricing-rule costs. Past windows keep their cost until the data is reprocessed.
+        >? Hours no bill covers get no estimated cost for this metric any more; billed months are
+        unaffected.
     </p>
 </ng-template>
