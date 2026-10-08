@@ -29,3 +29,17 @@ export function isSameDay(a: Date, b: Date): boolean {
         a.getDate() === b.getDate()
     );
 }
+
+/**
+ * The picked calendar days as a UTC range: from midnight UTC of the first day to midnight UTC after
+ * the last (exclusive). Bills are per UTC month, like the provider's, so a range read in local time
+ * would reach into the neighbouring month (1 October in Zurich starts at 30 September 22:00 UTC).
+ */
+export function utcDayRange(range: DateRange): { from: Date; to: Date } {
+    return {
+        from: new Date(
+            Date.UTC(range.from.getFullYear(), range.from.getMonth(), range.from.getDate())
+        ),
+        to: new Date(Date.UTC(range.to.getFullYear(), range.to.getMonth(), range.to.getDate() + 1)),
+    };
+}

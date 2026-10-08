@@ -6,7 +6,15 @@ mutation saveBill($request: BillSaveRequestInput!) {
         networkRead
         storage
         partitions
-        other
+        otherLines {
+            description
+            amount
+            allocation
+            context {
+                key
+                value
+            }
+        }
         updatedAt
         updatedBy
     }

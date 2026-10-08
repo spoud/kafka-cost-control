@@ -1,5 +1,7 @@
+import { Allocation } from '../../generated/graphql/types';
 import {
     billTotal,
+    describeOtherLine,
     coveredUntilFromLastDay,
     lastDayFromCoveredUntil,
     monthLastDay,
@@ -7,16 +9,30 @@ import {
 } from './bill';
 
 describe('bill helpers', () => {
-    it('adds every line, "other" included', () => {
+    it('adds every line, the other lines included', () => {
         expect(
             billTotal({
                 networkWrite: 1,
                 networkRead: 2,
                 storage: null,
                 partitions: 3,
-                other: -0.5,
+                otherLines: [{ amount: 1 }, { amount: -1.5 }],
             })
         ).toBe(5.5);
+    });
+
+    it('describes an other line with where it goes', () => {
+        expect(
+            describeOtherLine({
+                description: 'Connect',
+                amount: 12,
+                allocation: Allocation.Context,
+                context: [{ key: 'application', value: 'etl' }],
+            })
+        ).toBe('Connect $12.00 → application=etl');
+        expect(
+            describeOtherLine({ description: 'Support', amount: 5, allocation: Allocation.Usage })
+        ).toBe('Support $5.00 → spread by usage');
     });
 
     it('turns the last day a month-to-date bill includes into where it stops, and back', () => {

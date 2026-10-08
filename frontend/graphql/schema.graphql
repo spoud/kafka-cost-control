@@ -10,8 +10,8 @@ type BillEntity {
   month: String!
   networkRead: Float
   networkWrite: Float
-  "Everything else on the bill, shown as platform / shared rather than split by usage"
-  other: Float
+  "Everything else on the bill, line by line, each with where it goes"
+  otherLines: [OtherLine!]!
   partitions: Float
   storage: Float
   "ISO-8601"
@@ -136,6 +136,18 @@ type NameToPrice {
   price: Float
 }
 
+type OtherLine {
+  allocation: Allocation!
+  "In dollars; negative for a credit"
+  amount: Float!
+  "For CONTEXT: the context the amount belongs to, e.g. tenant=data-platform"
+  context(
+    "Get entry/entries for a certain key/s"
+    key: [String]
+  ): [Entry_String_String!]
+  description: String!
+}
+
 type PricingRuleEntity {
   baseCost: Float!
   "Cost per unit of the metric's raw value, derived from the price when one is set"
@@ -175,7 +187,7 @@ type Query {
 }
 
 type Share {
-  "The values of the grouping keys, in their order; <other> where none, <platform> for the shared part"
+  "The values of the grouping keys, in their order; <other> where none, <shared> for what is assigned to no one"
   contextValues: [String!]!
   "The part in cents that comes from the rate card because no bill covers it"
   estimatedPrice: Float!
@@ -205,6 +217,12 @@ type UnassignedEntity {
   "Metrics recorded for it in the period"
   metrics: [String!]!
   name: String!
+}
+
+enum Allocation {
+  CONTEXT
+  SHARED
+  USAGE
 }
 
 enum EntityType {
@@ -239,8 +257,8 @@ input BillSaveRequestInput {
   month: String!
   networkRead: Float
   networkWrite: Float
-  "Everything else on the bill; may be negative for a credit"
-  other: Float
+  "Everything else on the bill, line by line; an amount may be negative for a credit"
+  otherLines: [OtherLineRequestInput]
   partitions: Float
   storage: Float
 }
@@ -277,6 +295,11 @@ input ContextDataSaveRequestInput {
   validUntil: DateTime
 }
 
+input ContextPairInput {
+  key: String
+  value: String
+}
+
 input CostOverviewRequestInput {
   contextKeysToGroupBy: [String]
   "ISO-8601"
@@ -298,6 +321,15 @@ input DateTimeParameterInput {
 input Entry_String_StringInput {
   key: String
   value: String
+}
+
+input OtherLineRequestInput {
+  allocation: Allocation
+  "In dollars; negative for a credit"
+  amount: Float
+  "For CONTEXT: the context the amount belongs to, e.g. [{key: \"tenant\", value: \"data-platform\"}]"
+  context: [ContextPairInput]
+  description: String
 }
 
 input PricingRuleCostRequestInput {

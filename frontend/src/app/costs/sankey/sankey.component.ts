@@ -12,15 +12,6 @@ import { ThemeService } from '../../services/theme.service';
 
 echarts.use([SankeyChart]);
 
-/** Names for the metrics the bill lines follow; anything else shows its metric name. */
-export const METRIC_LABELS: Record<string, string> = {
-    confluent_kafka_server_request_bytes: 'Network write',
-    confluent_kafka_server_response_bytes: 'Network read',
-    confluent_kafka_server_retained_bytes: 'Storage',
-    kafka_topic_partition_count: 'Partitions',
-    platform: 'Platform / shared',
-};
-
 /** Vertical room to reserve per node in the busiest column, so labels are not stacked on top of
  * each other. The canvas grows with the data instead of collapsing the data to fit the canvas. */
 const PIXELS_PER_NODE = 26;
@@ -133,7 +124,6 @@ export class SankeyComponent {
         // each metric's branch is what its costs add up to: its bill line, or the estimate
         distributions.forEach(entry => {
             dataSet.add(entry.metric);
-            shortLabels.set(entry.metric, METRIC_LABELS[entry.metric] ?? entry.metric);
             const cents = entry.shares.reduce((sum, share) => sum + share.price, 0);
             addLink('total', entry.metric, cents / 100);
         });

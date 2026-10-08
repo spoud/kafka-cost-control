@@ -38,9 +38,9 @@
 
         <div class="lines">
             @for (line of lines; track line.key) {
-                <!-- always floated: with the $ prefix, an empty field read "$Network write" -->
+                <!-- always floated: with the $ prefix, an empty field read "$..." -->
                 <mat-form-field floatLabel="always">
-                    <mat-label>{{ line.label }}</mat-label>
+                    <mat-label>{{ line.metric }}</mat-label>
                     <span matTextPrefix>$&nbsp;</span>
                     <input
                         matInput
@@ -49,26 +49,117 @@
                         step="0.01"
                         [formControlName]="line.key"
                     />
-                    <mat-hint>Split by {{ line.hint }}</mat-hint>
+                    <mat-hint>{{ line.hint }}</mat-hint>
                 </mat-form-field>
             }
-            <mat-form-field floatLabel="always">
-                <mat-label>Other (optional)</mat-label>
-                <span matTextPrefix>$&nbsp;</span>
-                <input matInput type="number" step="0.01" formControlName="other" />
-                <mat-hint>Connectors, support; negative for a credit. Not split.</mat-hint>
-            </mat-form-field>
         </div>
+
+        <h3 class="section">Other lines</h3>
+        <p class="note">
+            Connectors, support, credits (negative): anything not shared by a metric's usage. Each
+            goes to a context, is spread by usage like overhead, or stays shared.
+        </p>
+        <div formArrayName="otherLines" class="other-lines">
+            @for (line of otherLines.controls; track line; let i = $index) {
+                <div class="other-line" [formGroupName]="i">
+                    <div class="row">
+                        <mat-form-field class="grow" subscriptSizing="dynamic">
+                            <mat-label>Description</mat-label>
+                            <input matInput formControlName="description" placeholder="Connect" />
+                        </mat-form-field>
+                        <mat-form-field
+                            class="amount"
+                            floatLabel="always"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>Amount</mat-label>
+                            <span matTextPrefix>$&nbsp;</span>
+                            <input matInput type="number" step="0.01" formControlName="amount" />
+                        </mat-form-field>
+                        <mat-form-field class="allocation" subscriptSizing="dynamic">
+                            <mat-label>Goes</mat-label>
+                            <mat-select formControlName="allocation">
+                                @for (a of allocations; track a.value) {
+                                    <mat-option [value]="a.value">{{ a.label }}</mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                        <button
+                            mat-icon-button
+                            type="button"
+                            aria-label="Remove this line"
+                            (click)="removeOtherLine(i)"
+                        >
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </div>
+                    @if (line.controls.allocation.value === Allocation.Context) {
+                        <div formArrayName="context" class="context">
+                            @for (
+                                pair of line.controls.context.controls;
+                                track pair;
+                                let j = $index
+                            ) {
+                                <div class="row" [formGroupName]="j">
+                                    <mat-form-field class="grow" subscriptSizing="dynamic">
+                                        <mat-label>Context key</mat-label>
+                                        <input
+                                            matInput
+                                            formControlName="key"
+                                            [matAutocomplete]="keys"
+                                            placeholder="tenant"
+                                        />
+                                        <mat-autocomplete #keys="matAutocomplete">
+                                            @for (key of contextKeys(); track key) {
+                                                <mat-option [value]="key">{{ key }}</mat-option>
+                                            }
+                                        </mat-autocomplete>
+                                    </mat-form-field>
+                                    <mat-form-field class="grow" subscriptSizing="dynamic">
+                                        <mat-label>Value</mat-label>
+                                        <input
+                                            matInput
+                                            formControlName="value"
+                                            placeholder="data-platform"
+                                        />
+                                    </mat-form-field>
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        aria-label="Remove this key"
+                                        [disabled]="line.controls.context.length === 1"
+                                        (click)="removeContextPair(line, j)"
+                                    >
+                                        <mat-icon>close</mat-icon>
+                                    </button>
+                                </div>
+                            }
+                            <button mat-button type="button" (click)="addContextPair(line)">
+                                <mat-icon>add</mat-icon>
+                                Another key
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <button mat-stroked-button type="button" (click)="addOtherLine()">
+            <mat-icon>add</mat-icon>
+            Add other line
+        </button>
 
         <p class="total">
             Total <strong>${{ total() | number: '1.2-4' }}</strong>
         </p>
-        <p class="note">
-            Leave a line empty to estimate it from the pricing rules. "Other" is shown as Platform /
-            shared.
-        </p>
+        <p class="note">Leave a metric's line empty to estimate it from the pricing rules.</p>
         @if (negativeLine()) {
-            <p class="failure" role="alert">Only "other" can be negative.</p>
+            <p class="failure" role="alert">Only other lines can be negative.</p>
+        }
+        @if (incompleteOtherLine()) {
+            <p class="failure" role="alert">
+                Every other line needs a description and an amount, and one going to a context a key
+                and value.
+            </p>
         }
         @if (failure()) {
             <p class="failure" role="alert">{{ failure() }}</p>

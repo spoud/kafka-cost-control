@@ -6,7 +6,6 @@ import { DecimalPipe, PercentPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { DataTableComponent } from '../../common/data-table/data-table.component';
-import { METRIC_LABELS } from '../sankey/sankey.component';
 
 /** One group's cost for one metric, in dollars. */
 export interface CostRow {
@@ -41,7 +40,6 @@ export class CostTableComponent implements AfterViewInit {
     @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
     @ViewChild(MatSort) sort: MatSort | undefined;
 
-    protected readonly metricLabel = (metric: string) => METRIC_LABELS[metric] ?? metric;
     protected readonly dataSource = new MatTableDataSource<CostRow>([]);
     protected readonly hasEstimates = computed(() => this.rows().some(row => row.estimated > 0));
     protected readonly displayedColumns = computed(() => [
@@ -75,7 +73,7 @@ export class CostTableComponent implements AfterViewInit {
         const keys = this.groupBy();
         const headers = ['Metric', ...keys, 'Cost ($)', 'Estimated ($)', 'Percentage'];
         const rows = this.rows().map(row => [
-            this.metricLabel(row.metric),
+            row.metric,
             ...keys.map((_, i) => row.context.at(i) ?? ''),
             row.total,
             row.estimated,

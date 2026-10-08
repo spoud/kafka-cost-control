@@ -3,6 +3,9 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { of } from 'rxjs';
 import { SaveBillGQL } from '../../../generated/graphql/sdk';
+import { Allocation } from '../../../generated/graphql/types';
+import { GraphFilterService } from '../../tab-graphs/graph-filter/graph-filter.service';
+import { signal } from '@angular/core';
 import { BillSaveComponent, BillSaveData } from './bill-save.component';
 
 function setup(data: BillSaveData) {
@@ -17,6 +20,7 @@ function setup(data: BillSaveData) {
             { provide: SaveBillGQL, useValue: { mutate } },
             { provide: MatDialogRef, useValue: { close } },
             { provide: MAT_DIALOG_DATA, useValue: data },
+            { provide: GraphFilterService, useValue: { contextKeys: signal(['tenant']) } },
             // the app provides it in app.config
             provideNativeDateAdapter(),
         ],
@@ -26,6 +30,7 @@ function setup(data: BillSaveData) {
     const component = fixture.componentInstance as unknown as {
         form: { patchValue(v: Record<string, unknown>): void };
         save(): void;
+        addOtherLine(): void;
     };
     const el: HTMLElement = fixture.nativeElement;
     const sent = () => mutate.mock.calls[0][0].variables.request;
@@ -94,10 +99,56 @@ describe('BillSaveComponent', () => {
             bill: {
                 month: '2026-08',
                 networkWrite: 1,
+                otherLines: [],
                 updatedAt: '2026-09-01T00:00:00Z',
             },
         });
         expect(editing.el.textContent).toContain('Edit bill');
         expect(editing.el.querySelector('mat-select')?.getAttribute('aria-disabled')).toBe('true');
+    });
+    it('sends other lines with where they go; a context line only with its pairs', () => {
+        const { component, fixture, sent } = setup({ billedMonths: [] });
+        component.addOtherLine();
+        component.addOtherLine();
+        component.form.patchValue({
+            month: '2026-09',
+            monthToDate: false,
+            otherLines: [
+                {
+                    description: ' Connect ',
+                    amount: 12,
+                    allocation: Allocation.Context,
+                    context: [{ key: 'application', value: ' etl ' }],
+                },
+                { description: 'Credit', amount: -2, allocation: Allocation.Shared },
+            ],
+        });
+        fixture.detectChanges();
+        component.save();
+
+        expect(sent()['otherLines']).toEqual([
+            {
+                description: 'Connect',
+                amount: 12,
+                allocation: Allocation.Context,
+                context: [{ key: 'application', value: 'etl' }],
+            },
+            { description: 'Credit', amount: -2, allocation: Allocation.Shared, context: [] },
+        ]);
+    });
+
+    it('does not save an other line going to a context without one', () => {
+        const { component, fixture, mutate, el } = setup({ billedMonths: [] });
+        component.addOtherLine();
+        component.form.patchValue({
+            month: '2026-09',
+            monthToDate: false,
+            otherLines: [{ description: 'Connect', amount: 12, allocation: Allocation.Context }],
+        });
+        fixture.detectChanges();
+        component.save();
+
+        expect(mutate).not.toHaveBeenCalled();
+        expect(el.textContent).toContain('one going to a context a key and value');
     });
 });

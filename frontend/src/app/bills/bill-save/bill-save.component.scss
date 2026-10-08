@@ -10,14 +10,9 @@
 }
 
 .lines {
+    // one per row: the metric names are long, and the hints need the room
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--space-4);
     row-gap: var(--space-2);
-
-    @media (max-width: 599px) {
-        grid-template-columns: 1fr;
-    }
 }
 
 .total {
@@ -37,4 +32,49 @@
 .failure {
     margin: var(--space-3) 0 0;
     color: var(--mat-sys-error);
+}
+
+.section {
+    margin: var(--space-5) 0 var(--space-1);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.other-lines {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+}
+
+.other-line {
+    padding: var(--space-3);
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: var(--radius-sm);
+
+    .row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+    }
+
+    .grow {
+        flex: 1 1 160px;
+        min-width: 0;
+    }
+
+    .amount {
+        flex: 0 1 130px;
+    }
+
+    .allocation {
+        flex: 0 1 180px;
+    }
+
+    .context {
+        display: grid;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
+        padding-left: var(--space-4);
+    }
 }

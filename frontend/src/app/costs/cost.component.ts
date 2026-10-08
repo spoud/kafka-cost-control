@@ -33,7 +33,7 @@ import { CostRow, CostTableComponent } from './cost-table/cost-table.component';
 import { GraphFilterService } from '../tab-graphs/graph-filter/graph-filter.service';
 import { PageHeaderComponent } from '../common/page-header/page-header.component';
 import { DateRangeQuickSelectComponent } from '../common/date-range-quick-select/date-range-quick-select.component';
-import { DateRange, endOfDay } from '../common/date-range';
+import { DateRange, utcDayRange } from '../common/date-range';
 import { CostOverviewFormValues, CostOverviewStore } from './store/cost-overview.store';
 import { SaveConfigDialogComponent } from './save-config-dialog/save-config-dialog.component';
 import { EmptyStateComponent } from '../common/empty-state/empty-state.component';
@@ -258,9 +258,11 @@ export class CostComponent {
 
     calculate() {
         const groupBy = this.groupBy();
+        // whole UTC days, like the bills' months
+        const range = utcDayRange({ from: this.costs.value.from!, to: this.costs.value.to! });
         const request: BilledCostRequestInput = {
-            from: this.costs.value.from,
-            to: this.costs.value.to ? endOfDay(this.costs.value.to) : this.costs.value.to,
+            from: range.from,
+            to: range.to,
             contextKeysToGroupBy: groupBy,
         };
         this.loading.set(true);

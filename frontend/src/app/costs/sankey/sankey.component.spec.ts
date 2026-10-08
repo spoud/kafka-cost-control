@@ -65,7 +65,7 @@ describe('SankeyComponent', () => {
         colors.forEach(c => expect(c).toMatch(/^hsl\(\d+(\.\d+)?, \d+%, \d+%\)$/));
     });
 
-    it('roots each cost at the sum of its shares, the shared part included', () => {
+    it('roots each cost at the sum of its shares, other included', () => {
         const costs: Costs = {
             metrics: [
                 {
@@ -76,13 +76,13 @@ describe('SankeyComponent', () => {
                     ],
                 },
                 {
-                    metric: 'platform',
+                    metric: 'other',
                     shares: [
                         {
-                            name: 'Platform / shared',
+                            name: 'tenant=<shared>',
                             price: 100,
                             estimatedPrice: 0,
-                            contextValues: ['<platform>'],
+                            contextValues: ['<shared>'],
                         },
                     ],
                 },
@@ -94,11 +94,10 @@ describe('SankeyComponent', () => {
             series.links.find(l => l.source === 'total' && l.target === target)?.value;
 
         expect(fromTotal('confluent_kafka_server_request_bytes')).toBe(4);
-        expect(fromTotal('platform')).toBe(1);
-        // readable names for the bill's lines
+        expect(fromTotal('other')).toBe(1);
+        // metric names, like the pricing rules
         expect(series.label.formatter({ name: 'confluent_kafka_server_request_bytes' })).toBe(
-            'Network write'
+            'confluent_kafka_server_request_bytes'
         );
-        expect(series.label.formatter({ name: 'platform' })).toBe('Platform / shared');
     });
 });

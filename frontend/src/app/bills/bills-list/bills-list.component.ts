@@ -13,7 +13,14 @@ import { DataTableComponent } from '../../common/data-table/data-table.component
 import { IntlDatePipe } from '../../common/intl-date.pipe';
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
 import { BillSaveComponent, BillSaveData } from '../bill-save/bill-save.component';
-import { BILL_LINES, billTotal, lastDayFromCoveredUntil, monthLabel } from '../bill';
+import {
+    BILL_LINES,
+    billTotal,
+    describeOtherLine,
+    lastDayFromCoveredUntil,
+    monthLabel,
+    otherTotal,
+} from '../bill';
 
 /**
  * What the provider billed, month by month. Costs on Cost Overview share each month's bill among
@@ -46,6 +53,9 @@ export class BillsListComponent implements OnInit {
     protected readonly lines = BILL_LINES;
     protected readonly monthLabel = monthLabel;
     protected readonly billTotal = billTotal;
+    protected readonly otherTotal = otherTotal;
+    protected readonly otherDetail = (bill: BillEntity) =>
+        bill.otherLines.map(describeOtherLine).join('\n');
     protected readonly lastDay = lastDayFromCoveredUntil;
     protected readonly columns = [
         'month',
@@ -89,7 +99,7 @@ export class BillsListComponent implements OnInit {
     protected openSaveDialog(bill?: BillEntity): void {
         const data: BillSaveData = { bill, billedMonths: this.bills().map(b => b.month) };
         this.dialog
-            .open(BillSaveComponent, { data, width: '600px' })
+            .open(BillSaveComponent, { data, width: '720px', maxWidth: '95vw' })
             .afterClosed()
             .subscribe((saved?: BillEntity) => {
                 if (saved) {

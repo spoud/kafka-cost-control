@@ -8,8 +8,8 @@
 <app-data-table>
     <table mat-table [dataSource]="dataSource" matSort>
         <ng-container matColumnDef="metric">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Cost</th>
-            <td mat-cell *matCellDef="let row">{{ metricLabel(row.metric) }}</td>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Metric</th>
+            <td mat-cell *matCellDef="let row">{{ row.metric }}</td>
         </ng-container>
 
         @for (key of groupBy(); track key; let i = $index) {

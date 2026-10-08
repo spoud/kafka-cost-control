@@ -16,3 +16,15 @@
     white-space: nowrap;
     text-align: right;
 }
+
+.metric {
+    font-family: monospace;
+    font-size: 0.75rem;
+    white-space: normal;
+    word-break: break-all;
+}
+
+.with-detail {
+    text-decoration: underline dotted;
+    cursor: help;
+}

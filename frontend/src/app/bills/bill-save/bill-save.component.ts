@@ -25,11 +25,16 @@ import {
     MatDatepickerToggle,
 } from '@angular/material/datepicker';
 import { DecimalPipe } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatAutocomplete, MatAutocompleteTrigger } from '@angular/material/autocomplete';
+import { GraphFilterService } from '../../tab-graphs/graph-filter/graph-filter.service';
+import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { map, startWith } from 'rxjs';
 import { SaveBillGQL } from '../../../generated/graphql/sdk';
-import { BillEntity } from '../../../generated/graphql/types';
+import { Allocation, BillEntity, OtherLine } from '../../../generated/graphql/types';
 import {
+    ALLOCATIONS,
     BILL_LINES,
     billTotal,
     coveredUntilFromLastDay,
@@ -71,6 +76,10 @@ type Amount = FormControl<number | null>;
         MatDatepickerInput,
         MatDatepickerToggle,
         DecimalPipe,
+        MatIconButton,
+        MatIcon,
+        MatAutocomplete,
+        MatAutocompleteTrigger,
         ReactiveFormsModule,
     ],
     templateUrl: './bill-save.component.html',
@@ -82,6 +91,9 @@ export class BillSaveComponent {
     protected data = inject<BillSaveData>(MAT_DIALOG_DATA);
 
     protected readonly lines = BILL_LINES;
+    protected readonly allocations = ALLOCATIONS;
+    protected readonly Allocation = Allocation;
+    protected readonly contextKeys = inject(GraphFilterService).contextKeys;
     protected readonly monthLabel = monthLabel;
     protected readonly editing = !!this.data.bill;
     protected readonly months = this.monthChoices();
@@ -101,7 +113,9 @@ export class BillSaveComponent {
         networkRead: this.amount(this.data.bill?.networkRead),
         storage: this.amount(this.data.bill?.storage),
         partitions: this.amount(this.data.bill?.partitions),
-        other: this.amount(this.data.bill?.other),
+        otherLines: new FormArray<OtherLineGroup>(
+            (this.data.bill?.otherLines ?? []).map(line => otherLineGroup(line))
+        ),
     });
 
     // the raw value: a disabled month (when editing) is left out of `value`
@@ -119,12 +133,22 @@ export class BillSaveComponent {
             networkRead: this.value().networkRead,
             storage: this.value().storage,
             partitions: this.value().partitions,
-            other: this.value().other,
+            otherLines: this.value().otherLines,
         })
     );
-    protected readonly hasAmount = computed(() =>
-        (['networkWrite', 'networkRead', 'storage', 'partitions', 'other'] as const).some(
-            key => this.value()[key] != null
+    protected readonly hasAmount = computed(
+        () =>
+            BILL_LINES.some(line => this.value()[line.key] != null) ||
+            this.value().otherLines.length > 0
+    );
+    /** An other line without a description, amount, or (for a context) a key and value. */
+    protected readonly incompleteOtherLine = computed(() =>
+        this.value().otherLines.some(
+            line =>
+                !line.description.trim() ||
+                line.amount === null ||
+                (line.allocation === Allocation.Context &&
+                    !line.context.some(pair => pair.key.trim() && pair.value.trim()))
         )
     );
     protected readonly negativeLine = computed(() =>
@@ -164,6 +188,7 @@ export class BillSaveComponent {
         return (
             this.hasAmount() &&
             !this.negativeLine() &&
+            !this.incompleteOtherLine() &&
             !this.saving() &&
             (!v.monthToDate || !!v.lastDay)
         );
@@ -187,7 +212,20 @@ export class BillSaveComponent {
                         networkRead: v.networkRead,
                         storage: v.storage,
                         partitions: v.partitions,
-                        other: v.other,
+                        otherLines: v.otherLines.map(line => ({
+                            description: line.description.trim(),
+                            amount: line.amount ?? 0,
+                            allocation: line.allocation,
+                            context:
+                                line.allocation === Allocation.Context
+                                    ? line.context
+                                          .filter(pair => pair.key.trim() && pair.value.trim())
+                                          .map(pair => ({
+                                              key: pair.key.trim(),
+                                              value: pair.value.trim(),
+                                          }))
+                                    : [],
+                        })),
                     },
                 },
             })
@@ -205,6 +243,26 @@ export class BillSaveComponent {
                     this.failure.set(err.message);
                 },
             });
+    }
+
+    protected get otherLines(): FormArray<OtherLineGroup> {
+        return this.form.controls.otherLines;
+    }
+
+    protected addOtherLine(): void {
+        this.otherLines.push(otherLineGroup());
+    }
+
+    protected removeOtherLine(index: number): void {
+        this.otherLines.removeAt(index);
+    }
+
+    protected addContextPair(line: OtherLineGroup): void {
+        line.controls.context.push(contextPair());
+    }
+
+    protected removeContextPair(line: OtherLineGroup, index: number): void {
+        line.controls.context.removeAt(index);
     }
 
     private amount(value: number | null | undefined): Amount {
@@ -235,6 +293,25 @@ export class BillSaveComponent {
         }
     }
 }
+
+function contextPair(key = '', value = '') {
+    return new FormGroup({
+        key: new FormControl(key, { nonNullable: true }),
+        value: new FormControl(value, { nonNullable: true }),
+    });
+}
+
+function otherLineGroup(line?: OtherLine) {
+    const pairs = line?.context?.length ? line.context : [{ key: '', value: '' }];
+    return new FormGroup({
+        description: new FormControl(line?.description ?? '', { nonNullable: true }),
+        amount: new FormControl<number | null>(line?.amount ?? null),
+        allocation: new FormControl(line?.allocation ?? Allocation.Shared, { nonNullable: true }),
+        context: new FormArray(pairs.map(pair => contextPair(pair.key ?? '', pair.value ?? ''))),
+    });
+}
+
+type OtherLineGroup = ReturnType<typeof otherLineGroup>;
 
 /** A UTC calendar day as the same local calendar day, for the date picker. */
 function localDate(utc: Date): Date {

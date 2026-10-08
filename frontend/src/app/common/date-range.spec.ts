@@ -1,4 +1,4 @@
-import { endOfDay, isSameDay, startOfDay } from './date-range';
+import { endOfDay, isSameDay, startOfDay, utcDayRange } from './date-range';
 
 describe('date range helpers', () => {
     it('ends the day at its last millisecond', () => {
@@ -41,5 +41,12 @@ describe('date range helpers', () => {
         expect(isSameDay(new Date('2026-08-20T23:59:59'), new Date('2026-08-21T00:00:00'))).toBe(
             false
         );
+    });
+
+    it('reads picked days as whole UTC days, the last one included', () => {
+        const range = utcDayRange({ from: new Date(2026, 9, 1), to: new Date(2026, 9, 5) });
+
+        expect(range.from.toISOString()).toBe('2026-10-01T00:00:00.000Z');
+        expect(range.to.toISOString()).toBe('2026-10-06T00:00:00.000Z');
     });
 });
