@@ -87,7 +87,6 @@ MetricsScraper -> metricsApi: scrape usage\n data
 
 MetricProcessor -> KafkaPlatform: consume\n raw metrics
 MetricProcessor -> KafkaPlatform: produce\n aggregated\n metrics
-MetricProcessor --> PricingRules: use
 MetricProcessor -> ContextProvider: use
 
 

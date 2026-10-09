@@ -1,8 +1,8 @@
 [[section-metric-storage]]
 === Metric storage
 
-The aggregator can store the aggregated metrics in a built-in DuckDB database. Parts of the UI (such as grouping in the cost overview), the AI assistant and the exports below read from it.
-A stream of aggregated metrics is also always sent to the `aggregated` and `aggregated-table-friendly` topics, so you can still feed an external database of your choice from Kafka if you need to.
+The aggregator can store the aggregated metrics in a built-in DuckDB database. Everything that shows a cost reads from it (Cost Overview, Explore, the unassigned topics and principals), as do the AI assistant and the exports below: costs are computed there when asked, from the pricing rules and the monthly bills. Without it, Kafka Cost Control shows usage but no costs.
+A stream of aggregated metrics is also always sent to the `aggregated` and `aggregated-table-friendly` topics, so you can still feed an external database of your choice from Kafka if you need to. These topics carry usage only: their `cost` field is empty.
 
 ==== DuckDB Integration
 
@@ -23,17 +23,19 @@ The provided Kubernetes manifests already enable it. If you deploy the aggregato
               value: "jdbc:duckdb:/home/jboss/kafka-stream/duckdb.db"
 ----
 
-Once the integration is enabled, you can export collected metrics from the DuckDB database by using curl:
+Once the integration is enabled, you can export the collected metrics with their costs, one row per hour, topic or principal and metric, by using curl. With sign-in enabled (`cc.auth.mode` `basic`, the default, or `oidc`), the export needs it like the rest of the application: scripts use the `admin` user and its password (`cc.admin-password`), which also works when people sign in with OIDC. With `cc.auth.mode: none`, leave out `-u admin:<password>`:
 
 [source,shell]
 ----
 # Get all metrics from the last 30 days in CSV format
-curl -H "Accept: text/csv" http://localhost:8083/olap/export > out.csv
+curl -u admin:<password> -H "Accept: text/csv" http://localhost:8083/olap/export > out.csv
 # Get all metrics from the last 30 days in JSON format
-curl -H "Accept: application/json" http://localhost:8083/olap/export > out.json
+curl -u admin:<password> -H "Accept: application/json" http://localhost:8083/olap/export > out.json
 # Get all metrics for all of February 2025 in CSV format
-curl -H "Accept: text/csv" "http://localhost:8083/olap/export?fromDate=2025-02-01T00:00:00Z&toDate=2025-03-01T00:00:00Z" > out.csv
+curl -u admin:<password> -H "Accept: text/csv" "http://localhost:8083/olap/export?fromDate=2025-02-01T00:00:00Z&toDate=2025-03-01T00:00:00Z" > out.csv
 ----
+
+The usage values are stored; the costs (`cost`, `rate_cost`, `estimated`, `shared`, and the bills' `other` lines) are computed at the time of the request, from the pricing rules and bills as they are then. A month exported before its bill was entered has estimated costs (`estimated` is true); export it again after entering the bill to get the billed ones.
 
 Note that when using the `fromDate` and `toDate` parameters, the times must be specified in UTC in the ISO 8601 format (e.g. `2025-02-01T00:00:00Z`).
 Otherwise the API will return a 400 Bad Request error.

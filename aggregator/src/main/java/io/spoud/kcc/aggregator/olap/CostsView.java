@@ -12,6 +12,9 @@ import io.spoud.kcc.aggregator.repository.PricingRulesStreamRepository;
 import io.spoud.kcc.data.PricingRule;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import org.jooq.Field;
+import org.jooq.Table;
+import org.jooq.impl.DSL;
 
 import java.sql.SQLException;
 import java.time.Instant;
@@ -95,6 +98,11 @@ public class CostsView {
     /** The view with no rules and no bills, so it exists from the start. */
     static void createEmpty(OlapInfra infra) {
         create(infra, sql(List.of(), List.of()));
+    }
+
+    /** The view's {@code cost} column, which the table doesn't have, on {@code view} read under its alias. */
+    public static Field<Double> cost(Table<?> view) {
+        return DSL.field(DSL.name(view.getName(), "cost"), Double.class);
     }
 
     private static boolean create(OlapInfra infra, String sql) {

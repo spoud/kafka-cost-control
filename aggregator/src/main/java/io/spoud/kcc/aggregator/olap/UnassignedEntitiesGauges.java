@@ -40,7 +40,7 @@ public class UnassignedEntitiesGauges {
                 .tag("entity_type", type.name())
                 .register(registry));
         Gauge.builder("kcc.unassigned.cost", cost, AtomicDouble::get)
-                .description("Pricing-rule cost of topics and principals with " + what + " in the last 24 hours")
+                .description("Cost in dollars, from the costs view, of topics and principals with " + what + " in the last 24 hours")
                 .register(registry);
     }
 

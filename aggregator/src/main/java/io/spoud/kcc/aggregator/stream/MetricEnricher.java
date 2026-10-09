@@ -7,7 +7,6 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.quarkus.logging.Log;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
-import io.spoud.kcc.aggregator.data.PricePeriods;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.olap.AggregatedMetricsRepository;
 import io.spoud.kcc.aggregator.repository.ContextDataStreamRepository;
@@ -65,7 +64,8 @@ public class MetricEnricher {
                 Materialized.<String, ContextData, KeyValueStore<Bytes, byte[]>>as(CONTEXT_DATA_TABLE_NAME)
                         .withCachingDisabled());
 
-        KTable<String, PricingRule> pricingRulesTable = builder.table(
+        // only read through its store (the rules' API and the costs view); costs aren't computed here
+        builder.table(
                 configProperties.topicPricingRules(),
                 Consumed.with(Serdes.String(), serdes.getPricingRuleSerde())
                         .withName("pricing-rules")
@@ -102,7 +102,6 @@ public class MetricEnricher {
                 .reduce(metricReducer, Named.as("sum-aggregated-value-by-window"))
                 .toStream(Named.as("convert-window-to-stream"))
                 .map(MetricEnricher::mapToWindowedAggregate, Named.as("map-to-windowed-aggregated-data"))
-                .leftJoin(pricingRulesTable, this::addPriceToWindowedMetric, Joined.as("join-pricing-rule"))
                 .selectKey((key, value) -> new AggregatedDataKey(
                         value.getStartTime(),
                         value.getEndTime(),
@@ -161,19 +160,6 @@ public class MetricEnricher {
         return aggregatedData.build();
     }
 
-    private AggregatedDataWindowed addPriceToWindowedMetric(AggregatedDataWindowed data, PricingRule pricingRule) {
-        final AggregatedDataWindowed.Builder builder = AggregatedDataWindowed.newBuilder(data);
-        var rate = pricingRule == null ? java.util.Optional.<PricePeriods.Rate>empty()
-                : PricePeriods.at(pricingRule, data.getStartTime());
-        if (rate.isPresent()) {
-            // the price valid for this hour, so a dated price change keeps the hours before it
-            builder.setCost(rate.get().baseCost() + rate.get().costFactor() * data.getValue());
-        } else {
-            Log.debugv("No pricing rules found for \"{0}\"", data.getInitialMetricName());
-        }
-        return builder.build();
-    }
-
     private AggregatedDataTableFriendly convertMapsToJson(AggregatedDataWindowed data) {
         final AggregatedDataTableFriendly.Builder builder = AggregatedDataTableFriendly.newBuilder()
                 .setStartTime(data.getStartTime())
@@ -181,7 +167,7 @@ public class MetricEnricher {
                 .setInitialMetricName(data.getInitialMetricName())
                 .setName(data.getName())
                 .setValue(data.getValue())
-                .setCost(data.getCost())
+                .setCost(null) // no default in this schema; costs come from the costs view
                 .setEntityType(data.getEntityType());
         try {
             builder
@@ -202,7 +188,6 @@ public class MetricEnricher {
                         .setInitialMetricName(value.getInitialMetricName())
                         .setName(value.getName())
                         .setValue(value.getValue())
-                        .setCost(value.getCost())
                         .setEntityType(value.getEntityType())
                         .setTags(value.getTags())
                         .setContext(value.getContext())
@@ -242,7 +227,6 @@ public class MetricEnricher {
             }
         }
         var valuePerSplit = metric.getValue() / splitBy.length;
-        var costPerSplit = metric.getCost() != null ? metric.getCost() / splitBy.length : null;
         return Stream.of(splitBy)
                 .map(split -> {
                     var newContext = metric.getContext() != null
@@ -253,7 +237,7 @@ public class MetricEnricher {
                             metric.getName(),
                             metric.getInitialMetricName(),
                             valuePerSplit,
-                            costPerSplit,
+                            null,
                             metric.getTags(),
                             newContext);
                 });
@@ -275,6 +259,6 @@ public class MetricEnricher {
                 principalName, metric.getTimestamp());
         newContext.put("topic", metric.getName());
         return new AggregatedData(metric.getTimestamp(), EntityType.PRINCIPAL, principalName,
-                metric.getInitialMetricName(), metric.getValue(), metric.getCost(), metric.getTags(), newContext);
+                metric.getInitialMetricName(), metric.getValue(), null, metric.getTags(), newContext);
     }
 }

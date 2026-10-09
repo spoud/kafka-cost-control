@@ -32,8 +32,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
- * Re-applies today's context rules and pricing rules to stored data from a start time on, the way
- * {@code kafka-streams-application-reset} resets an application plus the OLAP table:
+ * Re-applies today's context rules to stored data from a start time on, the way
+ * {@code kafka-streams-application-reset} resets an application plus the OLAP table. Prices need
+ * no reprocessing: costs are computed when asked (the costs view).
  * <ol>
  *     <li>stop Kafka Streams;</li>
  *     <li>decide the start: the requested time aligned to a window, but no earlier than the first
@@ -42,7 +43,8 @@ import java.util.stream.Collectors;
  *     place, they made replayed windows count as expired and dropped them;</li>
  *     <li>delete the stored OLAP windows from the start on - a row's id includes its context, so
  *     re-enriched windows would otherwise land next to the old ones;</li>
- *     <li>rewind the raw topics to the start and the pricing rules to their beginning;</li>
+ *     <li>rewind the raw topics to the start and the pricing rules to their beginning (their store's
+ *     changelog is one of the deleted internal topics);</li>
  *     <li>wipe the local state and restart the application.</li>
  * </ol>
  * If deleting the internal topics fails (e.g. missing ACLs), nothing else is touched and the

@@ -60,10 +60,6 @@ type ContextTestResponse {
   entityType: EntityType!
 }
 
-type CostOverviewResponse {
-  metricToDistributionMapList: [MetricToDistributionMap]
-}
-
 type EarlierPrice {
   baseCost: Float!
   costFactor: Float!
@@ -106,11 +102,6 @@ type MetricNameEntity {
   metricName: String!
 }
 
-type MetricToDistributionMap {
-  metric: String
-  nameToPriceList: [NameToPrice]
-}
-
 type MonthBilling {
   "Whether a bill exists for the month"
   billed: Boolean!
@@ -143,12 +134,6 @@ type Mutation {
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
   "Drops the current price and makes the previous one current again"
   undoPricingRuleChange(request: PricingRuleDeleteRequestInput): PricingRuleEntity!
-}
-
-type NameToPrice {
-  contextValues: [String]
-  name: String
-  price: Float
 }
 
 type OtherLine {
@@ -190,16 +175,13 @@ type Query {
   billedCosts(request: BilledCostRequestInput!): BilledCostResponse!
   "All bills, newest month first, in dollars"
   bills: [BillEntity!]!
-  calculateTable(request: CostOverviewRequestInput): TableResponse!
   contextData: [ContextDataEntity!]!
   contextTest(testString: String): [ContextTestResponse!]!
-  costOverview(request: CostOverviewRequestInput): CostOverviewResponse!
   currentUser: String!
   existingContextKeys: [String!]!
   history(from: DateTimeParameterInput!, groupByContextKeys: [String]!, metricNames: [String]!, to: DateTimeParameterInput): [MetricHistory!]!
   metricContextKeys: [String!]!
   metricNames: [MetricNameEntity!]!
-  pricingRuleCosts(request: PricingRuleCostRequestInput): CostOverviewResponse!
   pricingRules: [PricingRuleEntity!]!
   "Topics and principals no context rule assigns (or without a value for contextKey), most expensive first; no from = the last 7 days"
   unassignedEntities(request: UnassignedEntitiesRequestInput): [UnassignedEntity!]!
@@ -215,20 +197,9 @@ type Share {
   price: Float!
 }
 
-type TableEntry {
-  context: [String]
-  initialMetricName: String
-  percentage: Float!
-  total: Float!
-}
-
-type TableResponse {
-  entries: [TableEntry]
-}
-
 "A topic or principal whose metrics carry no value for a context key: no rule assigns it"
 type UnassignedEntity {
-  "What its pricing rules charged in the period, in dollars"
+  "What it cost in the period, in dollars, as on Cost Overview"
   cost: Float!
   entityType: EntityType!
   "End of the last window it appeared in (ISO-8601)"
@@ -319,19 +290,6 @@ input ContextPairInput {
   value: String
 }
 
-input CostOverviewRequestInput {
-  contextKeysToGroupBy: [String]
-  "ISO-8601"
-  from: DateTime
-  kafkaNetworkReadCents: Int
-  kafkaNetworkWriteCents: Int
-  kafkaPartitionsCents: Int
-  kafkaStorageCents: Int
-  "ISO-8601"
-  to: DateTime
-  totalCents: Int
-}
-
 input DateTimeParameterInput {
   "ISO-8601"
   instant: DateTime
@@ -351,14 +309,6 @@ input OtherLineRequestInput {
   description: String
 }
 
-input PricingRuleCostRequestInput {
-  contextKeysToGroupBy: [String]
-  "ISO-8601"
-  from: DateTime
-  "ISO-8601"
-  to: DateTime
-}
-
 input PricingRuleDeleteRequestInput {
   metricName: String!
 }
@@ -375,7 +325,7 @@ input PricingRuleSaveRequestInput {
   "Price per priceUnit; the cost factor is derived from it"
   price: Float
   priceUnit: PriceUnit
-  "Empty: correct the current price, everywhere it applies. A time: a new price from then on; the current price keeps the hours before it. (ISO-8601)"
+  "Empty: correct the current price, everywhere it applies. The start of a day in UTC: a new price from that day on; the current price keeps the days before it. (ISO-8601)"
   validFrom: DateTime
 }
 

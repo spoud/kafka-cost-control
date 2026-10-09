@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS aggregated_data
     context             JSON        NOT NULL,
     value               DOUBLE      NOT NULL,
     target              VARCHAR     NOT NULL,
-    id                  VARCHAR PRIMARY KEY,
-    cost                DOUBLE
+    id                  VARCHAR PRIMARY KEY
 );
 
--- Databases created before the cost column existed get it appended in place.
-ALTER TABLE aggregated_data ADD COLUMN IF NOT EXISTS cost DOUBLE;
+-- Costs are computed when asked, in the costs view. Older databases still have the cost column
+-- that the stream filled with the pricing rule cost at the time: it is dropped in place.
+ALTER TABLE aggregated_data DROP COLUMN IF EXISTS cost;

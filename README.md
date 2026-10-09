@@ -11,7 +11,7 @@ Scrapers → raw Kafka topic → Aggregator (Kafka Streams) → aggregated Kafka
 ```
 
 - **Scrapers** (`kafka-scraper`, `confluent-agent`) collect topic/partition/schema metrics from your Kafka cluster(s) and publish them as Telegraf-format JSON.
-- **Aggregator** (`aggregator/`) is the core Quarkus/Kafka Streams service: it enriches raw metrics with context (via `context-data`), windows and reduces them, joins them against configurable `pricing-rules`, and produces windowed cost data.
+- **Aggregator** (`aggregator/`) is the core Quarkus/Kafka Streams service: it enriches raw metrics with context (via `context-data`), windows and reduces them, and produces windowed usage per topic and principal. Costs are computed from it when asked, from configurable `pricing-rules` and the monthly bills.
 - **Frontend** (`frontend/`) is an Angular SPA that queries the aggregator's GraphQL API to visualize costs.
 - **Strimzi Operator** (`strimzi-operator/`) watches `KafkaTopic`/`KafkaUser` CRDs and auto-publishes context-data records from resource annotations, for Strimzi-managed clusters.
 

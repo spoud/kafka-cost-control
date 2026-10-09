@@ -33,7 +33,9 @@ Every place that shows a cost - Cost Overview, Explore, the unassigned topics an
 
 The view is rebuilt when the rules or bills change (at the latest after 10 seconds), so it always reflects them.
 
-The `aggregated` and `aggregated-table-friendly` topics, and the `cost` column of an OLAP export, still carry the cost computed when the hour was processed, with the price valid then: the rate card at that time, without bills.
+The OLAP export (`/olap/export`) reads the view too: each row has `cost`, `rate_cost` (the pricing rule's), `estimated` and `shared`, and the bill's other lines are rows under `other`.
+
+The `aggregated` and `aggregated-table-friendly` topics carry usage only: their `cost` field stays in the schema but is empty. A consumer that wants costs reads them from Kafka Cost Control (the export or the GraphQL API). Versions before 0.11 filled it with the pricing rule's cost when the hour was processed, which a later bill or price change never updated.
 
 ==== Storage
 
