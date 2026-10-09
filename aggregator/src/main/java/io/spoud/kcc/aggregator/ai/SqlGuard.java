@@ -144,7 +144,7 @@ public class SqlGuard {
             } else if (c == LITERAL_MARK) {
                 if (expectTarget) {
                     throw new RejectedException(
-                            "A quoted string cannot name a table. Query the tables described in the schema instead.");
+                            "A quoted string cannot name a table. Query the `costs` view described in the schema instead.");
                 }
                 while (i < n && marked.charAt(i) == LITERAL_MARK) {
                     i++;
@@ -166,7 +166,7 @@ public class SqlGuard {
                 if (expectTarget) {
                     if (isFollowedByOpenParen(marked, i) && !SAFE_TABLE_FUNCTIONS.contains(word)) {
                         throw new RejectedException("'" + word
-                                + "' cannot be used to produce a table. Query the tables described in the schema instead.");
+                                + "' cannot be used to produce a table. Query the `costs` view described in the schema instead.");
                     }
                     expectTarget = false;
                 }

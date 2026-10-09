@@ -41,13 +41,12 @@ class PrivateModeTest {
         List<String> toolNames = schemaDescriber.tools().stream().map(LlmTool::name).toList();
 
         assertThat(toolNames).doesNotContain("list_context_values");
-        assertThat(toolNames).contains("list_metrics", "list_context_keys", "run_sql", "cost_overview");
+        assertThat(toolNames).contains("list_metrics", "list_context_keys", "run_sql");
     }
 
     @Test
     void marksDataReturningToolsAsTerminal() {
         assertThat(SchemaDescriber.isTerminalTool("run_sql")).isTrue();
-        assertThat(SchemaDescriber.isTerminalTool("cost_overview")).isTrue();
         // Schema-shape tools are safe to feed back into the conversation.
         assertThat(SchemaDescriber.isTerminalTool("list_metrics")).isFalse();
         assertThat(SchemaDescriber.isTerminalTool("list_context_keys")).isFalse();

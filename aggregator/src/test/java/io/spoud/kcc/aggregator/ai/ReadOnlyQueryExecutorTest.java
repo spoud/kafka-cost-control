@@ -55,6 +55,15 @@ class ReadOnlyQueryExecutorTest {
     }
 
     @Test
+    void theModelCanQueryTheCostsView() {
+        // the prompt sends the model to `costs`; its read-only connection must see the view
+        var result = executor.execute("SELECT count(*) AS rows, count(cost) AS priced FROM costs");
+
+        assertThat(result.columns()).containsExactly("rows", "priced");
+        assertThat(result.rows()).singleElement().satisfies(row -> assertThat(row.getFirst()).isEqualTo("4"));
+    }
+
+    @Test
     void duplicatedConnectionSeesTheSameInMemoryDatabase() throws Exception {
         // This is the specific trap: a fresh DriverManager connection to "jdbc:duckdb:" opens a
         // *different, empty* database. If duplicate() ever regressed to that, every model query
