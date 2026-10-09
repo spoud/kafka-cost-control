@@ -10,6 +10,7 @@ import { IntlDateService } from '../../services/intl-date.service';
 export function formatPanelMeta(panel: Panel, dates: IntlDateService): string {
     const strings = [
         `(`,
+        panel.showCost ? 'cost of ' : null,
         panel.metricName ? `${panel.metricName}, ` : null,
         dates.transform(panel.from),
         panel.to ? ` - ${dates.transform(panel.to)}` : ` - now`,

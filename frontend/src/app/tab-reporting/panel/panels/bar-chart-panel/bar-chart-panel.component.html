@@ -1,5 +1,6 @@
 <app-bar-chart
-    [metricsData]="historyData.value() || []"
+    [metricsData]="chartData()"
+    [unit]="unit()"
     [range]="range()"
     [showToolbar]="false"
     (chartInit)="chartInit($event)"

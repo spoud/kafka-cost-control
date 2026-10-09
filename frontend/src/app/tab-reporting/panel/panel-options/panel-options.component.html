@@ -36,6 +36,18 @@
         </mat-form-field>
 
         <app-graph-filter (graphFilter)="updateFilter($event)" [existingFilter]="graphFilter()" />
+
+        <mat-button-toggle-group
+            class="measure-toggle"
+            aria-label="What the panel shows"
+            [value]="panelData().showCost ? 'cost' : 'usage'"
+            (change)="updateShowCost($event.value === 'cost')"
+        >
+            <mat-button-toggle value="usage"
+                ><mat-icon>show_chart</mat-icon>Usage</mat-button-toggle
+            >
+            <mat-button-toggle value="cost"><mat-icon>sell</mat-icon>Cost</mat-button-toggle>
+        </mat-button-toggle-group>
     </div>
 
     <footer class="options-footer">
