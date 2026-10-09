@@ -23,7 +23,7 @@ The provided Kubernetes manifests already enable it. If you deploy the aggregato
               value: "jdbc:duckdb:/home/jboss/kafka-stream/duckdb.db"
 ----
 
-Once the integration is enabled, you can export the collected metrics with their costs, one row per hour, topic or principal and metric, by using curl. The export needs a sign-in like the rest of the application; scripts use the `admin` user and its password (`cc.admin-password`), which also works when people sign in with OIDC:
+Once the integration is enabled, you can export the collected metrics with their costs, one row per hour, topic or principal and metric, by using curl. With sign-in enabled (`cc.auth.mode` `basic`, the default, or `oidc`), the export needs it like the rest of the application: scripts use the `admin` user and its password (`cc.admin-password`), which also works when people sign in with OIDC. With `cc.auth.mode: none`, leave out `-u admin:<password>`:
 
 [source,shell]
 ----
