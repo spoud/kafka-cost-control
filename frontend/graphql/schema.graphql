@@ -19,6 +19,17 @@ type BillEntity {
   updatedBy: String
 }
 
+"A bill line per unit of the usage measured in the hours the bill covers"
+type BillRate {
+  "The billed amount, in dollars"
+  amount: Float!
+  "amount / usage: the cost per unit of the metric's raw value; null when no usage was measured"
+  costFactor: Float
+  metricName: String!
+  "Sum of the metric's hourly values in the hours the bill covers"
+  usage: Float!
+}
+
 type BilledCostResponse {
   metrics: [MetricCosts!]!
   "Each month the range touches, and whether a bill covers it"
@@ -171,6 +182,8 @@ type PricingRuleEntity {
 type Query {
   "Whether the AI assistant is configured and able to answer questions."
   assistantStatus: AssistantStatus!
+  "A bill's usage lines per unit of the usage measured in the hours it covers: the rates to price the hours after it with"
+  billRates(month: String!): [BillRate!]!
   "Costs in cents from the monthly bills, with the rate card where no bill applies"
   billedCosts(request: BilledCostRequestInput!): BilledCostResponse!
   "All bills, newest month first, in dollars"

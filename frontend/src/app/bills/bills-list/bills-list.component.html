@@ -86,6 +86,15 @@
                 <button
                     mat-icon-button
                     type="button"
+                    aria-label="Apply the bill's rates to the pricing rules"
+                    matTooltip="Apply the bill's rates to the pricing rules"
+                    (click)="openApplyRatesDialog(bill)"
+                >
+                    <mat-icon>price_change</mat-icon>
+                </button>
+                <button
+                    mat-icon-button
+                    type="button"
                     aria-label="Edit bill"
                     (click)="openSaveDialog(bill)"
                 >

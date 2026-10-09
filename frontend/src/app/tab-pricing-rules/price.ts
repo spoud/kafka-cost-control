@@ -31,6 +31,24 @@ export function priceFromCostFactor(costFactor: number, unit: PriceUnit): number
     return costFactor * unitInfo(unit).valuePerUnit;
 }
 
+/** The price per `unit` (before the multiplier) that a cost factor per raw unit amounts to. */
+export function priceOf(costFactor: number, unit: PriceUnit, multiplier?: number | null): number {
+    return priceFromCostFactor(costFactor, unit) / (multiplier || 1);
+}
+
+/** A metric's summed hourly values in the unit it is priced in: "1.6 GB", "502 GB-hours". */
+export function formatUsage(usage: number, unit: PriceUnit): string {
+    const amount = new Intl.NumberFormat('en', { maximumFractionDigits: 1 }).format(
+        usage / unitInfo(unit).valuePerUnit
+    );
+    const label = {
+        [PriceUnit.Gb]: 'GB',
+        [PriceUnit.GbHour]: 'GB-hours',
+        [PriceUnit.Unit]: 'unit-hours',
+    };
+    return `${amount} ${label[unit]}`;
+}
+
 const money = new Intl.NumberFormat('en', { maximumSignificantDigits: 6 });
 
 export interface PricedRule {
