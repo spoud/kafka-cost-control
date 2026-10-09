@@ -1,6 +1,0 @@
-kind: Kustomization
-resources:
-  - deployment.yaml
-
-generatorOptions:
-  disableNameSuffixHash: true
