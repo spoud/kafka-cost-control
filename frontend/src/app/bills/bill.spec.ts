@@ -5,10 +5,27 @@ import {
     coveredUntilFromLastDay,
     lastDayFromCoveredUntil,
     monthLastDay,
+    ratesFrom,
     recentMonths,
 } from './bill';
 
 describe('bill helpers', () => {
+    it("starts a bill's rates on the day it ends", () => {
+        expect(ratesFrom({ month: '2026-10', coveredUntil: null })).toBe(
+            '2026-11-01T00:00:00.000Z'
+        );
+        expect(ratesFrom({ month: '2026-12', coveredUntil: null })).toBe(
+            '2027-01-01T00:00:00.000Z'
+        );
+        expect(ratesFrom({ month: '2026-10', coveredUntil: '2026-10-06T00:00:00Z' })).toBe(
+            '2026-10-06T00:00:00.000Z'
+        );
+        // a bill ending within a day: the day it ends in, whose earlier hours are the bill's
+        expect(ratesFrom({ month: '2026-10', coveredUntil: '2026-10-06T12:00:00Z' })).toBe(
+            '2026-10-06T00:00:00.000Z'
+        );
+    });
+
     it('adds every line, the other lines included', () => {
         expect(
             billTotal({

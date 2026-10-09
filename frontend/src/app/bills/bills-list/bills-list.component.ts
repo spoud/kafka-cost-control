@@ -14,6 +14,10 @@ import { IntlDatePipe } from '../../common/intl-date.pipe';
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component';
 import { BillSaveComponent, BillSaveData } from '../bill-save/bill-save.component';
 import {
+    ApplyBillRatesComponent,
+    ApplyBillRatesData,
+} from '../apply-bill-rates/apply-bill-rates.component';
+import {
     BILL_LINES,
     billTotal,
     describeOtherLine,
@@ -108,6 +112,23 @@ export class BillsListComponent implements OnInit {
                         duration: 2000,
                     });
                     this.load();
+                }
+            });
+    }
+
+    protected openApplyRatesDialog(bill: BillEntity): void {
+        const data: ApplyBillRatesData = { bill };
+        this.dialog
+            .open(ApplyBillRatesComponent, { data, width: '920px', maxWidth: '95vw' })
+            .afterClosed()
+            .subscribe((applied?: number) => {
+                if (applied) {
+                    // the costs view picks up saved rules within 10 seconds
+                    this.snackBar.open(
+                        `${applied} ${applied === 1 ? 'price' : 'prices'} saved; estimates use them within seconds`,
+                        'close',
+                        { politeness: 'polite', duration: 3000 }
+                    );
                 }
             });
     }

@@ -1,6 +1,7 @@
 package io.spoud.kcc.aggregator.olap;
 
 import io.spoud.kcc.aggregator.bills.BillEntity;
+import io.spoud.kcc.aggregator.bills.BillRate;
 import io.spoud.kcc.aggregator.bills.OtherLine;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
@@ -241,6 +242,29 @@ class BilledCostsTest {
 
         assertThat(prices(costs, "kafka_topic_partition_count")).containsOnly(Map.entry("big", 600.0), Map.entry("small", 200.0));
         assertThat(prices(costs, "confluent_kafka_server_partition_count")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A bill's rate is its amount per unit of the usage in the hours it covers, and estimates the hours after it")
+    void billRateEstimatesTheHoursAfterTheBill() {
+        usage("2026-10-02T10:00:00Z", "a", WRITE, 30, null);
+        usage("2026-10-05T10:00:00Z", "b", WRITE, 10, null);
+        usage("2026-10-20T10:00:00Z", "b", WRITE, 1000, null); // after the bill's end
+        bill("2026-10", "2026-10-10T00:00:00Z", 8.0, null);
+
+        var bill = bills.get(YearMonth.parse("2026-10"));
+        assertThat(repo.usageInBill(bill)).containsOnly(Map.entry(WRITE, 40.0));
+        var rate = BillRate.of(WRITE, 8.0, 40.0);
+        assertThat(rate.costFactor()).isEqualTo(0.2);
+        assertThat(BillRate.of(READ, 3.0, 0).costFactor()).isNull();
+
+        // a new price from the bill's end, at its rate
+        rates.add(new CostsView.RatePeriod(WRITE, Instant.parse("2026-10-10T00:00:00Z"), null, 0, rate.costFactor()));
+        var costs = costs("2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z");
+
+        // a: 30 of the billed 40 -> $6; b: $2 billed, then 1000 at $0.2 estimated
+        assertThat(prices(costs, WRITE)).containsEntry("a", 600.0).hasEntrySatisfying("b", c -> assertThat(c).isCloseTo(20200.0, within(1e-6)));
+        assertThat(estimated(costs, WRITE)).containsEntry("a", 0.0).hasEntrySatisfying("b", c -> assertThat(c).isCloseTo(20000.0, within(1e-6)));
     }
 
     private void usage(String hour, String team, String metric, double value, Double cost) {

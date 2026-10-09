@@ -10,6 +10,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.bills.BillEntity;
+import io.spoud.kcc.aggregator.bills.BillLine;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
@@ -391,6 +392,30 @@ public class AggregatedMetricsRepository {
                     .toList();
         }).orElse(List.of());
         return new BilledCostResponse(metrics, months);
+    }
+
+    /**
+     * Each bill line's metric summed over the hours the bill covers: what the {@link CostsView costs
+     * view} shares the line by. Metrics without rows are missing.
+     */
+    public Map<String, Double> usageInBill(BillEntity bill) {
+        var metrics = Arrays.stream(BillLine.values()).map(BillLine::metric).toList();
+        var from = BillEntity.monthStart(YearMonth.parse(bill.month())).atOffset(ZoneOffset.UTC);
+        var until = BillEntity.billedUntil(bill).atOffset(ZoneOffset.UTC);
+        return olapInfra.getDSLContext().map(dsl -> {
+            AggregatedData a = AGGREGATED_DATA.as("a");
+            var usage = DSL.sum(a.VALUE).as("usage");
+            Map<String, Double> result = new HashMap<>();
+            dsl.select(a.INITIAL_METRIC_NAME, usage)
+                    .from(a)
+                    .where(a.INITIAL_METRIC_NAME.in(metrics)
+                            .and(a.START_TIME.ge(from))
+                            .and(a.START_TIME.lt(until)))
+                    .groupBy(a.INITIAL_METRIC_NAME)
+                    .fetch()
+                    .forEach(r -> result.put(r.get(a.INITIAL_METRIC_NAME), r.get(usage).doubleValue()));
+            return result;
+        }).orElse(Map.of());
     }
 
     /** The {@link CostsView costs view}, read with the table's fields, as {@code c}. */

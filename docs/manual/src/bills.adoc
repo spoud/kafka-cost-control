@@ -37,6 +37,14 @@ The OLAP export (`/olap/export`) reads the view too: each row has `cost`, `rate_
 
 The `aggregated` and `aggregated-table-friendly` topics carry usage only: their `cost` field stays in the schema but is empty. A consumer that wants costs reads them from Kafka Cost Control (the export or the GraphQL API). Versions before 0.11 filled it with the pricing rule's cost when the hour was processed, which a later bill or price change never updated.
 
+==== Applying a bill's rates to the pricing rules
+
+A list price rarely matches what the provider charges for what Kafka Cost Control measures: free allowances (Confluent's first partitions), storage billed per replica, metrics that count a little low. A bill already holds the real rates. On the *Bills* page, a bill's *Apply the bill's rates to the pricing rules* button shows, for each of its usage lines, the billed amount, the usage measured in the hours the bill covers, and the rate - amount divided by usage - as a price in the rule's unit, next to the current price.
+
+Saving the ticked lines sets the pricing rules to these rates, by default as a *new price from the day the bill ends* (the 1st of the next month for a whole month): the hours after the bill are estimated at what the provider really charged, and earlier hours without a bill keep their prices. *Correct the current prices* applies them every day the current prices do instead. Hours a bill covers keep their billed cost either way. A rule keeps its unit and multiplier; its base cost is set to 0, since the rate alone reproduces the bill. A line without measured usage has no rate.
+
+The rates are also available as a query: `billRates(month: "2026-10") { metricName amount usage costFactor }`, where `costFactor` is the cost per unit of the metric's raw value (per byte, per partition-hour).
+
 ==== Storage
 
 Bills are kept in a compacted Kafka topic (`cc.topics.bills`, default `bills`), keyed by month. Kafka Cost Control creates it when it is missing; where its user may not create topics, create it beforehand with `cleanup.policy=compact` and one partition. Until the topic can be read, bills are unavailable and the rest of the application works as before.

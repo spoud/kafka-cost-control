@@ -122,3 +122,17 @@ export function lastDayFromCoveredUntil(coveredUntil: unknown): Date {
     const end = new Date(String(coveredUntil));
     return new Date(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate() - 1);
 }
+
+/**
+ * The day a bill's rates start as new prices: the UTC day its amounts end in (the 1st of the next
+ * month for a whole month). The hours before are the bill's, whatever the price.
+ */
+export function ratesFrom(bill: Pick<BillEntity, 'month' | 'coveredUntil'>): string {
+    const [year, m] = bill.month.split('-').map(Number);
+    const end = bill.coveredUntil
+        ? new Date(String(bill.coveredUntil))
+        : new Date(Date.UTC(year, m, 1));
+    return new Date(
+        Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate())
+    ).toISOString();
+}

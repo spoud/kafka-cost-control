@@ -40,3 +40,12 @@ query billedCosts($request: BilledCostRequestInput!) {
         }
     }
 }
+
+query billRates($month: String!) {
+    billRates(month: $month) {
+        metricName
+        amount
+        usage
+        costFactor
+    }
+}
