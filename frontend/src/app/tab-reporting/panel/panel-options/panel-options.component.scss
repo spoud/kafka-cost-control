@@ -72,3 +72,9 @@
 .danger {
     color: var(--mat-sys-error);
 }
+
+// Usage or cost, as on Explore
+.measure-toggle {
+    align-self: flex-start;
+    margin-top: var(--space-3);
+}

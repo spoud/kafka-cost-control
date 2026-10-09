@@ -4,6 +4,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { Panel, PANEL_TYPE_LABELS, PanelType } from '../../panel.type';
 import { GraphFilterComponent } from '../../../tab-graphs/graph-filter/graph-filter.component';
 import { GraphFilter } from '../../../tab-graphs/tab-graphs.component';
@@ -20,6 +21,8 @@ import { PanelStore } from '../../store/panel.store';
         MatFormField,
         MatInput,
         MatSelectModule,
+        MatButtonToggleGroup,
+        MatButtonToggle,
     ],
     templateUrl: './panel-options.component.html',
     styleUrl: './panel-options.component.scss',
@@ -60,6 +63,10 @@ export class PanelOptionsComponent {
 
     updateType(type: PanelType) {
         this.panelStore.updatePanel(this.panelData().id, { type });
+    }
+
+    updateShowCost(showCost: boolean) {
+        this.panelStore.updatePanel(this.panelData().id, { showCost });
     }
 
     close() {

@@ -35,6 +35,21 @@ describe('PanelStore hydration', () => {
         expect(TestBed.inject(PanelStore).entities()).toEqual([]);
     });
 
+    it('opens a panel saved before the cost option as a usage panel', () => {
+        localStorage.setItem(PANEL_KEY, JSON.stringify([validPanel]));
+
+        const [panel] = TestBed.inject(PanelStore).entities();
+
+        expect(panel.id).toBe('p1');
+        expect(panel.showCost).toBeUndefined();
+    });
+
+    it('keeps a panel set to show costs', () => {
+        localStorage.setItem(PANEL_KEY, JSON.stringify([{ ...validPanel, showCost: true }]));
+
+        expect(TestBed.inject(PanelStore).entities()[0].showCost).toBe(true);
+    });
+
     it('drops a panel whose chart type no longer exists', () => {
         // an unknown type resolves to an undefined component and renders as a blank card
         localStorage.setItem(

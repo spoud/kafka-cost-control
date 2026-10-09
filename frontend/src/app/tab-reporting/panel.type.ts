@@ -26,6 +26,8 @@ export type Panel = {
     to?: Date;
     metricName?: string;
     groupByContext: string[];
+    /** Plot the cost instead of the usage; missing on panels saved before it existed. */
+    showCost?: boolean;
 
     eChartsInstance?: EChartsType;
 };
@@ -60,6 +62,7 @@ export function isPanel(value: unknown): value is Panel {
         isPanelType(candidate.type) &&
         isContextKeys(candidate.groupByContext) &&
         isRevivableDate(candidate.from) &&
-        (candidate.to === undefined || isRevivableDate(candidate.to))
+        (candidate.to === undefined || isRevivableDate(candidate.to)) &&
+        (candidate.showCost === undefined || typeof candidate.showCost === 'boolean')
     );
 }

@@ -1,4 +1,6 @@
-import { Component, inject, input, viewChild } from '@angular/core';
+import { Component, computed, inject, input, viewChild } from '@angular/core';
+import { ChartUnit } from '../../../../common/compact-number';
+import { plotted } from '../../../../tab-graphs/graph-panel/plotted';
 import { PieChartComponent } from '../../../../tab-graphs/graph-panel/pie-chart/pie-chart.component';
 import { PanelStore } from '../../../store/panel.store';
 import { EChartsType } from 'echarts/core';
@@ -29,6 +31,10 @@ export class PieChartPanelComponent implements ChartActions {
 
     filter = this.panelStore.filter(this.id);
     historyData = this.graphFilterService.historyResource(this.filter);
+
+    private showCost = computed(() => this.panelStore.entityMap()[this.id()]?.showCost ?? false);
+    protected unit = computed<ChartUnit>(() => (this.showCost() ? 'currency' : 'usage'));
+    protected chartData = computed(() => plotted(this.historyData.value() ?? [], this.showCost()));
 
     chartInit($event: EChartsType) {
         this.panelStore.updatePanel(this.id(), { eChartsInstance: $event });

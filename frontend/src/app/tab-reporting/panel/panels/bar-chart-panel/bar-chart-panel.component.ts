@@ -1,9 +1,10 @@
-import { Component, inject, input, viewChild } from '@angular/core';
+import { Component, computed, inject, input, viewChild } from '@angular/core';
 import { BarChartComponent } from '../../../../tab-graphs/graph-panel/bar-chart/bar-chart.component';
 import { PanelStore } from '../../../store/panel.store';
 import { EChartsType } from 'echarts/core';
 import { GraphFilterService } from '../../../../tab-graphs/graph-filter/graph-filter.service';
-import { computed } from '@angular/core';
+import { ChartUnit } from '../../../../common/compact-number';
+import { plotted } from '../../../../tab-graphs/graph-panel/plotted';
 import { ChartActions } from '../../../../tab-graphs/graph-panel/chart-actions';
 
 @Component({
@@ -38,6 +39,10 @@ export class BarChartPanelComponent implements ChartActions {
 
     filter = this.panelStore.filter(this.id);
     historyData = this.graphFilterService.historyResource(this.filter);
+
+    private showCost = computed(() => this.panelStore.entityMap()[this.id()]?.showCost ?? false);
+    protected unit = computed<ChartUnit>(() => (this.showCost() ? 'currency' : 'usage'));
+    protected chartData = computed(() => plotted(this.historyData.value() ?? [], this.showCost()));
 
     // the chart spans the panel's configured window, not just the timestamps that came back
     range = computed(() => {

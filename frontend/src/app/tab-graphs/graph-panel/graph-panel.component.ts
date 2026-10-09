@@ -8,6 +8,7 @@ import { PieChartComponent } from './pie-chart/pie-chart.component';
 import { MetricHistory } from '../../../generated/graphql/types';
 import { DateRange } from '../../common/date-range';
 import { ChartUnit } from '../../common/compact-number';
+import { plotted } from './plotted';
 
 @Component({
     selector: 'app-graph-panel',
@@ -35,12 +36,7 @@ export class GraphPanelComponent {
 
     protected unit = computed<ChartUnit>(() => (this.showCost() ? 'currency' : 'usage'));
 
-    /** The charts read `values`; in cost mode that is each bucket's pricing-rule cost. */
-    protected chartData = computed(() =>
-        this.showCost()
-            ? this.metricsData().map(series => ({ ...series, values: series.costs }))
-            : this.metricsData()
-    );
+    protected chartData = computed(() => plotted(this.metricsData(), this.showCost()));
 
     // The charts are static in this template, so unlike a Reporting panel these are direct view
     // queries - no ngComponentOutlet indirection. The card owns the menu so it can sit on the
