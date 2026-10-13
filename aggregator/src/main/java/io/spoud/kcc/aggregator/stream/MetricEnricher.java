@@ -53,6 +53,7 @@ public class MetricEnricher {
     public Topology metricEnricherTopology() {
         Log.infov("Will start MetricEnricher for topics: {0}", configProperties.rawTopics());
 
+        var clusterContext = new ClusterContext(configProperties.cluster());
         TimeWindows tumblingWindow = TimeWindows.ofSizeAndGrace(
                 configProperties.aggregationWindowSize(), configProperties.aggregationWindowGrace());
 
@@ -89,7 +90,13 @@ public class MetricEnricher {
                 .filter(
                         (key, value) -> (value != null && value.getEntityType() != null && value.getName() != null),
                         Named.as("filter-null"))
-                .flatMapValues(this::splitTopicMetricToPrincipalMetrics, Named.as("map-topic-metric-to-principal-metric"))
+                // the cluster goes in after the split, which rebuilds a principal's context, and in this
+                // step rather than a new one: another node would renumber the reduce's unnamed state
+                // store, and an upgrade would lose the open windows
+                .flatMapValues(metric -> splitTopicMetricToPrincipalMetrics(metric).stream()
+                                .map(clusterContext::apply)
+                                .toList(),
+                        Named.as("map-topic-metric-to-principal-metric"))
                 .selectKey(
                         (key, value) -> value.getEntityType() + "_" + value.getName() + "_" + value.getInitialMetricName() + "_" + value.getContext().hashCode(),
                         Named.as("unique-key-for-windowing"))

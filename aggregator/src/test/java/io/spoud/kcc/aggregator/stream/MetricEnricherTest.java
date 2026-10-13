@@ -37,6 +37,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class MetricEnricherTest {
     public static final String TOPIC_RAW_TELEGRAF = "metrics-raw-telegraf";
@@ -72,7 +73,12 @@ class MetricEnricherTest {
 
     @BeforeEach
     void setup() {
+        startWith(TestConfigProperties.ClusterConfig.DEFAULTS);
+    }
+
+    private void startWith(TestConfigProperties.ClusterConfig cluster) {
         var configProperties = TestConfigProperties.builder()
+                .cluster(cluster)
                 .applicationId("test")
                 .topicAggregated(TOPIC_AGGREGATED)
                 .topicAggregatedTableFriendly(TOPIC_AGGREGATED_TABLE_FRIENDLY)
@@ -671,6 +677,119 @@ class MetricEnricherTest {
         assertThat(list.get(0).getContext()).containsEntry("domain", "bern-parking");
         assertThat(list.get(0).getContext()).containsEntry("cu", "spoud");
 
+    }
+
+    @Test
+    void keeps_the_same_topic_on_two_clusters_apart() {
+        var now = Instant.now();
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_sent_bytes", "topic", "orders", "lkc-prod", 90));
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_sent_bytes", "topic", "orders", "lkc-dev", 10));
+
+        var rows = aggregatedTopic.readValuesToList();
+        assertThat(rows).extracting(AggregatedDataWindowed::getName).containsOnly("orders");
+        assertThat(rows).extracting(row -> row.getContext().get("cluster"), AggregatedDataWindowed::getValue)
+                .containsExactlyInAnyOrder(tuple("lkc-prod", 90.0),
+                        tuple("lkc-dev", 10.0));
+        assertThat(gaugeRepository.getGaugeValues()).containsKeys(
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cluster", "lkc-prod", "topic", "orders")),
+                new GaugeRepository.GaugeKey("kcc_confluent_kafka_server_sent_bytes", Tags.of("cluster", "lkc-dev", "topic", "orders")));
+    }
+
+    @Test
+    void keeps_the_smaller_cluster_of_a_max_metric() {
+        var now = Instant.now();
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_retained_bytes", "topic", "orders", "lkc-prod", 500));
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_retained_bytes", "topic", "orders", "lkc-dev", 50));
+
+        assertThat(aggregatedTopic.readValuesToList())
+                .extracting(row -> row.getContext().get("cluster"), AggregatedDataWindowed::getValue)
+                .containsExactlyInAnyOrder(tuple("lkc-prod", 500.0),
+                        tuple("lkc-dev", 50.0));
+    }
+
+    @Test
+    void keeps_a_principal_on_two_clusters_apart() {
+        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.PRINCIPAL, "sa-123", Map.of("team", "payments")));
+        var now = Instant.now();
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_request_bytes", "principal_id", "sa-123", "lkc-prod", 40));
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_request_bytes", "principal_id", "sa-123", "lkc-dev", 5));
+
+        var rows = aggregatedTopic.readValuesToList();
+        assertThat(rows).extracting(AggregatedDataWindowed::getEntityType).containsOnly(EntityType.PRINCIPAL);
+        assertThat(rows).extracting(AggregatedDataWindowed::getContext).containsExactlyInAnyOrder(
+                Map.of("team", "payments", "cluster", "lkc-prod"),
+                Map.of("team", "payments", "cluster", "lkc-dev"));
+    }
+
+    @Test
+    void keeps_the_cluster_when_a_topic_metric_is_split_among_principals() {
+        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.TOPIC, "spoud_.*", Map.of("writers", "alice,bob")));
+        contextDataStore.put("id2", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.PRINCIPAL, "alice", Map.of("application", "alice-app")));
+
+        rawTelegrafDataTopic.pipeInput(onCluster(Instant.now(), "bytesin_transposable", "topic", "spoud_topic_v1", "lkc-prod", 10));
+
+        var rows = aggregatedTopic.readValuesToList();
+        assertThat(rows).extracting(AggregatedDataWindowed::getName).containsExactlyInAnyOrder("alice", "bob");
+        assertThat(rows).allSatisfy(row -> assertThat(row.getContext())
+                .containsEntry("topic", "spoud_topic_v1")
+                .containsEntry("cluster", "lkc-prod"));
+    }
+
+    @Test
+    void the_tag_replaces_a_cluster_set_by_a_context_rule() {
+        contextDataStore.put("id1", new ContextData(Instant.now().minusSeconds(10), null, null,
+                EntityType.TOPIC, "orders", Map.of("cluster", "from-a-rule")));
+        var now = Instant.now();
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_sent_bytes", "topic", "orders", "lkc-prod", 1));
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf(now, "orders", 2));
+
+        assertThat(aggregatedTopic.readValuesToList())
+                .extracting(row -> row.getContext().get("cluster"), AggregatedDataWindowed::getValue)
+                .containsExactlyInAnyOrder(tuple("lkc-prod", 1.0),
+                        tuple("from-a-rule", 2.0));
+    }
+
+    @Test
+    void a_record_without_the_tag_gets_no_cluster() {
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf("orders", 1));
+
+        assertThat(aggregatedTopic.readValue().getContext()).doesNotContainKey("cluster");
+    }
+
+    @Test
+    void a_record_without_the_tag_gets_the_default_cluster() {
+        tearDown();
+        startWith(TestConfigProperties.ClusterConfig.DEFAULTS.withDefaultCluster("strimzi-onprem"));
+        var now = Instant.now();
+        rawTelegrafDataTopic.pipeInput(generateTopicRawTelegraf(now, "orders", 1));
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_sent_bytes", "topic", "orders", "lkc-prod", 2));
+
+        assertThat(aggregatedTopic.readValuesToList())
+                .extracting(row -> row.getContext().get("cluster"), AggregatedDataWindowed::getValue)
+                .containsExactlyInAnyOrder(tuple("strimzi-onprem", 1.0),
+                        tuple("lkc-prod", 2.0));
+    }
+
+    @Test
+    void names_a_cluster_by_its_id() {
+        tearDown();
+        startWith(TestConfigProperties.ClusterConfig.DEFAULTS.withNames("lkc-prod=confluent-prod"));
+        var now = Instant.now();
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_sent_bytes", "topic", "orders", "lkc-prod", 1));
+        rawTelegrafDataTopic.pipeInput(onCluster(now, "confluent_kafka_server_sent_bytes", "topic", "orders", "lkc-dev", 2));
+
+        assertThat(aggregatedTopic.readValuesToList())
+                .extracting(row -> row.getContext().get("cluster"))
+                .containsExactlyInAnyOrder("confluent-prod", "lkc-dev");
+    }
+
+    /** A record of {@code metric} for the topic or principal ({@code entityTag}) on the cluster {@code kafkaId}. */
+    private RawTelegrafData onCluster(Instant time, String metric, String entityTag, String entity, String kafkaId, double value) {
+        return new RawTelegrafData(time, metric, Map.of("gauge", value),
+                Map.of("env", "dev", entityTag, entity, "kafka_id", kafkaId));
     }
 
     private RawTelegrafData generateTopicRawTelegraf(String topicName, double value) {

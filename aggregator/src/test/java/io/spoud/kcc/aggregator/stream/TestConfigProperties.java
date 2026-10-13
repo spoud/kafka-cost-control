@@ -44,6 +44,29 @@ public class TestConfigProperties implements CostControlConfigProperties {
         return Optional.ofNullable(unassignedContextKey);
     }
 
+    @Builder.Default
+    private Cluster cluster = ClusterConfig.DEFAULTS;
+
+    @Override
+    public Cluster cluster() {
+        return cluster;
+    }
+
+    /** {@code cc.cluster.*}; {@link #DEFAULTS} as shipped. */
+    public record ClusterConfig(String tag, String contextKey, Optional<String> defaultCluster,
+                                Optional<String> names) implements Cluster {
+        public static final ClusterConfig DEFAULTS =
+                new ClusterConfig("kafka_id", "cluster", Optional.empty(), Optional.empty());
+
+        public ClusterConfig withDefaultCluster(String name) {
+            return new ClusterConfig(tag, contextKey, Optional.of(name), names);
+        }
+
+        public ClusterConfig withNames(String value) {
+            return new ClusterConfig(tag, contextKey, defaultCluster, Optional.of(value));
+        }
+    }
+
     @Override
     public String adminPassword() {
         return adminPassword;

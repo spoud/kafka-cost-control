@@ -14,6 +14,13 @@ helm install test .
 
 The chart was developed/tested with Strimzi 0.44.0.
 
+## Upgrading to 0.8.0
+
+Telegraf now tags every metric with `kafka_id`, set to `strimzi.clusterName`. An aggregator from
+release 0.14.0 on keeps it as the context value `cluster`, so one KCC can tell clusters apart;
+older aggregators ignore it. Nothing to change in your values, but `strimzi.clusterName` is now the
+name the cluster shows under in KCC.
+
 ## Upgrading to 0.7.0
 
 `aggregator.aggregationWindowSize` and `telegraf.aggregationWindowSizeSeconds` were replaced by one
