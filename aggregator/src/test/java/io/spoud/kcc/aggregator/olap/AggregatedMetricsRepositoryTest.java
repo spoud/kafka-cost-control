@@ -26,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class AggregatedMetricsRepositoryTest {
 
@@ -738,6 +739,34 @@ class AggregatedMetricsRepositoryTest {
         assertThat(repo.deleteFrom(start)).isEqualTo(2);
         assertThat(new ContextDataOlapRepository(olapInfra).unassignedEntities(earlier, null, "no-such-key"))
                 .extracting(UnassignedEntity::lastSeen).containsExactly(earlier.plus(Duration.ofHours(1)));
+    }
+
+    @Test
+    @DisplayName("After a reprocess, rebuilt copies of windows before its start aren't stored, also after a restart")
+    void keepsWindowsBeforeTheReprocessStart() {
+        Instant before = Instant.parse("2026-01-01T01:00:00Z");
+        Instant start = Instant.parse("2026-01-01T02:00:00Z");
+        repo.insertRow(randomDatapoint().setStartTime(before).setEndTime(start).setValue(10).setContext(Map.of()).build());
+        repo.flushToDb();
+        repo.deleteFrom(start);
+
+        // the raw records after the rewind still hold points of the window before; enriched again, they get a new id
+        var rebuilt = Map.of("cluster", "lkc-a1b2");
+        repo.insertRow(randomDatapoint().setStartTime(before).setEndTime(start).setValue(3).setContext(rebuilt).build());
+        repo.insertRow(randomDatapoint().setStartTime(start).setEndTime(start.plus(Duration.ofHours(1))).setValue(5).setContext(rebuilt).build());
+        repo.flushToDb();
+
+        var all = Set.of("metric1");
+        assertThat(repo.getHistory(before, start.plus(Duration.ofHours(1)), all))
+                .extracting(MetricEO::start, MetricEO::value)
+                .containsExactlyInAnyOrder(tuple(before, 10.0), tuple(start, 5.0));
+
+        // a restart reads where the reprocess started
+        var restarted = new AggregatedMetricsRepository(testOlapConfig, testCostConfig, olapInfra,
+                new MetricNameRepository(new MetricReducer(TestConfigProperties.builder().build()), olapInfra));
+        restarted.insertRow(randomDatapoint().setStartTime(before).setEndTime(start).setValue(7).setContext(Map.of("x", "y")).build());
+        restarted.flushToDb();
+        assertThat(restarted.getHistory(before, start.plus(Duration.ofHours(1)), all)).hasSize(2);
     }
 
     private AggregatedDataWindowed.Builder teamRow(Instant start, Instant end, String team, String metric, double value) {

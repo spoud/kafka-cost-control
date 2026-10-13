@@ -74,7 +74,16 @@ public class BillsRepository {
     void stop(@Observes ShutdownEvent event) {
         running = false;
         if (reader != null) {
-            reader.interrupt();
+            // let the reader leave its loop after its current poll (1 s) and close the consumer itself:
+            // interrupting the close made the Kafka client log an ERROR on every shutdown
+            try {
+                reader.join(3_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            if (reader.isAlive()) {
+                reader.interrupt(); // e.g. waiting before a retry
+            }
         }
         synchronized (this) {
             if (producer != null) {
@@ -156,6 +165,9 @@ public class BillsRepository {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
+                if (!running) {
+                    return; // shutting down
+                }
                 String reason = "Bills are unavailable: topic " + topic + " can't be read (" + rootMessage(e) + ").";
                 if (!reason.equals(unavailable)) {
                     Log.warnv("{0} Retrying.", reason);
