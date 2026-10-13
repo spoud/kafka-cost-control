@@ -7,6 +7,8 @@ data:
     # Global tags can be specified here in key="value" format.
     [global_tags]
         env = "{{ .Values.env }}"
+        # the cluster every metric belongs to; the aggregator keeps it as the context value "cluster"
+        kafka_id = "{{ .Values.strimzi.clusterName }}"
 
     [agent]
         interval = "{{ .Values.telegraf.scrapeIntervalSeconds }}s"

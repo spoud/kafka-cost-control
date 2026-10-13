@@ -6,6 +6,8 @@ A principal rule's regex is matched against the principal's ID and, when the met
 
 You can have as much key/values as you want. They will be used to sum up prices in the dashboard. It is therefor important that you have at least one key/value that defined the cost unit or organization unit. For example: `organzation_unit=department1`.
 
+The cluster a metric came from needs no rule: it is added as the context value `cluster` (see the section on configuring clusters). A rule matches by name only, so it applies on every cluster.
+
 The context data are stored in kafka in a compacted topic. The key is free for the user to choose.
 
 ==== Listing existing context data

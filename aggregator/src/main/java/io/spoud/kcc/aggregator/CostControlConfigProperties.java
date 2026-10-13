@@ -102,6 +102,28 @@ public interface CostControlConfigProperties {
     @WithName("unassigned.context-key")
     Optional<String> unassignedContextKey();
 
+    /** Which cluster each record came from, kept as a context value. */
+    @WithName("cluster")
+    Cluster cluster();
+
+    interface Cluster {
+        /** The raw record's tag naming its cluster. Confluent's metrics export and the kafka-scraper send kafka_id. */
+        @WithDefault("kafka_id")
+        String tag();
+
+        /** The context key the cluster goes to. It replaces a value a context rule set for the same key. */
+        @WithName("context-key")
+        @WithDefault("cluster")
+        String contextKey();
+
+        /** The cluster of records without the tag. Unset, they get no cluster. */
+        @WithName("default")
+        Optional<String> defaultCluster();
+
+        /** Readable names for cluster IDs: {@code lkc-a1b2=confluent-prod,lkc-c3d4=confluent-dev}. */
+        Optional<String> names();
+    }
+
     enum MissingKeyHandling {
         /**
          * If the key is missing, the metric will not be split, but passed through as is.

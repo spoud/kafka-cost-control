@@ -73,3 +73,45 @@ cc.metrics.transformations.config.splitMetricAmongPrincipals.missingKeyHandling=
 ```
 
 If no strategy is specified for a metric, then `ASSIGN_TO_FALLBACK` will be used.
+
+==== Configuring clusters
+
+One cost control instance can serve several Kafka clusters. Each metric keeps the cluster it came from as the context value
+`cluster`, so the same topic or principal on two clusters stays two rows, and every view that groups or filters by context
+can do so by cluster. No context rule is needed: the cluster comes from a tag the raw metrics already carry.
+
+- Confluent Cloud's metrics export and the kafka-scraper tag every metric with `kafka_id`, the cluster's ID (`lkc-...`).
+- The Strimzi Helm chart's Telegraf adds `kafka_id` from `strimzi.clusterName`. For another collector, add a global tag.
+
+All settings are optional:
+
+[cols="2,1,4"]
+|===
+|Property |Default |Meaning
+
+|`cc.cluster.tag`
+|`kafka_id`
+|The raw metric's tag that names its cluster.
+
+|`cc.cluster.context-key`
+|`cluster`
+|The context key the cluster is written to. It replaces a value a context rule set for the same key.
+
+|`cc.cluster.default`
+|(unset)
+|The cluster of metrics without the tag. Unset, they get no cluster.
+
+|`cc.cluster.names`
+|(unset)
+|Readable names for cluster IDs, as `id=name` pairs separated by commas. IDs without a name are shown as they are.
+|===
+
+For example, as environment variables:
+
+```properties
+CC_CLUSTER_NAMES=lkc-a1b2=confluent-prod,lkc-c3d4=confluent-dev
+```
+
+Rows written before an upgrade to a release with this feature have no cluster. A reprocess (see the section on reprocessing)
+fills it in for the hours the raw topic still holds. It also tidies the hour the upgrade happened in: rows from before and after
+the restart are two rows there, which double that hour of metrics aggregated as `max`, like retained bytes.
