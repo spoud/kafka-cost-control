@@ -38,3 +38,29 @@ mutation reprocess {
 ----
 
 The answer says where the rebuild starts and how many internal topics and stored rows were deleted.
+
+=== Deleting a metric
+
+A metric you no longer need, e.g. one the collector stopped sending, keeps showing in pages, charts,
+exports and the assistant's answers for the time it was collected. Deleting it removes all its stored
+data. The raw topics aren't touched, so:
+
+* a reprocess covering its time brings it back;
+* if it is still being collected, new data keeps coming in. To stop it for good, remove it from the
+  collector (e.g. Telegraf's `namepass`).
+
+==== Using the UI
+
+* Go to the _Others_ tab. _Stored metrics_ lists every metric with stored data and when it was last
+  seen (_still arriving_ when it is still collected).
+* Click the bin next to the metric and confirm.
+
+==== Using GraphQL
+[source,graphql]
+----
+mutation deleteMetric {
+  deleteMetric(metricName: "confluent_kafka_server_active_connection_count")
+}
+----
+
+The answer is the number of stored rows deleted.

@@ -742,6 +742,20 @@ class AggregatedMetricsRepositoryTest {
     }
 
     @Test
+    @DisplayName("Deleting a metric removes its stored rows, buffered ones included, and leaves the others")
+    void deletesAMetric() {
+        repo.insertRow(randomDatapoint().setInitialMetricName("old_metric").build());
+        repo.insertRow(randomDatapoint().setInitialMetricName("kept_metric").build());
+        repo.flushToDb();
+        // still in the buffer when the delete comes
+        repo.insertRow(randomDatapoint().setInitialMetricName("old_metric").setName("another").build());
+
+        assertThat(repo.deleteMetric("old_metric")).isEqualTo(2);
+        assertThat(repo.getAllMetrics()).containsExactly("kept_metric");
+        assertThat(repo.deleteMetric("no_such_metric")).isZero();
+    }
+
+    @Test
     @DisplayName("After a reprocess, rebuilt copies of windows before its start aren't stored, also after a restart")
     void keepsWindowsBeforeTheReprocessStart() {
         Instant before = Instant.parse("2026-01-01T01:00:00Z");

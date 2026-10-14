@@ -33,6 +33,11 @@ public class MetricNameRepository {
         metricNames.put(metricName, metricTime);
     }
 
+    /** Drops a deleted metric from the names seen in the stream, which list metrics without OLAP. */
+    public void forget(String metricName) {
+        metricNames.remove(metricName);
+    }
+
     public List<MetricNameEntity> getMetricNames() {
         return olapInfra.getDSLContext().map(dslContext -> {
             AggregatedData a = AGGREGATED_DATA.as("a");

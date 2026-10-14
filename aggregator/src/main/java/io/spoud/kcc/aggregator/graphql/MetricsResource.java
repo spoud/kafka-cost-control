@@ -8,7 +8,10 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import lombok.RequiredArgsConstructor;
+import org.eclipse.microprofile.graphql.Description;
 import org.eclipse.microprofile.graphql.GraphQLApi;
+import org.eclipse.microprofile.graphql.Mutation;
+import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
 
@@ -45,6 +48,13 @@ public class MetricsResource {
     @Query("metricNames")
     public @NonNull List<@NonNull MetricNameEntity> metricNames() {
         return metricsService.getMetricNames();
+    }
+
+    @Mutation("deleteMetric")
+    @Description("Deletes every stored row of a metric. The raw topics keep its records: a reprocess covering"
+            + " its time brings it back, and if it is still collected, new data keeps arriving.")
+    public int deleteMetric(@NonNull @Name("metricName") String metricName) {
+        return metricsService.deleteMetric(metricName);
     }
 
     @GET

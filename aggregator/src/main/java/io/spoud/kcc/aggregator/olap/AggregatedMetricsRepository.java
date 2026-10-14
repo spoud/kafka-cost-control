@@ -126,6 +126,27 @@ public class AggregatedMetricsRepository {
         }).orElse(0);
     }
 
+    /**
+     * Deletes every stored row of {@code metricName}, after flushing what is still buffered, so the
+     * metric leaves every page, the export and the assistant. The raw topics keep its records: a
+     * reprocess covering its time brings it back, and new records keep adding to it.
+     *
+     * @return the number of rows deleted
+     */
+    public synchronized int deleteMetric(String metricName) {
+        flushToDb();
+        return olapInfra.getConnection().map(conn -> {
+            try (var stmt = conn.prepareStatement("DELETE FROM aggregated_data WHERE initial_metric_name = ?")) {
+                stmt.setString(1, metricName);
+                int deleted = stmt.executeUpdate();
+                Log.infof("Deleted the metric %s: %d stored rows", metricName, deleted);
+                return deleted;
+            } catch (SQLException e) {
+                throw new IllegalStateException("Could not delete the metric " + metricName, e);
+            }
+        }).orElse(0);
+    }
+
     private Instant readRebuildFloor() {
         return olapInfra.getConnection().map(conn -> {
             try (var stmt = conn.createStatement();

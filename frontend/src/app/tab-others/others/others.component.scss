@@ -28,3 +28,34 @@ mat-card {
     color: var(--mat-sys-on-surface-variant);
     font-size: 0.875em;
 }
+
+.metrics-card {
+    width: 720px;
+    margin-top: 24px;
+
+    table.metrics {
+        width: 100%;
+        border-collapse: collapse;
+
+        th {
+            text-align: left;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+        }
+
+        td,
+        th {
+            padding: 4px 8px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+
+        .name {
+            font-family: var(--font-mono, monospace);
+            word-break: break-all;
+        }
+
+        .arriving {
+            color: var(--mat-sys-primary);
+        }
+    }
+}

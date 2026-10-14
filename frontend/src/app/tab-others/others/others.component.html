@@ -29,3 +29,49 @@
         <button mat-flat-button color="primary" (click)="openReprocessDialog()">Reprocess</button>
     </mat-card-actions>
 </mat-card>
+
+<mat-card appearance="outlined" class="metrics-card">
+    <mat-card-header>
+        <mat-card-title>Stored metrics</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+        <p class="hint">
+            Delete a metric you no longer need, e.g. one the collector stopped sending, so it stops
+            cluttering pages and exports. The raw metrics aren't touched: a reprocess covering its
+            time brings it back.
+        </p>
+        <table class="metrics">
+            <tr>
+                <th>Metric</th>
+                <th>Last seen</th>
+                <th></th>
+            </tr>
+            @for (metric of metrics(); track metric.metricName) {
+                <tr>
+                    <td class="name">{{ metric.metricName }}</td>
+                    <td>
+                        @if (stillArriving(metric.lastSeen)) {
+                            <span class="arriving">still arriving</span>
+                        } @else {
+                            {{ metric.lastSeen | date: 'd MMM y, HH:mm' }}
+                        }
+                    </td>
+                    <td>
+                        <button
+                            mat-icon-button
+                            matTooltip="Delete this metric's stored data"
+                            [attr.aria-label]="'Delete ' + metric.metricName"
+                            (click)="openDeleteMetricDialog(metric)"
+                        >
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </tr>
+            } @empty {
+                <tr>
+                    <td colspan="3" class="hint">No stored metrics.</td>
+                </tr>
+            }
+        </table>
+    </mat-card-content>
+</mat-card>
