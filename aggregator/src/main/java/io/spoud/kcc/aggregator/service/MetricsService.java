@@ -31,6 +31,13 @@ public class MetricsService {
         return metricNameRepository.getMetricNames();
     }
 
+    /** @return the number of stored rows deleted */
+    public int deleteMetric(String metricName) {
+        int deleted = aggregatedMetricsRepository.deleteMetric(metricName);
+        metricNameRepository.forget(metricName);
+        return deleted;
+    }
+
     public List<String> getContextKeys() {
         return aggregatedMetricsRepository.getAllContextKeys().stream().sorted().toList();
     }
