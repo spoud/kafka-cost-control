@@ -55,6 +55,8 @@ public class AggregatedMetricsRepository {
     private final MetricNameRepository metricNameRepository;
     private final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final Set<String> contextKeys = new ConcurrentHashSet<>();
+    /** The start of the last reprocess: windows before it are kept, so rebuilt copies of them aren't stored. */
+    private volatile Instant rebuildFloor;
 
     public AggregatedMetricsRepository(OlapConfigProperties olapConfig, CostControlConfigProperties costControlConfig, OlapInfra olapInfra, MetricNameRepository metricNameRepository) {
         Log.info("Initializing AggregatedMetricsRepository");
@@ -67,6 +69,7 @@ public class AggregatedMetricsRepository {
 
         Log.info("Precomputing context keys");
         contextKeys.addAll(getAllJsonKeys("context"));
+        rebuildFloor = readRebuildFloor();
 
         Log.infof("AggregatedMetricsRepository initialized after %s", Duration.between(startTime, Instant.now()));
     }
@@ -97,22 +100,43 @@ public class AggregatedMetricsRepository {
     /**
      * Deletes every stored window starting at or after {@code start}, after flushing what is still
      * buffered, so a reprocess replaces those windows instead of adding re-enriched copies next to
-     * them (a row's id includes its context).
+     * them (a row's id includes its context). Windows before {@code start} are kept, and from now on
+     * rebuilt copies of them are skipped: the raw records after the rewind still hold some of their
+     * points, and the copies, with today's context, landed next to the kept rows.
      *
      * @return the number of rows deleted
      */
     public synchronized int deleteFrom(Instant start) {
         flushToDb();
         return olapInfra.getConnection().map(conn -> {
-            try (var stmt = conn.prepareStatement("DELETE FROM aggregated_data WHERE start_time >= ?")) {
-                stmt.setObject(1, start.atOffset(ZoneOffset.UTC));
-                int deleted = stmt.executeUpdate();
+            try (var delete = conn.prepareStatement("DELETE FROM aggregated_data WHERE start_time >= ?");
+                 var clearFloor = conn.prepareStatement("DELETE FROM rebuild_floor");
+                 var setFloor = conn.prepareStatement("INSERT INTO rebuild_floor (floor) VALUES (?)")) {
+                delete.setObject(1, start.atOffset(ZoneOffset.UTC));
+                int deleted = delete.executeUpdate();
+                clearFloor.executeUpdate();
+                setFloor.setObject(1, start.atOffset(ZoneOffset.UTC));
+                setFloor.executeUpdate();
+                rebuildFloor = start;
                 Log.infof("Deleted %d OLAP rows starting at or after %s", deleted, start);
                 return deleted;
             } catch (SQLException e) {
                 throw new IllegalStateException("Could not delete OLAP rows from " + start, e);
             }
         }).orElse(0);
+    }
+
+    private Instant readRebuildFloor() {
+        return olapInfra.getConnection().map(conn -> {
+            try (var stmt = conn.createStatement();
+                 var rs = stmt.executeQuery("SELECT max(floor) FROM rebuild_floor")) {
+                var floor = rs.next() ? rs.getObject(1, OffsetDateTime.class) : null;
+                return floor == null ? null : floor.toInstant();
+            } catch (SQLException e) {
+                Log.warnv("Could not read where the last reprocess started: {0}", e.getMessage());
+                return null;
+            }
+        }).orElse(null);
     }
 
     @Scheduled(every = "${cc.olap.database.flush-interval.seconds}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
@@ -124,7 +148,9 @@ public class AggregatedMetricsRepository {
             var finalRowBuffer = new ArrayDeque<AggregatedDataWindowed>(rowBuffer.size());
             rowBuffer.drainTo(finalRowBuffer);
             var skipped = 0;
+            var beforeRebuild = 0;
             var count = 0;
+            var floor = rebuildFloor;
             var startTime = Instant.now();
             var addedContextKeys = new HashSet<String>();
             try (var stmt = conn.prepareStatement("INSERT OR REPLACE INTO aggregated_data (start_time, end_time, initial_metric_name, entity_type, name, tags, context, value, target, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
@@ -132,6 +158,10 @@ public class AggregatedMetricsRepository {
                     Log.debugv("Ingesting metric: {0}", metric);
                     var start = metric.getStartTime();
                     var end = metric.getEndTime();
+                    if (floor != null && start.isBefore(floor)) {
+                        beforeRebuild++;
+                        continue;
+                    }
                     var tags = "";
                     var context = "";
                     try {
@@ -173,6 +203,9 @@ public class AggregatedMetricsRepository {
             contextKeys.addAll(addedContextKeys); // this is only safe to do here, once the flush is complete
             if (count != 0 || skipped != 0) {
                 Log.infof("Ingested %d metrics. Skipped %d metrics. Duration: %s", count, skipped, Duration.between(startTime, Instant.now()));
+            }
+            if (beforeRebuild != 0) {
+                Log.infof("Skipped %d rebuilt rows of windows before the last reprocess start %s: those windows were kept", beforeRebuild, floor);
             }
         });
     }

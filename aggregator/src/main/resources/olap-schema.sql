@@ -15,3 +15,10 @@ CREATE TABLE IF NOT EXISTS aggregated_data
 -- Costs are computed when asked, in the costs view. Older databases still have the cost column
 -- that the stream filled with the pricing rule cost at the time: it is dropped in place.
 ALTER TABLE aggregated_data DROP COLUMN IF EXISTS cost;
+
+-- Where the last reprocess started. Its rebuild skips windows before this point: they were kept as
+-- they were, and the raw records after the rewind still hold some of their points.
+CREATE TABLE IF NOT EXISTS rebuild_floor
+(
+    floor TIMESTAMPTZ NOT NULL
+);
