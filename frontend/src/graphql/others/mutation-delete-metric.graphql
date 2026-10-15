@@ -1,3 +1,0 @@
-mutation deleteMetric($metricName: String!) {
-    deleteMetric(metricName: $metricName)
-}
