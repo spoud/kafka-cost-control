@@ -81,7 +81,8 @@ One cost control instance can serve several Kafka clusters. Each metric keeps th
 can do so by cluster. No context rule is needed: the cluster comes from a tag the raw metrics already carry.
 
 - Confluent Cloud's metrics export and the kafka-scraper tag every metric with `kafka_id`, the cluster's ID (`lkc-...`).
-- The Strimzi Helm chart's Telegraf adds `kafka_id` from `strimzi.clusterName`. For another collector, add a global tag.
+- The Strimzi Helm chart's Telegraf adds `kafka_id` from `strimzi.clusterName`, and the chart sets the same name as
+  `cc.cluster.default`. For another collector, add a global tag.
 
 All settings are optional:
 
