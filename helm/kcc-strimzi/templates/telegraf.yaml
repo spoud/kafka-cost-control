@@ -21,6 +21,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
+        # restart Telegraf when its config changes: it reads the config only at startup
+        checksum/config: {{ include (print $.Template.BasePath "/telegraf-config.yaml") . | sha256sum }}
         {{- with .Values.telegraf.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

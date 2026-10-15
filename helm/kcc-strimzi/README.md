@@ -14,6 +14,12 @@ helm install test .
 
 The chart was developed/tested with Strimzi 0.44.0.
 
+## Upgrading to 0.9.1
+
+An upgrade now restarts Telegraf when its config changes. Before, Telegraf kept running with the
+old config until its pod restarted for another reason: if you upgraded to 0.8.0 or 0.9.0, your
+metrics may still lack `kafka_id` or use the old window. Upgrading to 0.9.1 restarts it once.
+
 ## Upgrading to 0.9.0
 
 The images move from release 0.9.0 to 0.15.0. Three changes in between need a look:
