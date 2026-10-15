@@ -14,6 +14,16 @@ helm install test .
 
 The chart was developed/tested with Strimzi 0.44.0.
 
+## Upgrading
+
+Read the notes of every chart version between yours and the new one, oldest first, and preview
+the change with `helm template` (or the `helm diff` plugin) before upgrading: a value that a later
+version no longer accepts stops rendering with a message saying what replaced it.
+
+An image you set in your values, such as `strimzi.contextOperator.image` for the `-v1beta2`
+variant, stays as you set it: a new chart moves only the images you leave unset. Bump it to the
+chart's `appVersion` yourself.
+
 ## Upgrading to 0.9.2
 
 Metrics now really carry `kafka_id`. From 0.8.0 to 0.9.1 Telegraf's tag filter dropped it before
@@ -32,7 +42,8 @@ The images move from release 0.9.0 to 0.15.0. Three changes in between need a lo
 
 - **Sign-in for everything.** With `aggregator.auth.mode: basic` (the default) every page and
   query now needs a sign-in, not only the changes. Set `aggregator.auth.adminPasswordSecret`, or
-  the admin password is `admin`. Use `none` only behind a proxy that authenticates.
+  the admin password is `admin`. Create that Secret before upgrading: the aggregator doesn't start
+  without it. Use `none` only behind a proxy that authenticates.
 - **Costs come from the OLAP database.** The aggregator no longer computes a cost per record: the
   `cost` field of the aggregated topics stays empty, and every page that shows a cost reads it
   from DuckDB. Set `aggregator.olapEnabled: true` to see costs. Enabling it fills the database
