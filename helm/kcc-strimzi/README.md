@@ -14,6 +14,21 @@ helm install test .
 
 The chart was developed/tested with Strimzi 0.44.0.
 
+## Upgrading to 0.9.0
+
+The images move from release 0.9.0 to 0.15.0. Three changes in between need a look:
+
+- **Sign-in for everything.** With `aggregator.auth.mode: basic` (the default) every page and
+  query now needs a sign-in, not only the changes. Set `aggregator.auth.adminPasswordSecret`, or
+  the admin password is `admin`. Use `none` only behind a proxy that authenticates.
+- **Costs come from the OLAP database.** The aggregator no longer computes a cost per record: the
+  `cost` field of the aggregated topics stays empty, and every page that shows a cost reads it
+  from DuckDB. Set `aggregator.olapEnabled: true` to see costs. Enabling it fills the database
+  only from then on: reprocess (see the manual) to fill it with the data the raw topic still holds.
+- **New schema versions.** Pricing rules get a new schema version and bills a new schema. A
+  registry that doesn't let clients register schemas needs them added first, from
+  `aggregator/src/main/avro/`.
+
 ## Upgrading to 0.8.0
 
 Telegraf now tags every metric with `kafka_id`, set to `strimzi.clusterName`. An aggregator from
