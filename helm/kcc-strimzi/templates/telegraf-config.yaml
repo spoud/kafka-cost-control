@@ -26,7 +26,8 @@ data:
 
     [[inputs.prometheus]]
         namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total", "kafka_log_log_size"]
-        taginclude = ["topic", "pod_name", "env", "partition"]
+        # every tag not listed is dropped, global tags too: kafka_id must stay listed
+        taginclude = ["topic", "pod_name", "env", "partition", "kafka_id"]
         monitor_kubernetes_pods = true
         monitor_kubernetes_pods_method = "settings"
         monitor_kubernetes_pods_scheme = "http"

@@ -14,6 +14,12 @@ helm install test .
 
 The chart was developed/tested with Strimzi 0.44.0.
 
+## Upgrading to 0.9.2
+
+Metrics now really carry `kafka_id`. From 0.8.0 to 0.9.1 Telegraf's tag filter dropped it before
+sending, so the aggregator never saw a cluster: KCC shows the cluster only for data collected after
+this upgrade.
+
 ## Upgrading to 0.9.1
 
 An upgrade now restarts Telegraf when its config changes. Before, Telegraf kept running with the
