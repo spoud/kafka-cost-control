@@ -24,6 +24,12 @@ An image you set in your values, such as `strimzi.contextOperator.image` for the
 variant, stays as you set it: a new chart moves only the images you leave unset. Bump it to the
 chart's `appVersion` yourself.
 
+## Upgrading to 0.9.3
+
+The aggregator now also gives `strimzi.clusterName` as the cluster to metrics without `kafka_id`,
+such as those collected before 0.9.2. To show the cluster on older data too, reprocess (see the
+manual) after upgrading.
+
 ## Upgrading to 0.9.2
 
 Metrics now really carry `kafka_id`. From 0.8.0 to 0.9.1 Telegraf's tag filter dropped it before
