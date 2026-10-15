@@ -24,6 +24,13 @@ An image you set in your values, such as `strimzi.contextOperator.image` for the
 variant, stays as you set it: a new chart moves only the images you leave unset. Bump it to the
 chart's `appVersion` yourself.
 
+## Upgrading to 0.9.4
+
+Bytes in and out no longer turn negative when a counter restarts, such as when a broker restarts
+in a rolling update or a topic is deleted and created again: that period now counts 0 for the
+series instead of minus its old total. Telegraf sends the value as `counter_non_negative_diff`
+instead of `counter_diff`; the aggregator reads either.
+
 ## Upgrading to 0.9.3
 
 The aggregator now also gives `strimzi.clusterName` as the cluster to metrics without `kafka_id`,

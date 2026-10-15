@@ -54,7 +54,9 @@ data:
         delay = "10s"
         grace = "10s"
         drop_original = true
-        stats = ["diff"]
+        # a counter restarts from 0 when its broker restarts or its topic is recreated: "diff" would then
+        # report minus the old count for that period
+        stats = ["non_negative_diff"]
 
     [[outputs.kafka]]
         brokers = ["{{ .Values.strimzi.bootstrapServer }}"]
