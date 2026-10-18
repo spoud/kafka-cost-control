@@ -7,8 +7,8 @@ env: dev
 # Set this to true to enable debug logging in telegraf and the context operator
 debug: true
 
-# Length of one cost window in seconds. It sets both the aggregator's windows and Telegraf's
-# pre-aggregation period, which must be equal or storage and traffic land in the wrong windows.
+# Length of one cost window in seconds. It sets both the aggregator's windows and when Telegraf
+# scrapes the brokers: storage once at the start of each window, traffic six times per window.
 aggregationWindowSizeSeconds: 3600
 
 topics:
@@ -61,7 +61,6 @@ telegraf:
     requests:
       cpu: 100m
       memory: 100Mi
-  scrapeIntervalSeconds: 10
 
 strimzi:
   clusterName: my-cluster

@@ -24,6 +24,18 @@ An image you set in your values, such as `strimzi.contextOperator.image` for the
 variant, stays as you set it: a new chart moves only the images you leave unset. Bump it to the
 chart's `appVersion` yourself.
 
+## Upgrading to 0.9.5
+
+Telegraf no longer aggregates. Its aggregators stamped each period with its end and sent a partial
+period on shutdown, so storage landed one window late, a window with a Telegraf restart counted
+storage twice, and the bytes between two periods were lost (about 1.7 %). Telegraf now scrapes on
+the clock: storage once at the start of each window, traffic six times per window, sent as the
+increase since the previous scrape (field `counter`). The brokers are scraped far less often.
+
+- `telegraf.scrapeIntervalSeconds` is no longer used: the window sets the scrape times. Remove it.
+- Data collected before the upgrade keeps its old timestamps. The window of the upgrade itself
+  gets storage twice, from the old Telegraf's last flush.
+
 ## Upgrading to 0.9.4
 
 Bytes in and out no longer turn negative when a counter restarts, such as when a broker restarts

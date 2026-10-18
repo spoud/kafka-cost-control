@@ -10,8 +10,11 @@ data:
         # the cluster every metric belongs to; the aggregator keeps it as the context value "cluster"
         kafka_id = "{{ .Values.strimzi.clusterName }}"
 
+    # No aggregators: they stamp a period with its end and flush a partial one on shutdown, which put
+    # storage an hour late and counted it twice in an hour with a restart. Each input instead scrapes
+    # on the clock, at intervals that divide the window, so its points fall inside their window.
     [agent]
-        interval = "{{ .Values.telegraf.scrapeIntervalSeconds }}s"
+        interval = "{{ div .Values.aggregationWindowSizeSeconds 6 }}s"
         round_interval = true
         metric_batch_size = 100
         metric_buffer_limit = 10000
@@ -24,8 +27,17 @@ data:
         debug = true
         quiet = false
 
+    {{- range $input := list "storage" "traffic" }}
+
     [[inputs.prometheus]]
-        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total", "kafka_log_log_size"]
+        {{- if eq $input "storage" }}
+        # storage: the size at the start of each window, one point per window
+        interval = "{{ $.Values.aggregationWindowSizeSeconds }}s"
+        namepass = ["kafka_log_log_size"]
+        {{- else }}
+        # traffic: running totals, six times per window, turned into increases below
+        namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
+        {{- end }}
         # every tag not listed is dropped, global tags too: kafka_id must stay listed
         taginclude = ["topic", "pod_name", "env", "partition", "kafka_id"]
         monitor_kubernetes_pods = true
@@ -33,30 +45,32 @@ data:
         monitor_kubernetes_pods_scheme = "http"
         monitor_kubernetes_pods_port = 9404
         monitor_kubernetes_pods_path = "/metrics"
-        monitor_kubernetes_pods_namespace = "{{ .Release.Namespace }}"
+        monitor_kubernetes_pods_namespace = "{{ $.Release.Namespace }}"
         kubernetes_label_selector = "strimzi.io/kind=Kafka,strimzi.io/broker-role=true"
         timeout = "10s"
         response_timeout = "10s"
         [inputs.prometheus.tags]
             source="strimzi-metric-api"
-    
-    [[aggregators.basicstats]]
-        namepass = ["kafka_log_log_size"]
-        period = "{{ .Values.aggregationWindowSizeSeconds }}s"
-        delay = "10s"
-        grace = "10s"
-        drop_original = true
-        stats = ["max"]
+    {{- end }}
 
-    [[aggregators.basicstats]]
+    # A broker counts bytes since it started. Send the increase since the previous scrape instead,
+    # stamped with that scrape's time: the bytes went through between the two. A total lower than
+    # before means the counter restarted from 0 (broker restart, topic recreated), so all of it is
+    # new. The first scrape after Telegraf starts has nothing to compare with and is dropped.
+    [[processors.starlark]]
         namepass = ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]
-        period = "{{ div .Values.aggregationWindowSizeSeconds 6 }}s"
-        delay = "10s"
-        grace = "10s"
-        drop_original = true
-        # a counter restarts from 0 when its broker restarts or its topic is recreated: "diff" would then
-        # report minus the old count for that period
-        stats = ["non_negative_diff"]
+        source = '''
+    def apply(metric):
+        key = metric.name + str(sorted(metric.tags.items()))
+        total = metric.fields["counter"]
+        previous = state.get(key)
+        state[key] = (total, metric.time)
+        if previous == None:
+            return None
+        metric.fields["counter"] = total - previous[0] if total >= previous[0] else total
+        metric.time = previous[1]
+        return metric
+    '''
 
     [[outputs.kafka]]
         brokers = ["{{ .Values.strimzi.bootstrapServer }}"]
