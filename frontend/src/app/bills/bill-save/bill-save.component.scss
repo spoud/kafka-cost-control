@@ -9,12 +9,6 @@
     margin: var(--space-2) 0 var(--space-4);
 }
 
-.lines {
-    // one per row: the metric names are long, and the hints need the room
-    display: grid;
-    row-gap: var(--space-2);
-}
-
 .total {
     margin: var(--space-4) 0 var(--space-1);
 }
@@ -29,6 +23,18 @@
     color: var(--mat-sys-tertiary);
 }
 
+.failure-hint {
+    color: var(--mat-sys-error);
+}
+
+.presets {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+}
+
 .failure {
     margin: var(--space-3) 0 0;
     color: var(--mat-sys-error);
@@ -40,13 +46,13 @@
     font-weight: 500;
 }
 
-.other-lines {
+.bill-lines {
     display: grid;
     gap: var(--space-3);
     margin: var(--space-3) 0;
 }
 
-.other-line {
+.bill-line {
     padding: var(--space-3);
     border: 1px solid var(--mat-sys-outline-variant);
     border-radius: var(--radius-sm);
@@ -64,11 +70,16 @@
     }
 
     .amount {
-        flex: 0 1 130px;
+        // room for the "estimated" placeholder after the $ prefix
+        flex: 0 0 150px;
     }
 
     .allocation {
         flex: 0 1 180px;
+    }
+
+    .metrics {
+        margin-top: var(--space-2);
     }
 
     .context {

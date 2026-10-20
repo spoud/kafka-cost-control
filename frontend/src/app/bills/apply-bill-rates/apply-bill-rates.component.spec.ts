@@ -16,8 +16,9 @@ const PARTITIONS = 'kafka_topic_partition_count';
 
 const BILL = {
     month: '2026-10',
+    cluster: null,
     coveredUntil: null,
-    otherLines: [],
+    lines: [],
 } as unknown as BillEntity;
 
 const rule = (metricName: string, extra: Record<string, unknown>) => ({
@@ -72,10 +73,17 @@ describe('ApplyBillRatesComponent', () => {
         const { el, apply, sent, close } = setup(
             [
                 // $0.1495 per GB, as billed
-                { metricName: WRITE, amount: 0.299, usage: 2 * GB, costFactor: 0.1495 / GB },
+                {
+                    metricName: WRITE,
+                    line: 'Network write',
+                    amount: 0.299,
+                    usage: 2 * GB,
+                    costFactor: 0.1495 / GB,
+                },
                 // $0.000138 per GB-hour × 3 replicas
                 {
                     metricName: STORAGE,
+                    line: 'Storage',
                     amount: 0.414,
                     usage: 1000 * GB,
                     costFactor: (3 * 0.000138) / GB,
@@ -120,8 +128,14 @@ describe('ApplyBillRatesComponent', () => {
     it('gives a metric without a rule its usual unit, and skips a line without usage', () => {
         const { el, apply, sent } = setup(
             [
-                { metricName: PARTITIONS, amount: 1.7526, usage: 1365, costFactor: 1.7526 / 1365 },
-                { metricName: WRITE, amount: 3, usage: 0, costFactor: null },
+                {
+                    metricName: PARTITIONS,
+                    line: 'Partitions',
+                    amount: 1.7526,
+                    usage: 1365,
+                    costFactor: 1.7526 / 1365,
+                },
+                { metricName: WRITE, line: 'Network write', amount: 3, usage: 0, costFactor: null },
             ],
             []
         );
@@ -138,7 +152,15 @@ describe('ApplyBillRatesComponent', () => {
 
     it("can't start a price before the rule's current one, but can correct it", () => {
         const { fixture, el, button, apply, sent } = setup(
-            [{ metricName: WRITE, amount: 0.299, usage: 2 * GB, costFactor: 0.1495 / GB }],
+            [
+                {
+                    metricName: WRITE,
+                    line: 'Network write',
+                    amount: 0.299,
+                    usage: 2 * GB,
+                    costFactor: 0.1495 / GB,
+                },
+            ],
             [
                 rule(WRITE, {
                     price: 0.16,
