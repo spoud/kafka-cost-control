@@ -4,32 +4,38 @@ Enter what your provider billed for a month, and Kafka Cost Control shares it am
 
 A bill has, in dollars:
 
-* one amount per usage-billed line, named after the metric it is shared by: `confluent_kafka_server_request_bytes` (network write), `confluent_kafka_server_response_bytes` (network read), `confluent_kafka_server_retained_bytes` (storage) and `kafka_topic_partition_count` (partitions);
-* optionally *other lines*: everything else on the bill (connectors, support, credits as a negative amount), each with a description and where it goes:
+* *lines*, each with a description, an amount and how it is shared:
+** *by metrics*: by each topic's and principal's share of the usage of the metrics you pick, e.g. storage by `kafka_log_log_size`. A line can follow several metrics together, e.g. network by bytes in and bytes out. A metric can be on only one line of a bill;
 ** *to a context*, e.g. `tenant=data-platform` or `application=etl`: all of it, shown under that context;
-** *spread by usage*: shared out like overhead, in proportion to each group's usage-based costs that month;
+** *spread by usage*: shared out like overhead, in proportion to each group's usage-based costs on that bill;
 ** *shared*: assigned to no one, shown as `<shared>`;
+* optionally a *cluster*: the bill is shared only over the data of that cluster (the context value `cluster`, see <<Configuring clusters>>). Without one, it is for all clusters. A month has either one bill for all clusters or one bill per cluster;
 * optionally *covers up to*: for a month-to-date bill, where its amounts stop. After that, the month is estimated.
 
-All other lines appear under the cost `other`.
+Credits are negative amounts on lines that aren't shared by metrics. Every line not shared by metrics appears under the cost `other`.
 
-Saving a bill for a month that already has one replaces it. A line you leave empty is estimated from the pricing rules.
+To start a bill, pick a preset; only the amounts are left to type:
+
+* *Confluent Cloud*: network write (`confluent_kafka_server_request_bytes`), network read (`confluent_kafka_server_response_bytes`), storage (`confluent_kafka_server_retained_bytes`) and partitions (`kafka_topic_partition_count`);
+* *Self-hosted*, e.g. a Strimzi cluster: storage (`kafka_log_log_size`), network (bytes in and bytes out together), and the brokers and operations spread by usage.
+
+Saving a bill for the same month and cluster replaces it. A line shared by metrics left without an amount is estimated from the pricing rules.
 
 ==== How a bill is shared
 
-Each month is taken on its own (UTC). A topic's part of a line is its usage in the month divided by the month's usage, up to where the bill stops. For a date range that covers only part of a month, that is the usage in the range: 10 to 20 September gets the usage of those days divided by September's usage, times September's line. A range across months adds up each month's part of its own bill.
+Each month is taken on its own (UTC). A topic's part of a line is its usage of the line's metrics in the month divided by the month's usage of them, up to where the bill stops, within the bill's cluster. For a date range that covers only part of a month, that is the usage in the range: 10 to 20 September gets the usage of those days divided by September's usage, times September's line. A range across months adds up each month's part of its own bill.
 
 So costs follow how much was really used, not the number of days. Nothing needs to be recalculated when a bill is added or corrected: the costs are computed when you look at them. (Context rules are different: a change there needs a reprocess.)
 
-If Kafka Cost Control has data for only part of a month, the month's bill is shared over what it has. A bill line for usage it hasn't measured at all goes to `other` as `<shared>`.
+If Kafka Cost Control has data for only part of a month, the month's bill is shared over what it has. A line for usage it hasn't measured at all goes to `other` as `<shared>`. A cluster's bill keeps its cluster on these rows, so grouped by cluster they show under it.
 
 ==== How costs are computed
 
 Every place that shows a cost - Cost Overview, Explore, the unassigned topics and service accounts - reads the same view, `costs`, in the OLAP database. It gives each stored hour:
 
-* in a month with a bill: the bill line's share by usage, as above; a metric that isn't one of the bill's lines costs nothing there, since everything else the provider billed is in the bill's other lines;
-* otherwise - no bill, after a month-to-date bill stops, or a line the bill leaves empty - the pricing rule's cost for that hour, marked as estimated;
-* and the bill's other lines and unmeasured lines, under `other`.
+* in a month with a bill for its cluster (or for all clusters): the share of the line its metric is on, as above; a metric that isn't on the bill costs nothing there, since everything else the provider billed is in the bill's other lines;
+* otherwise - no bill for its cluster, after a month-to-date bill stops, or a line without an amount - the pricing rule's cost for that hour, marked as estimated;
+* and the lines not shared by metrics and the unmeasured lines, under `other`.
 
 The view is rebuilt when the rules or bills change (at the latest after 10 seconds), so it always reflects them.
 
@@ -39,24 +45,28 @@ The `aggregated` and `aggregated-table-friendly` topics carry usage only: their 
 
 ==== Applying a bill's rates to the pricing rules
 
-A list price rarely matches what the provider charges for what Kafka Cost Control measures: free allowances (Confluent's first partitions), storage billed per replica, metrics that count a little low. A bill already holds the real rates. On the *Bills* page, a bill's *Apply the bill's rates to the pricing rules* button shows, for each of its usage lines, the billed amount, the usage measured in the hours the bill covers, and the rate - amount divided by usage - as a price in the rule's unit, next to the current price.
+A list price rarely matches what the provider charges for what Kafka Cost Control measures: free allowances (Confluent's first partitions), storage billed per replica, metrics that count a little low. A bill already holds the real rates. On the *Bills* page, a bill's *Apply the bill's rates to the pricing rules* button shows, for each metric of its lines shared by metrics, the billed amount, the usage measured in the hours the bill covers (within its cluster), and the rate - amount divided by usage - as a price in the rule's unit, next to the current price. A line with several metrics gives each the same rate.
 
 Saving the ticked lines sets the pricing rules to these rates, by default as a *new price from the day the bill ends* (the 1st of the next month for a whole month): the hours after the bill are estimated at what the provider really charged, and earlier hours without a bill keep their prices. *Correct the current prices* applies them every day the current prices do instead. Hours a bill covers keep their billed cost either way. A rule keeps its unit and multiplier; its base cost is set to 0, since the rate alone reproduces the bill. A line without measured usage has no rate.
 
-The rates are also available as a query: `billRates(month: "2026-10") { metricName amount usage costFactor }`, where `costFactor` is the cost per unit of the metric's raw value (per byte, per partition-hour).
+The rates are also available as a query: `billRates(month: "2026-10", cluster: "poc-cluster") { metricName line amount usage costFactor }` (leave out `cluster` for a bill for all clusters), where `costFactor` is the cost per unit of the metric's raw value (per byte, per partition-hour).
 
 ==== Storage
 
-Bills are kept in a compacted Kafka topic (`cc.topics.bills`, default `bills`), keyed by month. Kafka Cost Control creates it when it is missing; where its user may not create topics, create it beforehand with `cleanup.policy=compact` and one partition. Until the topic can be read, bills are unavailable and the rest of the application works as before.
+Bills are kept in a compacted Kafka topic (`cc.topics.bills`, default `bills`), keyed by month, e.g. `2026-09`, or by month and cluster, e.g. `2026-09:poc-cluster`. Bills saved before 0.16 had four fixed amounts for Confluent's metrics; they are read as lines shared by those metrics, and saving one again stores it as lines. 0.16 registers a new version of the bill schema: a schema registry that doesn't let clients register schemas needs it added first, from `aggregator/src/main/avro/bill.avsc`. A version before 0.16 reads bills saved as lines as empty. Kafka Cost Control creates it when it is missing; where its user may not create topics, create it beforehand with `cleanup.policy=compact` and one partition. Until the topic can be read, bills are unavailable and the rest of the application works as before.
 
 ===== Using GraphQL
 [source,graphql]
 ----
 mutation saveBill {
-  saveBill(request: {month: "2026-09", networkWrite: 0.27, networkRead: 0.22, storage: 8.12, partitions: 22.50,
-      otherLines: [{description: "Support", amount: 50, allocation: USAGE},
-                   {description: "Connect", amount: 12, allocation: CONTEXT, context: [{key: "application", value: "etl"}]}]}) {
+  saveBill(request: {month: "2026-09", cluster: "poc-cluster", lines: [
+      {description: "Storage", amount: 8.12, allocation: METRICS, metrics: ["kafka_log_log_size"]},
+      {description: "Network", amount: 0.49, allocation: METRICS,
+       metrics: ["kafka_server_brokertopicmetrics_bytesin_total", "kafka_server_brokertopicmetrics_bytesout_total"]},
+      {description: "Brokers", amount: 50, allocation: USAGE},
+      {description: "Connect", amount: 12, allocation: CONTEXT, context: [{key: "application", value: "etl"}]}]}) {
     month
+    cluster
     updatedBy
   }
 }
@@ -64,7 +74,7 @@ mutation saveBill {
 query costs {
   billedCosts(request: {from: "2026-09-10T00:00:00Z", to: "2026-10-10T00:00:00Z", contextKeysToGroupBy: ["tenant"]}) {
     metrics { metric shares { name price estimatedPrice } }
-    months { month billed billedUntil }
+    months { month billed billedUntil clusters }
   }
 }
 ----

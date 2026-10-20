@@ -3,7 +3,7 @@ package io.spoud.kcc.aggregator.graphql;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.spoud.kcc.aggregator.auth.AccessRules;
 import io.spoud.kcc.aggregator.bills.BillEntity;
-import io.spoud.kcc.aggregator.bills.BillLine;
+import io.spoud.kcc.aggregator.bills.BillLineEntity;
 import io.spoud.kcc.aggregator.bills.BillRate;
 import io.spoud.kcc.aggregator.bills.BillSaveRequest;
 import io.spoud.kcc.aggregator.bills.BillsRepository;
@@ -24,9 +24,7 @@ import org.eclipse.microprofile.graphql.Query;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 /** The monthly bills, and the costs they lead to. */
 @GraphQLApi
@@ -53,7 +51,7 @@ public class BillsResource {
     }
 
     @Mutation("saveBill")
-    @Description("Saves a month's bill, replacing the month's previous one")
+    @Description("Saves a month's bill, replacing the one for the same month and cluster")
     public @NonNull BillEntity saveBill(@NonNull BillSaveRequest request) {
         var saved = billsRepository.save(request.toEntity(Instant.now(), AccessRules.displayName(identity)));
         costsView.refresh(); // so the next cost query already uses it
@@ -61,38 +59,48 @@ public class BillsResource {
     }
 
     @Mutation("deleteBill")
-    public BillEntity deleteBill(@NonNull @Name("month") String month) {
-        var deleted = billsRepository.delete(month).orElse(null);
+    @Description("Deletes a month's bill: the one for all clusters, or a cluster's")
+    public BillEntity deleteBill(@NonNull @Name("month") String month, @Name("cluster") String cluster) {
+        var deleted = billsRepository.delete(month, blankToNull(cluster)).orElse(null);
         costsView.refresh();
         return deleted;
     }
 
     @Query("billRates")
-    @Description("A bill's usage lines per unit of the usage measured in the hours it covers: the rates to price the hours after it with")
-    public @NonNull List<@NonNull BillRate> billRates(@NonNull @Name("month") String month) {
+    @Description("A bill's METRICS lines per unit of the usage measured in the hours it covers: the rates to price the hours after it with")
+    public @NonNull List<@NonNull BillRate> billRates(@NonNull @Name("month") String month, @Name("cluster") String cluster) {
         YearMonth parsed;
         try {
             parsed = YearMonth.parse(month.trim());
         } catch (DateTimeParseException e) {
             throw new BadRequestException("The month must look like 2026-09.");
         }
-        BillEntity bill = billsRepository.byMonth().get(parsed);
-        if (bill == null) {
-            throw new BadRequestException("There is no bill for " + parsed + ".");
-        }
+        String clusterName = blankToNull(cluster);
+        BillEntity bill = billsRepository.find(parsed.toString(), clusterName).orElseThrow(() -> new BadRequestException(
+                "There is no bill for " + parsed + (clusterName == null ? "" : " and cluster " + clusterName) + "."));
         var usage = aggregatedMetricsRepository.usageInBill(bill);
-        return Arrays.stream(BillLine.values())
-                .map(line -> {
-                    Double amount = line.amount(bill);
-                    return amount == null ? null : BillRate.of(line.metric(), amount, usage.getOrDefault(line.metric(), 0.0));
+        return bill.lines().stream()
+                .filter(line -> line.allocation() == BillLineEntity.Allocation.METRICS && line.amount() != null)
+                .flatMap(line -> {
+                    double lineUsage = line.metrics().stream().mapToDouble(m -> usage.getOrDefault(m, 0.0)).sum();
+                    return line.metrics().stream().map(m -> BillRate.of(m, line.description(), line.amount(), lineUsage));
                 })
-                .filter(Objects::nonNull)
                 .toList();
+    }
+
+    @Query("clusters")
+    @Description("The clusters in the data, for a cluster's bill")
+    public @NonNull List<@NonNull String> clusters() {
+        return aggregatedMetricsRepository.clusters();
     }
 
     @Query("billedCosts")
     @Description("Costs in cents from the monthly bills, with the rate card where no bill applies")
     public @NonNull BilledCostResponse billedCosts(@NonNull BilledCostRequest request) {
-        return aggregatedMetricsRepository.calculateBilledCosts(request, billsRepository.byMonth(), Instant.now());
+        return aggregatedMetricsRepository.calculateBilledCosts(request, billsRepository.all(), Instant.now());
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

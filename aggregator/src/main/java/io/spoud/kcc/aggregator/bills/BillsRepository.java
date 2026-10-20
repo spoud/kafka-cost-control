@@ -9,6 +9,7 @@ import io.spoud.kcc.aggregator.stream.serialization.SerdeFactory;
 import io.spoud.kcc.data.Bill;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ServiceUnavailableException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -24,7 +25,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.time.Duration;
-import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * The bills, kept in a compacted topic keyed by month, like the rules. Read outside Kafka Streams
+ * The bills, kept in a compacted topic keyed by month (and cluster, for a cluster's bill), like the
+ * rules. A month has either one bill for all clusters or one per cluster. Read outside Kafka Streams
  * on purpose: the topic is new, and a missing topic must disable bills rather than stop the whole
  * application. The topic is created when missing; where the application's user may not create
  * topics, it has to be created beforehand (compacted, one partition).
@@ -92,29 +93,47 @@ public class BillsRepository {
         }
     }
 
-    /** All bills, newest month first. */
+    /** All bills, newest month first, a month's bill for all clusters before its clusters' bills. */
     public List<BillEntity> all() {
         awaitLoaded();
-        return bills.values().stream().sorted(Comparator.comparing(BillEntity::month).reversed()).toList();
+        return bills.values().stream()
+                .sorted(Comparator.comparing(BillEntity::month).reversed()
+                        .thenComparing(BillEntity::cluster, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .toList();
     }
 
-    public Map<YearMonth, BillEntity> byMonth() {
+    public Optional<BillEntity> find(String month, String cluster) {
         awaitLoaded();
-        Map<YearMonth, BillEntity> byMonth = new ConcurrentHashMap<>();
-        bills.values().forEach(bill -> byMonth.put(YearMonth.parse(bill.month()), bill));
-        return byMonth;
+        return Optional.ofNullable(bills.get(BillEntity.key(month, cluster)));
     }
 
+    /**
+     * Saves the bill, replacing the one for the same month and cluster. Refused when the month has a
+     * bill for all clusters and this one is for a cluster, or the other way round: a cluster's data
+     * would be shared by both.
+     */
     public BillEntity save(BillEntity bill) {
-        send(bill.month(), bill.toAvro());
-        bills.put(bill.month(), bill);
+        awaitLoaded();
+        bills.values().stream()
+                .filter(other -> other.month().equals(bill.month()) && !other.key().equals(bill.key()))
+                .filter(other -> other.cluster() == null || bill.cluster() == null)
+                .findFirst()
+                .ifPresent(other -> {
+                    throw new BadRequestException(other.cluster() == null
+                            ? bill.month() + " already has a bill for all clusters: delete it first, or enter this one for all clusters."
+                            : bill.month() + " already has bills per cluster: delete them first, or enter this one for cluster "
+                              + other.cluster() + " and the others.");
+                });
+        send(bill.key(), bill.toAvro());
+        bills.put(bill.key(), bill);
         return bill;
     }
 
-    public Optional<BillEntity> delete(String month) {
-        BillEntity existing = bills.get(month);
-        send(month, null);
-        bills.remove(month);
+    public Optional<BillEntity> delete(String month, String cluster) {
+        String key = BillEntity.key(month, cluster);
+        BillEntity existing = bills.get(key);
+        send(key, null);
+        bills.remove(key);
         return Optional.ofNullable(existing);
     }
 

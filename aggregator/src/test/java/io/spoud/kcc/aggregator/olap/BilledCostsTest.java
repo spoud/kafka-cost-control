@@ -1,14 +1,17 @@
 package io.spoud.kcc.aggregator.olap;
 
 import io.spoud.kcc.aggregator.bills.BillEntity;
+import io.spoud.kcc.aggregator.bills.BillLineEntity;
+import io.spoud.kcc.aggregator.bills.BillLineEntity.Allocation;
 import io.spoud.kcc.aggregator.bills.BillRate;
-import io.spoud.kcc.aggregator.bills.OtherLine;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
 import io.spoud.kcc.aggregator.repository.MetricNameRepository;
 import io.spoud.kcc.aggregator.stream.MetricReducer;
 import io.spoud.kcc.aggregator.stream.TestConfigProperties;
 import io.spoud.kcc.data.AggregatedDataWindowed;
+import io.spoud.kcc.data.Bill;
+import io.spoud.kcc.data.BillOtherLine;
 import io.spoud.kcc.data.EntityType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +35,7 @@ class BilledCostsTest {
 
     private AggregatedMetricsRepository repo;
     private CostsView view;
-    private final Map<YearMonth, BillEntity> bills = new HashMap<>();
+    private final List<BillEntity> bills = new ArrayList<>();
     /** The pricing rules' rates; estimates come from them, computed when asked. */
     private final List<CostsView.RatePeriod> rates = new java.util.ArrayList<>();
 
@@ -44,7 +47,7 @@ class BilledCostsTest {
         var costConfig = TestConfigProperties.builder().build();
         repo = new AggregatedMetricsRepository(olapConfig, costConfig, olapInfra,
                 new MetricNameRepository(new MetricReducer(costConfig), olapInfra));
-        view = new CostsView(olapInfra, null, null);
+        view = new CostsView(olapInfra, null, null, costConfig);
     }
 
     private void rate(String metric, double costFactor) {
@@ -156,10 +159,12 @@ class BilledCostsTest {
     void otherLines() {
         usage("2026-09-03T10:00:00Z", "a", WRITE, 30, null);
         usage("2026-09-03T10:00:00Z", "b", WRITE, 10, null);
-        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, 10.0, 6.0, null, null, List.of(
-                new OtherLine("Connect", 4.0, OtherLine.Allocation.CONTEXT, Map.of("team", "etl")),
-                new OtherLine("Support", 8.0, OtherLine.Allocation.USAGE, null),
-                new OtherLine("Credit", -2.0, OtherLine.Allocation.SHARED, null)),
+        bills.add(new BillEntity("2026-09", null, null, List.of(
+                BillLineEntity.byMetrics("Network write", 10.0, WRITE),
+                BillLineEntity.byMetrics("Network read", 6.0, READ),
+                BillLineEntity.other("Connect", 4.0, Allocation.CONTEXT, Map.of("team", "etl")),
+                BillLineEntity.other("Support", 8.0, Allocation.USAGE, null),
+                BillLineEntity.other("Credit", -2.0, Allocation.SHARED, null)),
                 NOW, "test"));
 
         // the first 15 of September's 30 days
@@ -176,8 +181,8 @@ class BilledCostsTest {
     @Test
     @DisplayName("A line spread by usage is shared when nothing usage-based was billed")
     void usageSpreadWithoutUsageIsShared() {
-        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, null, null, null, null,
-                List.of(new OtherLine("Support", 3.0, OtherLine.Allocation.USAGE, null)), NOW, "test"));
+        bills.add(new BillEntity("2026-09", null, null,
+                List.of(BillLineEntity.other("Support", 3.0, Allocation.USAGE, null)), NOW, "test"));
 
         var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z");
 
@@ -236,7 +241,8 @@ class BilledCostsTest {
         }
         // Confluent's cluster-wide count has no topic to split by; it must not take part
         usage("2026-09-03T10:00:00Z", "cluster", "confluent_kafka_server_partition_count", 13, null);
-        bills.put(YearMonth.of(2026, 9), new BillEntity("2026-09", null, null, null, null, 8.0, List.of(), NOW, "test"));
+        bills.add(new BillEntity("2026-09", null, null,
+                List.of(BillLineEntity.byMetrics("Partitions", 8.0, "kafka_topic_partition_count")), NOW, "test"));
 
         var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z");
 
@@ -252,11 +258,11 @@ class BilledCostsTest {
         usage("2026-10-20T10:00:00Z", "b", WRITE, 1000, null); // after the bill's end
         bill("2026-10", "2026-10-10T00:00:00Z", 8.0, null);
 
-        var bill = bills.get(YearMonth.parse("2026-10"));
+        var bill = bills.getFirst();
         assertThat(repo.usageInBill(bill)).containsOnly(Map.entry(WRITE, 40.0));
-        var rate = BillRate.of(WRITE, 8.0, 40.0);
+        var rate = BillRate.of(WRITE, "Network write", 8.0, 40.0);
         assertThat(rate.costFactor()).isEqualTo(0.2);
-        assertThat(BillRate.of(READ, 3.0, 0).costFactor()).isNull();
+        assertThat(BillRate.of(READ, "Network read", 3.0, 0).costFactor()).isNull();
 
         // a new price from the bill's end, at its rate
         rates.add(new CostsView.RatePeriod(WRITE, Instant.parse("2026-10-10T00:00:00Z"), null, 0, rate.costFactor()));
@@ -267,19 +273,139 @@ class BilledCostsTest {
         assertThat(estimated(costs, WRITE)).containsEntry("a", 0.0).hasEntrySatisfying("b", c -> assertThat(c).isCloseTo(20000.0, within(1e-6)));
     }
 
+    @Test
+    @DisplayName("A bill saved before lines gives the costs it gave then")
+    void aBillSavedBeforeLinesKeepsItsCosts() {
+        usage("2026-09-03T10:00:00Z", "a", WRITE, 30, null);
+        usage("2026-09-03T10:00:00Z", "b", WRITE, 10, null);
+        usage("2026-09-03T10:00:00Z", "a", "kafka_topic_partition_count", 4, null);
+        rate("kafka_topic_partition_count", 0.5);
+        bills.add(BillEntity.fromAvro(Bill.newBuilder()
+                .setMonth("2026-09").setNetworkWrite(10.0).setNetworkRead(6.0)
+                .setOtherLines(List.of(
+                        BillOtherLine.newBuilder().setDescription("Connect").setAmount(4.0).setAllocation("CONTEXT")
+                                .setContext(Map.of("team", "etl")).build(),
+                        BillOtherLine.newBuilder().setDescription("Support").setAmount(8.0).setAllocation("USAGE").build(),
+                        BillOtherLine.newBuilder().setDescription("Credit").setAmount(-2.0).setAllocation("SHARED").build()))
+                .setUpdatedAt(NOW).build()));
+
+        var costs = costs("2026-09-01T00:00:00Z", "2026-09-16T00:00:00Z");
+
+        // the same as otherLines(), entered as lines
+        assertThat(prices(costs, WRITE)).containsOnly(Map.entry("a", 750.0), Map.entry("b", 250.0));
+        assertThat(prices(costs, AggregatedMetricsRepository.OTHER)).containsOnly(
+                Map.entry("etl", 200.0), Map.entry("a", 600.0), Map.entry("b", 200.0), Map.entry("<shared>", 200.0));
+        // the partition line the old bill left empty is still estimated
+        assertThat(estimated(costs, "kafka_topic_partition_count")).containsOnly(Map.entry("a", 200.0));
+    }
+
+    @Test
+    @DisplayName("A line shared by several metrics goes by their usage together")
+    void aLineWithSeveralMetrics() {
+        usage("2026-09-03T10:00:00Z", "a", WRITE, 30, null);
+        usage("2026-09-03T10:00:00Z", "b", READ, 10, null);
+        bills.add(new BillEntity("2026-09", null, null,
+                List.of(BillLineEntity.byMetrics("Network", 10.0, WRITE, READ)), NOW, "test"));
+
+        var costs = costs("2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z");
+
+        assertThat(prices(costs, WRITE)).containsOnly(Map.entry("a", 750.0));
+        assertThat(prices(costs, READ)).containsOnly(Map.entry("b", 250.0));
+    }
+
+    @Test
+    @DisplayName("A cluster's bill is shared only over its cluster; the others keep their pricing rules")
+    void aClustersBillStaysInItsCluster() {
+        usageIn("strimzi", "2026-10-03T10:00:00Z", "a", "kafka_log_log_size", 30);
+        usageIn("strimzi", "2026-10-03T10:00:00Z", "b", "kafka_log_log_size", 10);
+        usageIn("confluent", "2026-10-03T10:00:00Z", "c", "kafka_log_log_size", 50);
+        usageIn("confluent", "2026-10-03T10:00:00Z", "c", WRITE, 10);
+        rate("kafka_log_log_size", 0.01);
+        rate(WRITE, 0.1);
+        bills.add(new BillEntity("2026-10", "strimzi", null, List.of(
+                BillLineEntity.byMetrics("Storage", 8.0, "kafka_log_log_size"),
+                BillLineEntity.other("Brokers", 4.0, Allocation.USAGE, null),
+                BillLineEntity.other("Operations", 3.1, Allocation.SHARED, null)), NOW, "test"));
+
+        var costs = costs("2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z", List.of("cluster", "team"));
+
+        assertThat(prices(costs, "kafka_log_log_size")).containsOnly(
+                Map.entry("strimzi/a", 600.0), Map.entry("strimzi/b", 200.0), Map.entry("confluent/c", 50.0));
+        assertThat(estimated(costs, "kafka_log_log_size")).containsEntry("strimzi/a", 0.0).containsEntry("confluent/c", 50.0);
+        // the other cluster's metrics the bill doesn't name are estimated, not dropped
+        assertThat(estimated(costs, WRITE)).containsOnly(Map.entry("confluent/c", 100.0));
+        // overhead by the bill's own usage costs; the shared line shows under its cluster
+        assertThat(prices(costs, AggregatedMetricsRepository.OTHER)).containsOnly(
+                Map.entry("strimzi/a", 300.0), Map.entry("strimzi/b", 100.0), Map.entry("strimzi/<shared>", 310.0));
+        assertThat(costs.months()).singleElement().satisfies(m -> {
+            assertThat(m.billed()).isTrue();
+            assertThat(m.clusters()).containsExactly("strimzi");
+        });
+    }
+
+    @Test
+    @DisplayName("Each cluster's bill spreads its overhead over its own cluster")
+    void overheadStaysWithItsBill() {
+        usageIn("one", "2026-10-03T10:00:00Z", "a", WRITE, 10);
+        usageIn("two", "2026-10-03T10:00:00Z", "b", WRITE, 10);
+        bills.add(new BillEntity("2026-10", "one", null, List.of(BillLineEntity.byMetrics("Network", 1.0, WRITE),
+                BillLineEntity.other("Support", 5.0, Allocation.USAGE, null)), NOW, "test"));
+        bills.add(new BillEntity("2026-10", "two", null, List.of(BillLineEntity.byMetrics("Network", 3.0, WRITE),
+                BillLineEntity.other("Support", 7.0, Allocation.USAGE, null)), NOW, "test"));
+
+        var costs = costs("2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z", List.of("cluster"));
+
+        assertThat(prices(costs, WRITE)).containsOnly(Map.entry("one", 100.0), Map.entry("two", 300.0));
+        assertThat(prices(costs, AggregatedMetricsRepository.OTHER)).containsOnly(Map.entry("one", 500.0), Map.entry("two", 700.0));
+        assertThat(costs.months()).singleElement().satisfies(m -> assertThat(m.clusters()).containsExactly("one", "two"));
+    }
+
+    @Test
+    @DisplayName("A month with a bill for all clusters ignores a cluster's bill the topic still holds")
+    void aBillForAllClustersWins() {
+        usageIn("one", "2026-10-03T10:00:00Z", "a", WRITE, 10);
+        bills.add(new BillEntity("2026-10", null, null, List.of(BillLineEntity.byMetrics("Network", 2.0, WRITE)), NOW, "test"));
+        bills.add(new BillEntity("2026-10", "one", null, List.of(BillLineEntity.byMetrics("Network", 9.0, WRITE)), NOW, "test"));
+
+        var costs = costs("2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z", List.of("cluster"));
+
+        assertThat(prices(costs, WRITE)).containsOnly(Map.entry("one", 200.0));
+    }
+
+    @Test
+    @DisplayName("A cluster's bill counts the usage of its own cluster for its rates")
+    void aClustersBillRatesUseItsClusterOnly() {
+        usageIn("one", "2026-10-03T10:00:00Z", "a", WRITE, 10);
+        usageIn("two", "2026-10-03T10:00:00Z", "b", WRITE, 90);
+        var bill = new BillEntity("2026-10", "one", null, List.of(BillLineEntity.byMetrics("Network", 1.0, WRITE)), NOW, "test");
+
+        assertThat(repo.usageInBill(bill)).containsOnly(Map.entry(WRITE, 10.0));
+        assertThat(repo.clusters()).containsExactly("one", "two");
+    }
+
     private void usage(String hour, String team, String metric, double value, Double cost) {
+        usageIn(null, hour, team, metric, value);
+    }
+
+    private void usageIn(String cluster, String hour, String team, String metric, double value) {
         Instant start = Instant.parse(hour);
+        var context = new HashMap<String, String>(Map.of("team", team));
+        if (cluster != null) {
+            context.put("cluster", cluster);
+        }
         repo.insertRow(AggregatedDataWindowed.newBuilder()
                 .setStartTime(start).setEndTime(start.plus(Duration.ofHours(1)))
                 .setEntityType(EntityType.TOPIC).setName(team).setInitialMetricName(metric)
-                .setValue(value).setTags(Map.of()).setContext(Map.of("team", team))
+                .setValue(value).setTags(Map.of()).setContext(context)
                 .build());
         repo.flushToDb();
     }
 
+    /** A bill with Confluent's network lines; an empty amount is estimated, as before lines. */
     private void bill(String month, String coveredUntil, Double write, Double read) {
-        bills.put(YearMonth.parse(month), new BillEntity(month,
-                coveredUntil == null ? null : Instant.parse(coveredUntil), write, read, null, null, List.of(), NOW, "test"));
+        bills.add(new BillEntity(month, null, coveredUntil == null ? null : Instant.parse(coveredUntil), List.of(
+                BillLineEntity.byMetrics("Network write", write, WRITE),
+                BillLineEntity.byMetrics("Network read", read, READ)), NOW, "test"));
     }
 
     private BilledCostResponse costs(String from, String to) {
@@ -287,7 +413,7 @@ class BilledCostsTest {
     }
 
     private BilledCostResponse costs(String from, String to, List<String> keys) {
-        view.define(rates, bills.values());
+        view.define(rates, bills);
         return repo.calculateBilledCosts(new BilledCostRequest(Instant.parse(from), Instant.parse(to), keys), bills, NOW);
     }
 
@@ -302,7 +428,7 @@ class BilledCostsTest {
     private static Map<String, Double> byTeam(BilledCostResponse costs, String metric, boolean estimated) {
         var result = new HashMap<String, Double>();
         costs.metrics().stream().filter(m -> m.metric().equals(metric)).forEach(m -> m.shares().forEach(share ->
-                result.put(share.contextValues().getFirst(),
+                result.put(String.join("/", share.contextValues()),
                         Math.round((estimated ? share.estimatedPrice() : share.price()) * 1e6) / 1e6)));
         return result;
     }

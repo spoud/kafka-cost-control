@@ -2,12 +2,18 @@
   "namespace": "io.spoud.kcc.data",
   "type": "record",
   "name": "Bill",
-  "doc": "What the provider billed for one calendar month (UTC), per line. Keyed by month, e.g. 2026-09.",
+  "doc": "What the provider billed for one calendar month (UTC), per line. Keyed by month, e.g. 2026-09, or by month and cluster for a cluster's bill, e.g. 2026-09:my-cluster.",
   "fields": [
     {
       "name": "month",
       "doc": "The billed month, yyyy-MM.",
       "type": "string"
+    },
+    {
+      "name": "cluster",
+      "doc": "The cluster the bill is for: it is shared only over metrics whose context value cluster is this. Absent: all clusters.",
+      "type": ["null", "string"],
+      "default": null
     },
     {
       "name": "covered_until",
@@ -16,32 +22,70 @@
       "default": null
     },
     {
+      "name": "lines",
+      "doc": "The bill, line by line, each with how it is shared.",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "BillLine",
+          "fields": [
+            {"name": "description", "type": "string"},
+            {
+              "name": "amount",
+              "doc": "Absent only on a METRICS line, whose metrics are then estimated from the pricing rules.",
+              "type": ["null", "double"],
+              "default": null
+            },
+            {
+              "name": "allocation",
+              "doc": "METRICS: shared by the usage of the given metrics; CONTEXT: all of it to the given context; USAGE: spread in proportion to the bill's usage-based costs; SHARED: shown as shared, not assigned to anyone.",
+              "type": "string"
+            },
+            {
+              "name": "metrics",
+              "doc": "For METRICS: the metrics the line is shared by, e.g. bytes in and bytes out together.",
+              "type": {"type": "array", "items": "string"},
+              "default": []
+            },
+            {
+              "name": "context",
+              "doc": "For CONTEXT: the context the amount belongs to, e.g. tenant=data-platform.",
+              "type": ["null", {"type": "map", "values": "string"}],
+              "default": null
+            }
+          ]
+        }
+      },
+      "default": []
+    },
+    {
       "name": "network_write",
-      "doc": "Amount billed for network write (produce, request bytes). Absent: not on this bill.",
+      "doc": "Before lines: amount billed for network write (produce, request bytes). Read as a line, no longer written.",
       "type": ["null", "double"],
       "default": null
     },
     {
       "name": "network_read",
-      "doc": "Amount billed for network read (consume, response bytes).",
+      "doc": "Before lines: amount billed for network read (consume, response bytes).",
       "type": ["null", "double"],
       "default": null
     },
     {
       "name": "storage",
-      "doc": "Amount billed for storage.",
+      "doc": "Before lines: amount billed for storage.",
       "type": ["null", "double"],
       "default": null
     },
     {
       "name": "partitions",
-      "doc": "Amount billed for partitions.",
+      "doc": "Before lines: amount billed for partitions.",
       "type": ["null", "double"],
       "default": null
     },
     {
       "name": "other_lines",
-      "doc": "Everything else on the bill (connectors, support, credits as a negative amount), line by line, each with where it goes.",
+      "doc": "Before lines: everything else on the bill (connectors, support, credits as a negative amount), each with where it goes.",
       "type": {
         "type": "array",
         "items": {

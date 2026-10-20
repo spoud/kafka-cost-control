@@ -10,7 +10,6 @@ import io.quarkus.scheduler.Scheduled;
 import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.data.MetricNameEntity;
 import io.spoud.kcc.aggregator.bills.BillEntity;
-import io.spoud.kcc.aggregator.bills.BillLine;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostRequest;
 import io.spoud.kcc.aggregator.graphql.data.BilledCostResponse;
 import io.spoud.kcc.aggregator.graphql.data.MetricHistoryTO;
@@ -398,9 +397,9 @@ public class AggregatedMetricsRepository {
     /**
      * Costs in cents, from the {@link CostsView costs view}: the bills shared by usage where they apply,
      * the pricing rules (estimated) elsewhere. Grouped by metric and the requested context keys; the
-     * months say for each month of the range whether a bill covers it.
+     * months say for each month of the range whether a bill covers it, and for which clusters.
      */
-    public BilledCostResponse calculateBilledCosts(BilledCostRequest request, Map<YearMonth, BillEntity> bills, Instant now) {
+    public BilledCostResponse calculateBilledCosts(BilledCostRequest request, Collection<BillEntity> bills, Instant now) {
         List<String> keys = request.contextKeysToGroupBy();
         Instant from = request.from();
         Instant to = request.to() != null ? request.to() : now;
@@ -411,9 +410,12 @@ public class AggregatedMetricsRepository {
             Instant pieceStart = max(from, BillEntity.monthStart(month));
             Instant pieceEnd = min(to, BillEntity.monthEnd(month));
             if (pieceStart.isBefore(pieceEnd)) {
-                BillEntity bill = bills.get(month);
-                months.add(new BilledCostResponse.MonthBilling(month.toString(), bill != null, pieceStart, pieceEnd,
-                        bill == null ? null : BillEntity.billedUntil(bill)));
+                String name = month.toString();
+                var monthBills = bills.stream().filter(bill -> bill.month().equals(name)).toList();
+                boolean forAll = monthBills.stream().anyMatch(bill -> bill.cluster() == null);
+                months.add(new BilledCostResponse.MonthBilling(name, !monthBills.isEmpty(), pieceStart, pieceEnd,
+                        monthBills.stream().map(BillEntity::billedUntil).min(java.util.Comparator.naturalOrder()).orElse(null),
+                        forAll ? List.of() : monthBills.stream().map(BillEntity::cluster).sorted().toList()));
             }
         }
 
@@ -449,22 +451,27 @@ public class AggregatedMetricsRepository {
     }
 
     /**
-     * Each bill line's metric summed over the hours the bill covers: what the {@link CostsView costs
-     * view} shares the line by. Metrics without rows are missing.
+     * Each of the bill's line metrics summed over the hours the bill covers, within its cluster: what
+     * the {@link CostsView costs view} shares the lines by. Metrics without rows are missing.
      */
     public Map<String, Double> usageInBill(BillEntity bill) {
-        var metrics = Arrays.stream(BillLine.values()).map(BillLine::metric).toList();
+        var metrics = bill.lines().stream().flatMap(line -> line.metrics().stream()).distinct().toList();
         var from = BillEntity.monthStart(YearMonth.parse(bill.month())).atOffset(ZoneOffset.UTC);
         var until = BillEntity.billedUntil(bill).atOffset(ZoneOffset.UTC);
         return olapInfra.getDSLContext().map(dsl -> {
             AggregatedData a = AGGREGATED_DATA.as("a");
             var usage = DSL.sum(a.VALUE).as("usage");
+            Condition inCluster = bill.cluster() == null ? DSL.trueCondition()
+                    // parenthesized: DuckDB would otherwise read the comparison as the lookup's key
+                    : DSL.field("({0}->>{1})", String.class, a.CONTEXT, DSL.val(costControlConfig.cluster().contextKey()))
+                            .eq(bill.cluster());
             Map<String, Double> result = new HashMap<>();
             dsl.select(a.INITIAL_METRIC_NAME, usage)
                     .from(a)
                     .where(a.INITIAL_METRIC_NAME.in(metrics)
                             .and(a.START_TIME.ge(from))
-                            .and(a.START_TIME.lt(until)))
+                            .and(a.START_TIME.lt(until))
+                            .and(inCluster))
                     .groupBy(a.INITIAL_METRIC_NAME)
                     .fetch()
                     .forEach(r -> result.put(r.get(a.INITIAL_METRIC_NAME), r.get(usage).doubleValue()));
@@ -472,19 +479,29 @@ public class AggregatedMetricsRepository {
         }).orElse(Map.of());
     }
 
+    /** The clusters in the data: the values of the cluster context key, sorted. */
+    public List<String> clusters() {
+        return olapInfra.getDSLContext().map(dsl -> {
+            AggregatedData a = AGGREGATED_DATA.as("a");
+            var cluster = DSL.field("({0}->>{1})", String.class, a.CONTEXT, DSL.val(costControlConfig.cluster().contextKey()));
+            return dsl.selectDistinct(cluster).from(a).where(cluster.isNotNull()).orderBy(cluster).fetch(cluster);
+        }).orElse(List.of());
+    }
+
     /** The {@link CostsView costs view}, read with the table's fields, as {@code c}. */
     static AggregatedData costsView() {
         return AGGREGATED_DATA.rename(CostsView.NAME).as("c");
     }
 
-    /** Each grouping key's value: {@code <shared>} on what is assigned to no one, {@code <other>} where missing. */
+    /** Each grouping key's value; where missing, {@code <shared>} on what is assigned to no one, else {@code <other>}. */
     static List<Field<String>> contextValues(AggregatedData c, List<String> keys) {
         Field<Boolean> shared = DSL.field(DSL.name("c", "shared"), Boolean.class);
         var fields = new ArrayList<Field<String>>();
         for (int i = 0; i < keys.size(); i++) {
             // parenthesized: DuckDB would read `context->>key IS NULL` as `context->>(key IS NULL)`
-            fields.add(DSL.field("CASE WHEN {0} THEN {1} ELSE coalesce(({2}->>{3}), {4}) END", String.class,
-                    shared, DSL.val(SHARED_VALUE), c.CONTEXT, DSL.val(keys.get(i)), DSL.val("<other>")).as("key_" + i));
+            // a shared row keeps the keys it has, e.g. a cluster's bill's cluster
+            fields.add(DSL.field("coalesce(({0}->>{1}), CASE WHEN {2} THEN {3} ELSE {4} END)", String.class,
+                    c.CONTEXT, DSL.val(keys.get(i)), shared, DSL.val(SHARED_VALUE), DSL.val("<other>")).as("key_" + i));
         }
         return fields;
     }
