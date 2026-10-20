@@ -87,13 +87,14 @@
                                 @if (month.billed && !month.billedUpTo) {
                                     <mat-icon class="billed">check_circle</mat-icon>
                                     <span>{{ month.label }}</span>
-                                    <span class="status">billed</span>
+                                    <span class="status">billed{{ forClusters(month) }}</span>
                                 } @else if (month.billed) {
                                     <mat-icon class="partly">timelapse</mat-icon>
                                     <span>{{ month.label }}</span>
                                     <span class="status"
-                                        >billed up to {{ month.billedUpTo!.toLocaleDateString() }},
-                                        then estimated</span
+                                        >billed{{ forClusters(month) }} up to
+                                        {{ month.billedUpTo!.toLocaleDateString() }}, then
+                                        estimated</span
                                     >
                                 } @else {
                                     <mat-icon class="estimated">schedule</mat-icon>
