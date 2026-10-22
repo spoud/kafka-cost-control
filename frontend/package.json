@@ -23,7 +23,7 @@
     "@angular/material": "^22.2.3",
     "@angular/platform-browser": "^22.2.3",
     "@angular/router": "^22.2.3",
-    "@apollo/client": "^4.3.1",
+    "@apollo/client": "^4.3.4",
     "@ngrx/signals": "^22.0.1",
     "apollo-angular": "^14.2.0",
     "echarts": "^6.1.0",
