@@ -20,15 +20,17 @@ import {
 } from '../../../generated/graphql/sdk';
 import { BillEntity, PriceUnit, PricingRuleEntity } from '../../../generated/graphql/types';
 import { defaultPriceUnit, formatPrice, formatUsage, priceOf } from '../../tab-pricing-rules/price';
-import { monthLabel, ratesFrom } from '../bill';
+import { billLabel, ratesFrom } from '../bill';
 
 export interface ApplyBillRatesData {
     bill: BillEntity;
 }
 
-/** One bill line, the price it works out to and the rule it would replace. */
+/** One metric of a bill line, the price it works out to and the rule it would replace. */
 export interface RateRow {
     metricName: string;
+    /** The line the metric is on. */
+    line: string;
     amount: number;
     usage: string;
     rule?: PricingRuleEntity;
@@ -71,7 +73,7 @@ export class ApplyBillRatesComponent implements OnInit {
     private dialogRef = inject<MatDialogRef<ApplyBillRatesComponent>>(MatDialogRef);
     protected data = inject<ApplyBillRatesData>(MAT_DIALOG_DATA);
 
-    protected readonly month = monthLabel(this.data.bill.month);
+    protected readonly month = billLabel(this.data.bill);
     /** Midnight UTC of the day the bill ends: where the new prices start by default. */
     protected readonly from = ratesFrom(this.data.bill);
 
@@ -104,7 +106,7 @@ export class ApplyBillRatesComponent implements OnInit {
     ngOnInit(): void {
         forkJoin({
             rates: this.billRatesGql.fetch({
-                variables: { month: this.data.bill.month },
+                variables: { month: this.data.bill.month, cluster: this.data.bill.cluster },
                 fetchPolicy: 'network-only',
             }),
             rules: this.pricingRulesGql.fetch({ fetchPolicy: 'network-only' }),
@@ -197,7 +199,13 @@ export class ApplyBillRatesComponent implements OnInit {
 }
 
 function rateRow(
-    rate: { metricName: string; amount: number; usage: number; costFactor?: number | null },
+    rate: {
+        metricName: string;
+        line: string;
+        amount: number;
+        usage: number;
+        costFactor?: number | null;
+    },
     rule: PricingRuleEntity | undefined
 ): RateRow {
     // keep how the rule reads (e.g. per GB-hour × 3 replicas); a rule saved with only a cost
@@ -208,6 +216,7 @@ function rateRow(
     const price = rate.costFactor == null ? null : priceOf(rate.costFactor, unit, multiplier);
     return {
         metricName: rate.metricName,
+        line: rate.line,
         amount: rate.amount,
         usage: formatUsage(rate.usage, unit),
         rule,

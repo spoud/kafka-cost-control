@@ -17,6 +17,7 @@ const costs = {
             from: '2026-09-20T00:00:00Z',
             to: '2026-10-01T00:00:00Z',
             billedUntil: '2026-10-01T00:00:00Z',
+            clusters: [],
         },
         {
             month: '2026-10',
@@ -24,6 +25,7 @@ const costs = {
             from: '2026-10-01T00:00:00Z',
             to: '2026-10-10T00:00:00Z',
             billedUntil: '2026-10-06T00:00:00Z',
+            clusters: ['poc-cluster'],
         },
         {
             month: '2026-11',
@@ -31,6 +33,7 @@ const costs = {
             from: '2026-11-01T00:00:00Z',
             to: '2026-11-03T00:00:00Z',
             billedUntil: null,
+            clusters: [],
         },
     ],
 };
@@ -64,5 +67,7 @@ describe('cost overview', () => {
             [false, false],
         ]);
         expect(months[1].billedUpTo?.getDate()).toBe(5);
+        // October's bill is for one cluster only
+        expect(months.map(m => m.clusters)).toEqual([[], ['poc-cluster'], []]);
     });
 });

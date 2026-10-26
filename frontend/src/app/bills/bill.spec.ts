@@ -1,7 +1,8 @@
 import { Allocation } from '../../generated/graphql/types';
 import {
+    billLabel,
     billTotal,
-    describeOtherLine,
+    describeLine,
     coveredUntilFromLastDay,
     lastDayFromCoveredUntil,
     monthLastDay,
@@ -26,21 +27,31 @@ describe('bill helpers', () => {
         );
     });
 
-    it('adds every line, the other lines included', () => {
-        expect(
-            billTotal({
-                networkWrite: 1,
-                networkRead: 2,
-                storage: null,
-                partitions: 3,
-                otherLines: [{ amount: 1 }, { amount: -1.5 }],
-            })
-        ).toBe(5.5);
+    it('adds every line; an estimated one adds nothing', () => {
+        expect(billTotal([{ amount: 1 }, { amount: null }, { amount: 3 }, { amount: -1.5 }])).toBe(
+            2.5
+        );
     });
 
-    it('describes an other line with where it goes', () => {
+    it('describes a line with how it is shared', () => {
         expect(
-            describeOtherLine({
+            describeLine({
+                description: 'Network',
+                amount: 0.49,
+                allocation: Allocation.Metrics,
+                metrics: ['bytes_in', 'bytes_out'],
+            })
+        ).toBe('Network $0.49 → bytes_in, bytes_out');
+        expect(
+            describeLine({
+                description: 'Partitions',
+                amount: null,
+                allocation: Allocation.Metrics,
+                metrics: ['kafka_topic_partition_count'],
+            })
+        ).toBe('Partitions estimated → kafka_topic_partition_count');
+        expect(
+            describeLine({
                 description: 'Connect',
                 amount: 12,
                 allocation: Allocation.Context,
@@ -48,8 +59,15 @@ describe('bill helpers', () => {
             })
         ).toBe('Connect $12.00 → application=etl');
         expect(
-            describeOtherLine({ description: 'Support', amount: 5, allocation: Allocation.Usage })
+            describeLine({ description: 'Support', amount: 5, allocation: Allocation.Usage })
         ).toBe('Support $5.00 → spread by usage');
+    });
+
+    it("names a cluster's bill after its month and cluster", () => {
+        expect(billLabel({ month: '2026-10', cluster: 'poc-cluster' })).toMatch(
+            /2026, poc-cluster$/
+        );
+        expect(billLabel({ month: '2026-10', cluster: null })).toMatch(/2026$/);
     });
 
     it('turns the last day a month-to-date bill includes into where it stops, and back', () => {
