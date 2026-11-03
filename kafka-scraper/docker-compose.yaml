@@ -1,7 +1,0 @@
-version: '3.0'
-services:
-  scraper:
-    image: spoud/kafka-cost-control-scraper:dev
-    build:
-      context: .
-      dockerfile: src/main/docker/Dockerfile.native-micro
