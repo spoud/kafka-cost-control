@@ -17,14 +17,7 @@ import {
     ApplyBillRatesComponent,
     ApplyBillRatesData,
 } from '../apply-bill-rates/apply-bill-rates.component';
-import {
-    BILL_LINES,
-    billTotal,
-    describeOtherLine,
-    lastDayFromCoveredUntil,
-    monthLabel,
-    otherTotal,
-} from '../bill';
+import { billLabel, billTotal, describeLine, lastDayFromCoveredUntil, monthLabel } from '../bill';
 
 /**
  * What the provider billed, month by month. Costs on Cost Overview share each month's bill among
@@ -54,21 +47,12 @@ export class BillsListComponent implements OnInit {
 
     @ViewChild('deleteConfirmContent') deleteConfirmContent!: TemplateRef<unknown>;
 
-    protected readonly lines = BILL_LINES;
     protected readonly monthLabel = monthLabel;
+    protected readonly billLabel = billLabel;
     protected readonly billTotal = billTotal;
-    protected readonly otherTotal = otherTotal;
-    protected readonly otherDetail = (bill: BillEntity) =>
-        bill.otherLines.map(describeOtherLine).join('\n');
+    protected readonly describeLine = describeLine;
     protected readonly lastDay = lastDayFromCoveredUntil;
-    protected readonly columns = [
-        'month',
-        ...BILL_LINES.map(line => line.key),
-        'other',
-        'total',
-        'updated',
-        'buttons',
-    ];
+    protected readonly columns = ['month', 'cluster', 'lines', 'total', 'updated', 'buttons'];
 
     protected readonly bills = signal<BillEntity[]>([]);
     protected readonly loading = signal(true);
@@ -101,13 +85,16 @@ export class BillsListComponent implements OnInit {
     }
 
     protected openSaveDialog(bill?: BillEntity): void {
-        const data: BillSaveData = { bill, billedMonths: this.bills().map(b => b.month) };
+        const data: BillSaveData = {
+            bill,
+            existing: this.bills().map(b => ({ month: b.month, cluster: b.cluster })),
+        };
         this.dialog
             .open(BillSaveComponent, { data, width: '720px', maxWidth: '95vw' })
             .afterClosed()
             .subscribe((saved?: BillEntity) => {
                 if (saved) {
-                    this.snackBar.open(`Bill for ${monthLabel(saved.month)} saved`, 'close', {
+                    this.snackBar.open(`Bill for ${billLabel(saved)} saved`, 'close', {
                         politeness: 'polite',
                         duration: 2000,
                     });
@@ -150,20 +137,26 @@ export class BillsListComponent implements OnInit {
                 if (!confirmed) {
                     return;
                 }
-                this.deleteBillGql.mutate({ variables: { month: bill.month } }).subscribe({
-                    next: result => {
-                        if (result.error) {
-                            this.snackBar.open(`Deleting failed: ${result.error.message}`, 'close');
-                            return;
-                        }
-                        this.snackBar.open('Bill deleted', 'close', {
-                            politeness: 'polite',
-                            duration: 2000,
-                        });
-                        this.load();
-                    },
-                    error: err => this.snackBar.open(`Deleting failed: ${err.message}`, 'close'),
-                });
+                this.deleteBillGql
+                    .mutate({ variables: { month: bill.month, cluster: bill.cluster } })
+                    .subscribe({
+                        next: result => {
+                            if (result.error) {
+                                this.snackBar.open(
+                                    `Deleting failed: ${result.error.message}`,
+                                    'close'
+                                );
+                                return;
+                            }
+                            this.snackBar.open('Bill deleted', 'close', {
+                                politeness: 'polite',
+                                duration: 2000,
+                            });
+                            this.load();
+                        },
+                        error: err =>
+                            this.snackBar.open(`Deleting failed: ${err.message}`, 'close'),
+                    });
             });
     }
 }

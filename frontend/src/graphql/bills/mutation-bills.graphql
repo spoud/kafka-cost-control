@@ -1,15 +1,13 @@
 mutation saveBill($request: BillSaveRequestInput!) {
     saveBill(request: $request) {
         month
+        cluster
         coveredUntil
-        networkWrite
-        networkRead
-        storage
-        partitions
-        otherLines {
+        lines {
             description
             amount
             allocation
+            metrics
             context {
                 key
                 value
@@ -20,8 +18,9 @@ mutation saveBill($request: BillSaveRequestInput!) {
     }
 }
 
-mutation deleteBill($month: String!) {
-    deleteBill(month: $month) {
+mutation deleteBill($month: String!, $cluster: String) {
+    deleteBill(month: $month, cluster: $cluster) {
         month
+        cluster
     }
 }

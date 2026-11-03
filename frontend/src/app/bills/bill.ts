@@ -1,74 +1,84 @@
 import { Allocation, BillEntity } from '../../generated/graphql/types';
 
+/** A line as a preset or the form has it, before amounts. */
+export interface LineTemplate {
+    description: string;
+    allocation: Allocation;
+    metrics: string[];
+}
+
 /**
- * The lines a bill splits by usage, in the order the page shows them, named after the metric each
- * is shared by - like the pricing rules - with what that is on the provider's bill as a hint.
+ * The usual lines of a provider's bill, to start a bill from: only the amounts are left to type.
+ * Each METRICS line is shared by the metrics named, which is what the provider bills by.
  */
-export const BILL_LINES = [
+export const PRESETS: readonly { name: string; hint: string; lines: readonly LineTemplate[] }[] = [
     {
-        key: 'networkWrite',
-        metric: 'confluent_kafka_server_request_bytes',
-        hint: 'network write, shared by produced bytes',
+        name: 'Confluent Cloud',
+        hint: "The usage lines of Confluent's invoice, shared by its metrics",
+        lines: [
+            metricsLine('Network write', 'confluent_kafka_server_request_bytes'),
+            metricsLine('Network read', 'confluent_kafka_server_response_bytes'),
+            metricsLine('Storage', 'confluent_kafka_server_retained_bytes'),
+            metricsLine('Partitions', 'kafka_topic_partition_count'),
+        ],
     },
     {
-        key: 'networkRead',
-        metric: 'confluent_kafka_server_response_bytes',
-        hint: 'network read, shared by consumed bytes',
+        name: 'Self-hosted',
+        hint: 'A cluster you run yourself, e.g. with Strimzi: disks, network, and the brokers spread by usage',
+        lines: [
+            metricsLine('Storage', 'kafka_log_log_size'),
+            metricsLine(
+                'Network',
+                'kafka_server_brokertopicmetrics_bytesin_total',
+                'kafka_server_brokertopicmetrics_bytesout_total'
+            ),
+            { description: 'Brokers and operations', allocation: Allocation.Usage, metrics: [] },
+        ],
     },
-    {
-        key: 'storage',
-        metric: 'confluent_kafka_server_retained_bytes',
-        hint: 'storage, shared by stored GB-hours',
-    },
-    {
-        key: 'partitions',
-        metric: 'kafka_topic_partition_count',
-        hint: 'partitions, shared by partition-hours',
-    },
-] as const;
+];
 
-export type BillLineKey = (typeof BILL_LINES)[number]['key'];
+function metricsLine(description: string, ...metrics: string[]): LineTemplate {
+    return { description, allocation: Allocation.Metrics, metrics };
+}
 
-/** Where an other line goes, as offered in the form. */
+/** How a line can be shared, as offered in the form. */
 export const ALLOCATIONS = [
+    { value: Allocation.Metrics, label: 'By metrics' },
     { value: Allocation.Context, label: 'To a context' },
     { value: Allocation.Usage, label: 'Spread by usage' },
     { value: Allocation.Shared, label: 'Shared' },
 ] as const;
 
-/** One line, e.g. "Connect $12.00 → application=etl". */
-export function describeOtherLine(line: OtherLineLike): string {
+/** One line, e.g. "Storage $8.12 → kafka_log_log_size" or "Connect $12.00 → application=etl". */
+export function describeLine(line: LineLike): string {
+    const amount = line.amount == null ? 'estimated' : `$${line.amount.toFixed(2)}`;
     const where =
-        line.allocation === Allocation.Context
-            ? (line.context ?? []).map(e => `${e.key}=${e.value}`).join(', ')
-            : line.allocation === Allocation.Usage
-              ? 'spread by usage'
-              : 'shared';
-    return `${line.description} $${line.amount.toFixed(2)} → ${where}`;
+        line.allocation === Allocation.Metrics
+            ? (line.metrics ?? []).join(', ')
+            : line.allocation === Allocation.Context
+              ? (line.context ?? []).map(e => `${e.key}=${e.value}`).join(', ')
+              : line.allocation === Allocation.Usage
+                ? 'spread by usage'
+                : 'shared';
+    return `${line.description} ${amount} → ${where}`;
 }
 
-interface OtherLineLike {
+interface LineLike {
     description: string;
-    amount: number;
+    amount?: number | null;
     allocation: Allocation;
+    metrics?: readonly string[] | null;
     context?: { key?: string | null; value?: string | null }[] | null;
 }
 
-export function otherTotal(lines: readonly { amount: number | null }[]): number {
+/** Everything on the bill; a line without an amount is estimated and adds nothing. */
+export function billTotal(lines: readonly { amount?: number | null }[]): number {
     return lines.reduce((sum, line) => sum + (line.amount ?? 0), 0);
 }
 
-/** Everything on the bill, the other lines included. */
-export function billTotal(
-    bill: Pick<BillEntity, BillLineKey> & { otherLines: readonly { amount: number | null }[] }
-): number {
-    return (
-        (bill.networkWrite ?? 0) +
-        (bill.networkRead ?? 0) +
-        (bill.storage ?? 0) +
-        (bill.partitions ?? 0) +
-        otherTotal(bill.otherLines)
-    );
+/** "September 2026", or "September 2026, poc-cluster" for a cluster's bill. */
+export function billLabel(bill: Pick<BillEntity, 'month' | 'cluster'>): string {
+    return bill.cluster ? `${monthLabel(bill.month)}, ${bill.cluster}` : monthLabel(bill.month);
 }
 
 /** "2026-09" -> "September 2026". Months are UTC, like the bills. */

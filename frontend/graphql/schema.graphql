@@ -4,29 +4,43 @@ type AssistantStatus {
 }
 
 type BillEntity {
+  "The cluster the bill is for, as the context value cluster; null: all clusters"
+  cluster: String
   "End (exclusive) of what the amounts cover, for a month-to-date bill; null: the whole month (ISO-8601)"
   coveredUntil: DateTime
+  "The bill, line by line, each with how it is shared"
+  lines: [BillLineEntity!]!
   "The billed month, yyyy-MM"
   month: String!
-  networkRead: Float
-  networkWrite: Float
-  "Everything else on the bill, line by line, each with where it goes"
-  otherLines: [OtherLine!]!
-  partitions: Float
-  storage: Float
   "ISO-8601"
   updatedAt: DateTime!
   updatedBy: String
 }
 
+type BillLineEntity {
+  allocation: Allocation!
+  "In dollars; negative for a credit. Null only on a METRICS line, whose metrics are then estimated from the pricing rules"
+  amount: Float
+  "For CONTEXT: the context the amount belongs to, e.g. tenant=data-platform"
+  context(
+    "Get entry/entries for a certain key/s"
+    key: [String]
+  ): [Entry_String_String!]
+  description: String!
+  "For METRICS: the metrics the line is shared by"
+  metrics: [String!]!
+}
+
 "A bill line per unit of the usage measured in the hours the bill covers"
 type BillRate {
-  "The billed amount, in dollars"
+  "The line's billed amount, in dollars"
   amount: Float!
   "amount / usage: the cost per unit of the metric's raw value; null when no usage was measured"
   costFactor: Float
+  "The line the metric is on, e.g. Network"
+  line: String!
   metricName: String!
-  "Sum of the metric's hourly values in the hours the bill covers"
+  "Sum of the hourly values of the line's metrics in the hours the bill covers, within its cluster"
   usage: Float!
 }
 
@@ -114,10 +128,12 @@ type MetricNameEntity {
 }
 
 type MonthBilling {
-  "Whether a bill exists for the month"
+  "Whether a bill exists for the month, for all clusters or some"
   billed: Boolean!
-  "Where the bill's amounts stop; after it, the rate card applies (ISO-8601)"
+  "Where the bill's amounts stop, the earliest of the month's bills; after it, the rate card applies (ISO-8601)"
   billedUntil: DateTime
+  "The clusters the month's bills are for; empty when a bill covers all clusters, or none exists"
+  clusters: [String!]!
   "The part of the range in this month (ISO-8601)"
   from: DateTime!
   month: String!
@@ -131,7 +147,8 @@ type Mutation {
   chat(request: ChatRequestInput): ChatAnswer!
   "Forget the conversation history for one session."
   clearChat(sessionId: String!): Boolean!
-  deleteBill(month: String!): BillEntity
+  "Deletes a month's bill: the one for all clusters, or a cluster's"
+  deleteBill(cluster: String, month: String!): BillEntity
   deleteContextData(request: ContextDataDeleteRequestInput): ContextDataEntity
   "Deletes every stored row of a metric. The raw topics keep its records: a reprocess covering its time brings it back, and if it is still collected, new data keeps arriving."
   deleteMetric(metricName: String!): Int!
@@ -141,24 +158,12 @@ type Mutation {
     "ISO-8601"
     startTime: DateTime
   ): String!
-  "Saves a month's bill, replacing the month's previous one"
+  "Saves a month's bill, replacing the one for the same month and cluster"
   saveBill(request: BillSaveRequestInput!): BillEntity!
   saveContextData(request: ContextDataSaveRequestInput): ContextDataEntity!
   savePricingRule(request: PricingRuleSaveRequestInput): PricingRuleEntity!
   "Drops the current price and makes the previous one current again"
   undoPricingRuleChange(request: PricingRuleDeleteRequestInput): PricingRuleEntity!
-}
-
-type OtherLine {
-  allocation: Allocation!
-  "In dollars; negative for a credit"
-  amount: Float!
-  "For CONTEXT: the context the amount belongs to, e.g. tenant=data-platform"
-  context(
-    "Get entry/entries for a certain key/s"
-    key: [String]
-  ): [Entry_String_String!]
-  description: String!
 }
 
 type PricingRuleEntity {
@@ -184,12 +189,14 @@ type PricingRuleEntity {
 type Query {
   "Whether the AI assistant is configured and able to answer questions."
   assistantStatus: AssistantStatus!
-  "A bill's usage lines per unit of the usage measured in the hours it covers: the rates to price the hours after it with"
-  billRates(month: String!): [BillRate!]!
+  "A bill's METRICS lines per unit of the usage measured in the hours it covers: the rates to price the hours after it with"
+  billRates(cluster: String, month: String!): [BillRate!]!
   "Costs in cents from the monthly bills, with the rate card where no bill applies"
   billedCosts(request: BilledCostRequestInput!): BilledCostResponse!
   "All bills, newest month first, in dollars"
   bills: [BillEntity!]!
+  "The clusters in the data, for a cluster's bill"
+  clusters: [String!]!
   contextData: [ContextDataEntity!]!
   contextTest(testString: String): [ContextTestResponse!]!
   currentUser: String!
@@ -226,6 +233,7 @@ type UnassignedEntity {
 
 enum Allocation {
   CONTEXT
+  METRICS
   SHARED
   USAGE
 }
@@ -255,17 +263,26 @@ scalar BigInteger
 "Scalar for DateTime"
 scalar DateTime
 
+input BillLineRequestInput {
+  allocation: Allocation
+  "In dollars; negative for a credit. May be empty on a METRICS line: its metrics are then estimated from the pricing rules"
+  amount: Float
+  "For CONTEXT: the context the amount belongs to, e.g. [{key: \"tenant\", value: \"data-platform\"}]"
+  context: [ContextPairInput]
+  description: String
+  "For METRICS: the metrics the line is shared by, e.g. [\"kafka_log_log_size\"]"
+  metrics: [String]
+}
+
 input BillSaveRequestInput {
+  "The cluster the bill is for, as the context value cluster. Empty: all clusters."
+  cluster: String
   "For a month-to-date bill: the end (exclusive) of what the amounts cover. Empty: the whole month. (ISO-8601)"
   coveredUntil: DateTime
+  "The bill, line by line; an amount may be negative for a credit"
+  lines: [BillLineRequestInput]
   "The billed month, yyyy-MM, in UTC"
   month: String!
-  networkRead: Float
-  networkWrite: Float
-  "Everything else on the bill, line by line; an amount may be negative for a credit"
-  otherLines: [OtherLineRequestInput]
-  partitions: Float
-  storage: Float
 }
 
 input BilledCostRequestInput {
@@ -313,15 +330,6 @@ input DateTimeParameterInput {
 input Entry_String_StringInput {
   key: String
   value: String
-}
-
-input OtherLineRequestInput {
-  allocation: Allocation
-  "In dollars; negative for a credit"
-  amount: Float
-  "For CONTEXT: the context the amount belongs to, e.g. [{key: \"tenant\", value: \"data-platform\"}]"
-  context: [ContextPairInput]
-  description: String
 }
 
 input PricingRuleDeleteRequestInput {

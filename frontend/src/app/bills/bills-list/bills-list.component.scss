@@ -17,14 +17,15 @@
     text-align: right;
 }
 
-.metric {
-    font-family: monospace;
-    font-size: 0.75rem;
-    white-space: normal;
-    word-break: break-all;
-}
+.lines {
+    margin: var(--space-2) 0;
+    padding: 0;
+    list-style: none;
 
-.with-detail {
-    text-decoration: underline dotted;
-    cursor: help;
+    li {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-3);
+        cursor: help;
+    }
 }

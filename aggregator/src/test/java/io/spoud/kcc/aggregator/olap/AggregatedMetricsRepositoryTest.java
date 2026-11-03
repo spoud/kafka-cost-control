@@ -624,11 +624,11 @@ class AggregatedMetricsRepositoryTest {
         Instant start = Instant.parse("2026-09-01T00:00:00Z");
         repo.insertRow(teamRow(start, start.plus(Duration.ofHours(1)), "a", "metric", 10).build());
         repo.flushToDb();
-        new CostsView(olapInfra, null, null).define(
+        new CostsView(olapInfra, null, null, testCostConfig).define(
                 List.of(new CostsView.RatePeriod("metric", null, null, 0, 0.25)),
-                List.of(new io.spoud.kcc.aggregator.bills.BillEntity("2026-09", start.plus(Duration.ofHours(2)),
-                        null, null, null, null, List.of(new io.spoud.kcc.aggregator.bills.OtherLine("Support", 2.0,
-                        io.spoud.kcc.aggregator.bills.OtherLine.Allocation.SHARED, null)), null, null)));
+                List.of(new io.spoud.kcc.aggregator.bills.BillEntity("2026-09", null, start.plus(Duration.ofHours(2)),
+                        List.of(io.spoud.kcc.aggregator.bills.BillLineEntity.other("Support", 2.0,
+                        io.spoud.kcc.aggregator.bills.BillLineEntity.Allocation.SHARED, null)), null, null)));
 
         var exportPath = repo.exportData(start, start.plus(Duration.ofDays(1)), "csv");
 
@@ -656,7 +656,7 @@ class AggregatedMetricsRepositoryTest {
         repo.insertRow(teamRow(start, end, "unpriced", "other_metric", 20).build());
         repo.flushToDb();
         // a rule for one metric only, from the start of the hour on
-        new CostsView(olapInfra, null, null).define(List.of(
+        new CostsView(olapInfra, null, null, testCostConfig).define(List.of(
                 new CostsView.RatePeriod("metric", start, null, 0, 0.25)), List.of());
 
         var history = repo.getHistoryGrouped(start, end, Set.of("metric", "other_metric"), "team", 1L);
@@ -704,7 +704,7 @@ class AggregatedMetricsRepositoryTest {
                 .setContext(Map.of("tenant", "acme")).setValue(1.0).build());
         repo.flushToDb();
         // costs come from the pricing rules when asked: 1 per unit for network, nothing for storage
-        new CostsView(olapInfra, null, null).define(List.of(
+        new CostsView(olapInfra, null, null, testCostConfig).define(List.of(
                 new CostsView.RatePeriod("confluent_kafka_server_request_bytes", null, null, 0, 1),
                 new CostsView.RatePeriod("confluent_kafka_server_response_bytes", null, null, 0, 1),
                 new CostsView.RatePeriod("confluent_kafka_server_partition_count", null, null, 0, 1)), List.of());

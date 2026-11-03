@@ -27,33 +27,34 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { MatAutocomplete, MatAutocompleteTrigger } from '@angular/material/autocomplete';
 import { GraphFilterService } from '../../tab-graphs/graph-filter/graph-filter.service';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { map, startWith } from 'rxjs';
-import { SaveBillGQL } from '../../../generated/graphql/sdk';
-import { Allocation, BillEntity, OtherLine } from '../../../generated/graphql/types';
+import { ClustersGQL, SaveBillGQL } from '../../../generated/graphql/sdk';
+import { Allocation, BillEntity, BillLineEntity } from '../../../generated/graphql/types';
 import {
     ALLOCATIONS,
-    BILL_LINES,
+    billLabel,
     billTotal,
+    LineTemplate,
     coveredUntilFromLastDay,
     lastDayFromCoveredUntil,
     monthLabel,
     monthLastDay,
     monthOf,
     monthStart,
+    PRESETS,
     recentMonths,
 } from '../bill';
 
 export interface BillSaveData {
     /** The bill to edit; without it the dialog adds one. */
     bill?: BillEntity;
-    /** Months that already have a bill: saving one of them again replaces it. */
-    billedMonths: string[];
+    /** The bills there are: saving one for the same month and cluster replaces it. */
+    existing: Pick<BillEntity, 'month' | 'cluster'>[];
 }
-
-type Amount = FormControl<number | null>;
 
 @Component({
     selector: 'app-bill-save',
@@ -80,6 +81,7 @@ type Amount = FormControl<number | null>;
         MatIcon,
         MatAutocomplete,
         MatAutocompleteTrigger,
+        MatTooltip,
         ReactiveFormsModule,
     ],
     templateUrl: './bill-save.component.html',
@@ -87,14 +89,18 @@ type Amount = FormControl<number | null>;
 })
 export class BillSaveComponent {
     private saveBill = inject(SaveBillGQL);
+    private clustersGql = inject(ClustersGQL);
+    private graphFilter = inject(GraphFilterService);
     private dialogRef = inject<MatDialogRef<BillSaveComponent>>(MatDialogRef);
     protected data = inject<BillSaveData>(MAT_DIALOG_DATA);
 
-    protected readonly lines = BILL_LINES;
+    protected readonly presets = PRESETS;
     protected readonly allocations = ALLOCATIONS;
     protected readonly Allocation = Allocation;
-    protected readonly contextKeys = inject(GraphFilterService).contextKeys;
+    protected readonly contextKeys = this.graphFilter.contextKeys;
+    protected readonly clusters = signal<string[]>([]);
     protected readonly monthLabel = monthLabel;
+    protected readonly billLabel = billLabel;
     protected readonly editing = !!this.data.bill;
     protected readonly months = this.monthChoices();
 
@@ -103,19 +109,17 @@ export class BillSaveComponent {
             { value: this.data.bill?.month ?? this.defaultMonth(), disabled: this.editing },
             { nonNullable: true }
         ),
+        cluster: new FormControl(
+            { value: this.data.bill?.cluster ?? '', disabled: this.editing },
+            { nonNullable: true }
+        ),
         monthToDate: new FormControl(!!this.data.bill?.coveredUntil, { nonNullable: true }),
         lastDay: new FormControl<Date | null>(
             this.data.bill?.coveredUntil
                 ? lastDayFromCoveredUntil(this.data.bill.coveredUntil)
                 : null
         ),
-        networkWrite: this.amount(this.data.bill?.networkWrite),
-        networkRead: this.amount(this.data.bill?.networkRead),
-        storage: this.amount(this.data.bill?.storage),
-        partitions: this.amount(this.data.bill?.partitions),
-        otherLines: new FormArray<OtherLineGroup>(
-            (this.data.bill?.otherLines ?? []).map(line => otherLineGroup(line))
-        ),
+        lines: new FormArray<LineGroup>((this.data.bill?.lines ?? []).map(line => lineGroup(line))),
     });
 
     // the raw value: a disabled month (when editing) is left out of `value`
@@ -127,35 +131,72 @@ export class BillSaveComponent {
         { requireSync: true }
     );
 
-    protected readonly total = computed(() =>
-        billTotal({
-            networkWrite: this.value().networkWrite,
-            networkRead: this.value().networkRead,
-            storage: this.value().storage,
-            partitions: this.value().partitions,
-            otherLines: this.value().otherLines,
-        })
+    protected readonly total = computed(() => billTotal(this.value().lines));
+    protected readonly hasAmount = computed(() =>
+        this.value().lines.some(line => line.amount != null)
     );
-    protected readonly hasAmount = computed(
-        () =>
-            BILL_LINES.some(line => this.value()[line.key] != null) ||
-            this.value().otherLines.length > 0
-    );
-    /** An other line without a description, amount, or (for a context) a key and value. */
-    protected readonly incompleteOtherLine = computed(() =>
-        this.value().otherLines.some(
+    /** A line without a description, or without what its allocation needs. */
+    protected readonly incompleteLine = computed(() =>
+        this.value().lines.some(
             line =>
                 !line.description.trim() ||
-                line.amount === null ||
+                (line.allocation === Allocation.Metrics
+                    ? line.metrics.length === 0
+                    : line.amount === null) ||
                 (line.allocation === Allocation.Context &&
                     !line.context.some(pair => pair.key.trim() && pair.value.trim()))
         )
     );
     protected readonly negativeLine = computed(() =>
-        BILL_LINES.some(line => (this.value()[line.key] ?? 0) < 0)
+        this.value().lines.some(
+            line => line.allocation === Allocation.Metrics && (line.amount ?? 0) < 0
+        )
     );
+    /** A metric on two lines: it can share only one. */
+    protected readonly duplicateMetric = computed(() => {
+        const seen = new Set<string>();
+        for (const line of this.value().lines) {
+            if (line.allocation !== Allocation.Metrics) {
+                continue;
+            }
+            for (const metric of line.metrics) {
+                if (seen.has(metric)) {
+                    return metric;
+                }
+                seen.add(metric);
+            }
+        }
+        return null;
+    });
+    protected readonly cluster = computed(() => this.value().cluster.trim() || null);
     protected readonly replacesExisting = computed(
-        () => !this.editing && this.data.billedMonths.includes(this.value().month)
+        () =>
+            !this.editing &&
+            this.data.existing.some(
+                b => b.month === this.value().month && (b.cluster ?? null) === this.cluster()
+            )
+    );
+    /** A month has one bill for all clusters or one per cluster; the other kind is in the way. */
+    protected readonly conflict = computed(() => {
+        const others = this.data.existing.filter(
+            b => b.month === this.value().month && (b.cluster ?? null) !== this.cluster()
+        );
+        if (this.cluster() === null && others.length) {
+            return `${monthLabel(this.value().month)} has bills per cluster: enter this one for a cluster, or delete them first.`;
+        }
+        if (this.cluster() !== null && others.some(b => !b.cluster)) {
+            return `${monthLabel(this.value().month)} has a bill for all clusters: delete it first, or edit it.`;
+        }
+        return null;
+    });
+    /** The metrics KCC has collected, and those already on a line (e.g. from a preset). */
+    protected readonly metricOptions = computed(() =>
+        [
+            ...new Set([
+                ...this.graphFilter.metricNames().map(m => m.metricName),
+                ...this.value().lines.flatMap(line => line.metrics),
+            ]),
+        ].sort()
     );
     protected readonly firstDay = computed(() => localDate(monthStart(this.value().month)));
     protected readonly lastDayOfMonth = computed(() => localDate(monthLastDay(this.value().month)));
@@ -181,6 +222,9 @@ export class BillSaveComponent {
         if (!this.editing && this.form.controls.month.value === monthOf(new Date())) {
             this.form.controls.monthToDate.setValue(true);
         }
+        this.clustersGql
+            .fetch()
+            .subscribe(result => this.clusters.set(result.data?.clusters ?? []));
     }
 
     protected canSave(): boolean {
@@ -188,7 +232,9 @@ export class BillSaveComponent {
         return (
             this.hasAmount() &&
             !this.negativeLine() &&
-            !this.incompleteOtherLine() &&
+            !this.incompleteLine() &&
+            !this.duplicateMetric() &&
+            !this.conflict() &&
             !this.saving() &&
             (!v.monthToDate || !!v.lastDay)
         );
@@ -208,14 +254,12 @@ export class BillSaveComponent {
                         month: v.month,
                         coveredUntil:
                             v.monthToDate && v.lastDay ? coveredUntilFromLastDay(v.lastDay) : null,
-                        networkWrite: v.networkWrite,
-                        networkRead: v.networkRead,
-                        storage: v.storage,
-                        partitions: v.partitions,
-                        otherLines: v.otherLines.map(line => ({
+                        cluster: v.cluster.trim() || null,
+                        lines: v.lines.map(line => ({
                             description: line.description.trim(),
-                            amount: line.amount ?? 0,
+                            amount: line.amount,
                             allocation: line.allocation,
+                            metrics: line.allocation === Allocation.Metrics ? line.metrics : [],
                             context:
                                 line.allocation === Allocation.Context
                                     ? line.context
@@ -245,28 +289,30 @@ export class BillSaveComponent {
             });
     }
 
-    protected get otherLines(): FormArray<OtherLineGroup> {
-        return this.form.controls.otherLines;
+    protected get lines(): FormArray<LineGroup> {
+        return this.form.controls.lines;
     }
 
-    protected addOtherLine(): void {
-        this.otherLines.push(otherLineGroup());
+    /** Replaces the lines with the preset's, amounts left to type. */
+    protected usePreset(lines: readonly LineTemplate[]): void {
+        this.lines.clear();
+        lines.forEach(line => this.lines.push(lineGroup(line)));
     }
 
-    protected removeOtherLine(index: number): void {
-        this.otherLines.removeAt(index);
+    protected addLine(): void {
+        this.lines.push(lineGroup());
     }
 
-    protected addContextPair(line: OtherLineGroup): void {
+    protected removeLine(index: number): void {
+        this.lines.removeAt(index);
+    }
+
+    protected addContextPair(line: LineGroup): void {
         line.controls.context.push(contextPair());
     }
 
-    protected removeContextPair(line: OtherLineGroup, index: number): void {
+    protected removeContextPair(line: LineGroup, index: number): void {
         line.controls.context.removeAt(index);
-    }
-
-    private amount(value: number | null | undefined): Amount {
-        return new FormControl<number | null>(value ?? null);
     }
 
     /** The month before the current one: the bill most often entered. */
@@ -301,17 +347,21 @@ function contextPair(key = '', value = '') {
     });
 }
 
-function otherLineGroup(line?: OtherLine) {
-    const pairs = line?.context?.length ? line.context : [{ key: '', value: '' }];
+function lineGroup(line?: Partial<BillLineEntity> | LineTemplate) {
+    const context = line && 'context' in line ? line.context : null;
+    const pairs = context?.length ? context : [{ key: '', value: '' }];
     return new FormGroup({
         description: new FormControl(line?.description ?? '', { nonNullable: true }),
-        amount: new FormControl<number | null>(line?.amount ?? null),
-        allocation: new FormControl(line?.allocation ?? Allocation.Shared, { nonNullable: true }),
+        amount: new FormControl<number | null>(
+            line && 'amount' in line ? (line.amount ?? null) : null
+        ),
+        allocation: new FormControl(line?.allocation ?? Allocation.Metrics, { nonNullable: true }),
+        metrics: new FormControl<string[]>([...(line?.metrics ?? [])], { nonNullable: true }),
         context: new FormArray(pairs.map(pair => contextPair(pair.key ?? '', pair.value ?? ''))),
     });
 }
 
-type OtherLineGroup = ReturnType<typeof otherLineGroup>;
+type LineGroup = ReturnType<typeof lineGroup>;
 
 /** A UTC calendar day as the same local calendar day, for the date picker. */
 function localDate(utc: Date): Date {

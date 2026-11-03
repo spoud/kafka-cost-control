@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import io.quarkus.scheduler.Scheduled;
+import io.spoud.kcc.aggregator.CostControlConfigProperties;
 import io.spoud.kcc.aggregator.bills.BillEntity;
-import io.spoud.kcc.aggregator.bills.BillLine;
+import io.spoud.kcc.aggregator.bills.BillLineEntity;
 import io.spoud.kcc.aggregator.bills.BillsRepository;
-import io.spoud.kcc.aggregator.bills.OtherLine;
 import io.spoud.kcc.aggregator.repository.PricingRulesStreamRepository;
 import io.spoud.kcc.data.PricingRule;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,9 +21,11 @@ import java.time.Instant;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -35,16 +37,18 @@ import java.util.stream.Collectors;
  * {@code rate_cost} (the pricing rule's), {@code estimated} (the cost comes from a pricing rule, no
  * bill applies) and {@code shared} (assigned to no one, shown as {@code <shared>}). Rows:
  * <ul>
- *     <li>usage: in a billed hour, a bill line's share by usage of its metric in the month up to where
- *     the bill stops; a metric that isn't one of the bill's lines costs nothing there (it's in the
- *     bill's other part); otherwise - no bill, past a month-to-date bill's end, or a line the bill
- *     leaves empty - the pricing rule's cost, estimated;</li>
+ *     <li>usage: in a billed hour, the share of the METRICS line its metric is on, by usage of the
+ *     line's metrics in the month up to where the bill stops; a metric that isn't on the bill costs
+ *     nothing there (it's in the bill's other lines); otherwise - no bill, past a month-to-date bill's
+ *     end, or a line without an amount - the pricing rule's cost, estimated;</li>
  *     <li>{@code other}, spread by usage: the bill's USAGE lines, on each billed row in proportion to its
- *     share of the month's billed costs;</li>
- *     <li>{@code other}, by hour: the bill's CONTEXT and SHARED lines, USAGE lines in a month with no
- *     billed usage, and lines for a metric with no usage measured, spread evenly over the hours the
- *     bill covers.</li>
+ *     share of the bill's billed costs;</li>
+ *     <li>{@code other}, by hour: the bill's CONTEXT and SHARED lines, USAGE lines of a bill with no
+ *     billed usage, and METRICS lines with no usage measured, spread evenly over the hours the bill
+ *     covers.</li>
  * </ul>
+ * A bill applies to the rows of its month, and for a cluster's bill only to those whose context
+ * names that cluster; its rows under {@code other} carry the cluster in their context.
  * The definition is rebuilt from the rules and bills when they change; it embeds them, so a query
  * needs nothing else.
  */
@@ -61,13 +65,15 @@ public class CostsView {
     private final OlapInfra olapInfra;
     private final Instance<PricingRulesStreamRepository> pricingRules;
     private final Instance<BillsRepository> bills;
+    private final String clusterKey;
     private volatile String defined;
 
     public CostsView(OlapInfra olapInfra, Instance<PricingRulesStreamRepository> pricingRules,
-                     Instance<BillsRepository> bills) {
+                     Instance<BillsRepository> bills, CostControlConfigProperties config) {
         this.olapInfra = olapInfra;
         this.pricingRules = pricingRules;
         this.bills = bills;
+        this.clusterKey = config.cluster().contextKey();
     }
 
     /** Rebuilds the view from today's rules and bills if they changed; runs regularly, and after a save. */
@@ -77,7 +83,7 @@ public class CostsView {
             var rates = pricingRules.get().getRawPricingRules().stream()
                     .flatMap(rule -> periodsOf(rule).stream())
                     .toList();
-            define(rates, bills.get().byMonth().values());
+            define(rates, bills.get().all());
         } catch (RuntimeException e) {
             // e.g. the stores or the bills topic are still loading: keep the view as it was
             Log.debugv("Costs view not refreshed: {0}", e.getMessage());
@@ -85,8 +91,8 @@ public class CostsView {
     }
 
     /** Creates or replaces the view, unless it is already defined so. */
-    public void define(Collection<RatePeriod> rates, Collection<BillEntity> monthBills) {
-        String sql = sql(rates, monthBills);
+    public void define(Collection<RatePeriod> rates, Collection<BillEntity> savedBills) {
+        String sql = sql(rates, savedBills, clusterKey);
         if (sql.equals(defined)) {
             return;
         }
@@ -97,7 +103,7 @@ public class CostsView {
 
     /** The view with no rules and no bills, so it exists from the start. */
     static void createEmpty(OlapInfra infra) {
-        create(infra, sql(List.of(), List.of()));
+        create(infra, sql(List.of(), List.of(), "cluster"));
     }
 
     /** The view's {@code cost} column, which the table doesn't have, on {@code view} read under its alias. */
@@ -125,57 +131,70 @@ public class CostsView {
         return periods;
     }
 
-    static String sql(Collection<RatePeriod> rates, Collection<BillEntity> monthBills) {
-        var bills = monthBills.stream().filter(Objects::nonNull).toList();
+    static String sql(Collection<RatePeriod> rates, Collection<BillEntity> savedBills, String clusterKey) {
+        var bills = usable(savedBills);
         String rateRows = rates.stream()
                 .map(r -> "(%s, %s, %s, %s, %s)".formatted(str(r.metric()), ts(r.validFrom()), ts(r.validUntil()),
                         num(r.baseCost()), num(r.costFactor())))
                 .collect(Collectors.joining(", "));
         String billRows = bills.stream()
-                .map(b -> "(%s, %s)".formatted(month(b.month()), ts(BillEntity.billedUntil(b))))
+                .map(b -> "(%s, %s, %s, %s)".formatted(str(b.key()), month(b.month()),
+                        b.cluster() == null ? "CAST(NULL AS VARCHAR)" : str(b.cluster()), ts(BillEntity.billedUntil(b))))
                 .collect(Collectors.joining(", "));
-        String lineRows = bills.stream()
-                .flatMap(b -> java.util.Arrays.stream(BillLine.values())
-                        .filter(line -> line.amount(b) != null)
-                        .map(line -> "(%s, %s, %s)".formatted(month(b.month()), str(line.metric()), num(line.amount(b)))))
-                .collect(Collectors.joining(", "));
-        String otherRows = bills.stream()
-                .flatMap(b -> b.otherLines().stream().map(o -> "(%s, %s, %s, %s, %s)".formatted(month(b.month()),
-                        str(o.allocation().name()), str(o.description()), num(o.amount()), str(contextJson(o)))))
-                .collect(Collectors.joining(", "));
-        String billMetrics = java.util.Arrays.stream(BillLine.values())
-                .map(line -> "(" + str(line.metric()) + ")")
-                .collect(Collectors.joining(", "));
+        var metricLineRows = new ArrayList<String>();
+        var lineMetricRows = new ArrayList<String>();
+        var otherRows = new ArrayList<String>();
+        for (BillEntity b : bills) {
+            var seen = new HashSet<String>();
+            for (int i = 0; i < b.lines().size(); i++) {
+                BillLineEntity line = b.lines().get(i);
+                String context = str(contextJson(b, line, clusterKey));
+                if (line.allocation() == BillLineEntity.Allocation.METRICS) {
+                    metricLineRows.add("(%s, %d, %s, %s, %s)".formatted(str(b.key()), i, str(line.description()),
+                            line.amount() == null ? "CAST(NULL AS DOUBLE)" : num(line.amount()), context));
+                    for (String metric : line.metrics()) {
+                        if (seen.add(metric)) { // a metric shares one line; the save refuses a second
+                            lineMetricRows.add("(%s, %d, %s)".formatted(str(b.key()), i, str(metric)));
+                        }
+                    }
+                } else {
+                    otherRows.add("(%s, %s, %s, %s, %s)".formatted(str(b.key()), str(line.allocation().name()),
+                            str(line.description()), num(line.amount()), context));
+                }
+            }
+        }
 
         return """
                 CREATE OR REPLACE VIEW %s AS
                 WITH rates AS (%s),
                 bills AS (%s),
-                bill_lines AS (%s),
+                metric_lines AS (%s),
+                line_metrics AS (%s),
                 other_lines AS (%s),
-                bill_metrics(metric) AS (VALUES %s),
                 base AS (
                     SELECT a.start_time, a.end_time, a.initial_metric_name, a.entity_type, a.name, a.tags, a.context,
                            a.value, a.target, a.id,
-                           date_trunc('month', timezone('UTC', a.start_time)) AS month,
                            r.base_cost + r.cost_factor * a.value AS rate_cost,
-                           b.billed_until IS NOT NULL AS month_billed,
-                           b.billed_until IS NOT NULL AND a.start_time < b.billed_until AS in_bill,
-                           bl.amount AS line_amount,
-                           bm.metric IS NOT NULL AS bill_metric
+                           b.bill_id,
+                           b.bill_id IS NOT NULL AS month_billed,
+                           b.bill_id IS NOT NULL AND a.start_time < b.billed_until AS in_bill,
+                           lm.line_no,
+                           ml.amount AS line_amount,
+                           lm.metric IS NOT NULL AS bill_metric
                     FROM aggregated_data a
                     LEFT JOIN rates r ON r.metric = a.initial_metric_name
                         AND (r.valid_from IS NULL OR a.start_time >= r.valid_from)
                         AND (r.valid_until IS NULL OR a.start_time < r.valid_until)
                     LEFT JOIN bills b ON b.month_start = date_trunc('month', timezone('UTC', a.start_time))
-                    LEFT JOIN bill_lines bl ON bl.month_start = b.month_start AND bl.metric = a.initial_metric_name
-                    LEFT JOIN bill_metrics bm ON bm.metric = a.initial_metric_name
+                        AND (b.cluster IS NULL OR b.cluster = (a.context->>%s))
+                    LEFT JOIN line_metrics lm ON lm.bill_id = b.bill_id AND lm.metric = a.initial_metric_name
+                    LEFT JOIN metric_lines ml ON ml.bill_id = lm.bill_id AND ml.line_no = lm.line_no
                 ),
                 usage AS (
                     SELECT *,
                            CASE WHEN in_bill AND line_amount IS NOT NULL
                                 THEN coalesce(line_amount * value / NULLIF(sum(value) FILTER (WHERE in_bill)
-                                     OVER (PARTITION BY initial_metric_name, month), 0), 0)
+                                     OVER (PARTITION BY bill_id, line_no), 0), 0)
                            END AS billed_cost
                     FROM base
                 ),
@@ -188,38 +207,39 @@ public class CostsView {
                            billed_cost IS NULL AND NOT (month_billed AND NOT bill_metric) AND rate_cost IS NOT NULL AS estimated
                     FROM usage
                 ),
-                billed_month_total AS (
-                    SELECT month, sum(billed_cost) AS total FROM usage WHERE billed_cost IS NOT NULL GROUP BY month
+                billed_total AS (
+                    SELECT bill_id, sum(billed_cost) AS total FROM usage WHERE billed_cost IS NOT NULL GROUP BY bill_id
                 ),
-                overhead_month AS (
-                    SELECT month_start, sum(amount) AS amount FROM other_lines WHERE kind = 'USAGE' GROUP BY month_start
+                overhead AS (
+                    SELECT bill_id, sum(amount) AS amount FROM other_lines WHERE kind = 'USAGE' GROUP BY bill_id
                 ),
                 overhead_rows AS (
                     SELECT u.start_time, u.end_time, 'other' AS initial_metric_name, u.entity_type, u.name, u.tags,
                            u.context, 0.0 AS value, '' AS target, u.id || '-overhead' AS id, false AS shared,
                            CAST(NULL AS DOUBLE) AS rate_cost, o.amount * u.billed_cost / t.total AS cost, false AS estimated
                     FROM usage u
-                    JOIN overhead_month o ON o.month_start = u.month
-                    JOIN billed_month_total t ON t.month = u.month
+                    JOIN overhead o ON o.bill_id = u.bill_id
+                    JOIN billed_total t ON t.bill_id = u.bill_id
                     WHERE u.billed_cost IS NOT NULL AND t.total <> 0
                 ),
                 spread_items AS (
-                    SELECT o.month_start, b.billed_until, o.description AS name, o.amount,
-                           CASE WHEN o.kind = 'CONTEXT' THEN o.context ELSE '{}' END AS context,
+                    SELECT o.bill_id, b.month_start, b.billed_until, o.description AS name, o.amount, o.context,
                            o.kind <> 'CONTEXT' AS shared
-                    FROM other_lines o JOIN bills b ON b.month_start = o.month_start
+                    FROM other_lines o JOIN bills b ON b.bill_id = o.bill_id
                     WHERE o.kind <> 'USAGE'
-                       OR NOT EXISTS (SELECT 1 FROM billed_month_total t WHERE t.month = o.month_start AND t.total <> 0)
+                       OR NOT EXISTS (SELECT 1 FROM billed_total t WHERE t.bill_id = o.bill_id AND t.total <> 0)
                     UNION ALL
-                    SELECT bl.month_start, b.billed_until, bl.metric AS name, bl.amount, '{}' AS context, true AS shared
-                    FROM bill_lines bl JOIN bills b ON b.month_start = bl.month_start
-                    WHERE NOT EXISTS (SELECT 1 FROM usage u WHERE u.month = bl.month_start
-                        AND u.initial_metric_name = bl.metric AND u.in_bill AND u.value <> 0)
+                    SELECT ml.bill_id, b.month_start, b.billed_until, ml.description AS name, ml.amount, ml.context,
+                           true AS shared
+                    FROM metric_lines ml JOIN bills b ON b.bill_id = ml.bill_id
+                    WHERE ml.amount IS NOT NULL
+                      AND NOT EXISTS (SELECT 1 FROM usage u WHERE u.bill_id = ml.bill_id AND u.line_no = ml.line_no
+                          AND u.in_bill AND u.value <> 0)
                 ),
                 spread_rows AS (
                     SELECT h.hour AS start_time, h.hour + INTERVAL 1 HOUR AS end_time, 'other' AS initial_metric_name,
                            'OTHER' AS entity_type, s.name, CAST('{}' AS JSON) AS tags, CAST(s.context AS JSON) AS context,
-                           0.0 AS value, '' AS target, md5(s.name || CAST(h.hour AS VARCHAR)) AS id, s.shared,
+                           0.0 AS value, '' AS target, md5(s.bill_id || s.name || CAST(h.hour AS VARCHAR)) AS id, s.shared,
                            CAST(NULL AS DOUBLE) AS rate_cost,
                            s.amount * 3600 / (epoch(s.billed_until) - epoch(timezone('UTC', s.month_start))) AS cost,
                            false AS estimated
@@ -235,23 +255,44 @@ public class CostsView {
                         ? "SELECT CAST(NULL AS VARCHAR) AS metric, CAST(NULL AS TIMESTAMPTZ) AS valid_from, CAST(NULL AS TIMESTAMPTZ) AS valid_until, CAST(NULL AS DOUBLE) AS base_cost, CAST(NULL AS DOUBLE) AS cost_factor WHERE false"
                         : "SELECT * FROM (VALUES " + rateRows + ") AS t(metric, valid_from, valid_until, base_cost, cost_factor)",
                 billRows.isEmpty()
-                        ? "SELECT CAST(NULL AS TIMESTAMP) AS month_start, CAST(NULL AS TIMESTAMPTZ) AS billed_until WHERE false"
-                        : "SELECT * FROM (VALUES " + billRows + ") AS t(month_start, billed_until)",
-                lineRows.isEmpty()
-                        ? "SELECT CAST(NULL AS TIMESTAMP) AS month_start, CAST(NULL AS VARCHAR) AS metric, CAST(NULL AS DOUBLE) AS amount WHERE false"
-                        : "SELECT * FROM (VALUES " + lineRows + ") AS t(month_start, metric, amount)",
+                        ? "SELECT CAST(NULL AS VARCHAR) AS bill_id, CAST(NULL AS TIMESTAMP) AS month_start, CAST(NULL AS VARCHAR) AS cluster, CAST(NULL AS TIMESTAMPTZ) AS billed_until WHERE false"
+                        : "SELECT * FROM (VALUES " + billRows + ") AS t(bill_id, month_start, cluster, billed_until)",
+                metricLineRows.isEmpty()
+                        ? "SELECT CAST(NULL AS VARCHAR) AS bill_id, CAST(NULL AS INTEGER) AS line_no, CAST(NULL AS VARCHAR) AS description, CAST(NULL AS DOUBLE) AS amount, CAST(NULL AS VARCHAR) AS context WHERE false"
+                        : "SELECT * FROM (VALUES " + String.join(", ", metricLineRows) + ") AS t(bill_id, line_no, description, amount, context)",
+                lineMetricRows.isEmpty()
+                        ? "SELECT CAST(NULL AS VARCHAR) AS bill_id, CAST(NULL AS INTEGER) AS line_no, CAST(NULL AS VARCHAR) AS metric WHERE false"
+                        : "SELECT * FROM (VALUES " + String.join(", ", lineMetricRows) + ") AS t(bill_id, line_no, metric)",
                 otherRows.isEmpty()
-                        ? "SELECT CAST(NULL AS TIMESTAMP) AS month_start, CAST(NULL AS VARCHAR) AS kind, CAST(NULL AS VARCHAR) AS description, CAST(NULL AS DOUBLE) AS amount, CAST(NULL AS VARCHAR) AS context WHERE false"
-                        : "SELECT * FROM (VALUES " + otherRows + ") AS t(month_start, kind, description, amount, context)",
-                billMetrics);
+                        ? "SELECT CAST(NULL AS VARCHAR) AS bill_id, CAST(NULL AS VARCHAR) AS kind, CAST(NULL AS VARCHAR) AS description, CAST(NULL AS DOUBLE) AS amount, CAST(NULL AS VARCHAR) AS context WHERE false"
+                        : "SELECT * FROM (VALUES " + String.join(", ", otherRows) + ") AS t(bill_id, kind, description, amount, context)",
+                str(clusterKey));
     }
 
-    private static String contextJson(OtherLine line) {
-        if (line.allocation() != OtherLine.Allocation.CONTEXT || line.context() == null) {
-            return "{}";
+    /**
+     * The bills the view uses: a month with a bill for all clusters ignores bills for single clusters
+     * there, which the save refuses but the topic could still hold.
+     */
+    private static List<BillEntity> usable(Collection<BillEntity> savedBills) {
+        var bills = savedBills.stream().filter(Objects::nonNull).toList();
+        var monthsForAll = bills.stream().filter(b -> b.cluster() == null).map(BillEntity::month).collect(Collectors.toSet());
+        return bills.stream().filter(b -> b.cluster() == null || !monthsForAll.contains(b.month())).toList();
+    }
+
+    /**
+     * The context of a line's rows under {@code other}: a CONTEXT line's own, and a cluster's bill's
+     * cluster, so its shared lines show under their cluster too.
+     */
+    private static String contextJson(BillEntity bill, BillLineEntity line, String clusterKey) {
+        var context = new TreeMap<String, String>();
+        if (bill.cluster() != null) {
+            context.put(clusterKey, bill.cluster());
+        }
+        if (line.allocation() == BillLineEntity.Allocation.CONTEXT && line.context() != null) {
+            context.putAll(line.context());
         }
         try {
-            return JSON.writeValueAsString(line.context());
+            return JSON.writeValueAsString(context);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }

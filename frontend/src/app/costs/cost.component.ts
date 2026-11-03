@@ -48,6 +48,8 @@ export interface MonthStatus {
     billed: boolean;
     /** For a month-to-date bill: the last day it covers. */
     billedUpTo: Date | null;
+    /** The clusters the month's bills are for; empty when a bill covers all clusters. */
+    clusters: string[];
 }
 
 export function monthStatuses(costs: BilledCosts): MonthStatus[] {
@@ -61,6 +63,7 @@ export function monthStatuses(costs: BilledCosts): MonthStatus[] {
             label: monthLabel(month.month),
             billed: month.billed,
             billedUpTo: partial ? lastDayFromCoveredUntil(month.billedUntil) : null,
+            clusters: month.clusters,
         };
     });
 }
@@ -171,6 +174,9 @@ export class CostComponent {
 
     rows = computed(() => (this.data() ? costRows(this.data()!) : []));
     months = computed(() => (this.data() ? monthStatuses(this.data()!) : []));
+    /** " for poc-cluster" when only some clusters have a bill; other clusters are estimated. */
+    forClusters = (month: MonthStatus) =>
+        month.clusters.length ? ` for ${month.clusters.join(', ')}` : '';
     totalCost = computed(() => this.rows().reduce((sum, row) => sum + row.total, 0));
     estimatedCost = computed(() => this.rows().reduce((sum, row) => sum + row.estimated, 0));
     anyEstimated = computed(() => this.months().some(m => !m.billed || m.billedUpTo));

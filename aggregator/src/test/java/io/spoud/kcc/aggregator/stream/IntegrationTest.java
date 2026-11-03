@@ -6,7 +6,7 @@ import io.quarkus.test.security.TestSecurity;
 import io.spoud.kcc.aggregator.data.RawTelegrafData;
 import io.spoud.kcc.aggregator.bills.BillEntity;
 import io.spoud.kcc.aggregator.bills.BillsRepository;
-import io.spoud.kcc.aggregator.bills.OtherLine;
+import io.spoud.kcc.aggregator.bills.BillLineEntity;
 import io.spoud.kcc.aggregator.graphql.ContextDataResource;
 import io.spoud.kcc.aggregator.graphql.MetricsResource;
 import io.spoud.kcc.aggregator.graphql.PricingRulesResource;
@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 @QuarkusTest
@@ -141,20 +142,30 @@ public class IntegrationTest {
         assertThat(description.get("cleanup.policy").value()).isEqualTo("compact");
 
         try (KafkaProducer<String, io.spoud.kcc.data.Bill> billProducer = KafkaTestUtils.createAvroProducer()) {
-            billProducer.send(new ProducerRecord<>("bills", "2026-08", new BillEntity("2026-08", null, 1.0, 2.0,
-                    3.0, 4.0, List.of(), Instant.now(), "elsewhere").toAvro())).get();
+            // saved before lines, by an older version
+            billProducer.send(new ProducerRecord<>("bills", "2026-08", io.spoud.kcc.data.Bill.newBuilder()
+                    .setMonth("2026-08").setNetworkWrite(1.0).setStorage(3.0)
+                    .setUpdatedAt(Instant.now()).setUpdatedBy("elsewhere").build())).get();
         }
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
                 assertThat(billsRepository.all()).extracting(BillEntity::month).contains("2026-08"));
+        assertThat(billsRepository.find("2026-08", null)).hasValueSatisfying(bill -> assertThat(bill.lines())
+                .extracting(BillLineEntity::description).containsExactly("Network write", "Network read", "Storage", "Partitions"));
 
-        billsRepository.save(new BillEntity("2026-09", null, 0.27, 0.22, 8.12, 22.5,
-                List.of(new OtherLine("Support", 5.0, OtherLine.Allocation.CONTEXT, Map.of("tenant", "data-platform"))),
+        billsRepository.save(new BillEntity("2026-09", "poc-cluster", null, List.of(
+                BillLineEntity.byMetrics("Storage", 8.12, "kafka_log_log_size"),
+                BillLineEntity.other("Support", 5.0, BillLineEntity.Allocation.CONTEXT, Map.of("tenant", "data-platform"))),
                 Instant.now(), "test"));
-        billsRepository.delete("2026-08");
-        assertThat(billsRepository.all()).extracting(BillEntity::month).containsExactly("2026-09");
-        // other lines round-trip through the topic with their context
-        assertThat(billsRepository.all().getFirst().otherLines()).singleElement()
-                .satisfies(line -> assertThat(line.context()).containsEntry("tenant", "data-platform"));
+        // a month has one bill for all clusters or one per cluster
+        assertThatThrownBy(() -> billsRepository.save(new BillEntity("2026-09", null, null,
+                List.of(BillLineEntity.byMetrics("Storage", 1.0, "kafka_log_log_size")), Instant.now(), "test")))
+                .hasMessageContaining("already has bills per cluster");
+        billsRepository.delete("2026-08", null);
+        assertThat(billsRepository.all()).extracting(BillEntity::key).containsExactly("2026-09:poc-cluster");
+        // lines round-trip through the topic with their metrics and context
+        assertThat(billsRepository.all().getFirst().lines()).satisfiesExactly(
+                line -> assertThat(line.metrics()).containsExactly("kafka_log_log_size"),
+                line -> assertThat(line.context()).containsEntry("tenant", "data-platform"));
     }
 
     @Test

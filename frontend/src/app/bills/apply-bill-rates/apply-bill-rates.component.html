@@ -32,7 +32,10 @@
                                 [aria-label]="'Apply the rate of ' + row.metricName"
                             />
                         </td>
-                        <td class="metric">{{ row.metricName }}</td>
+                        <td>
+                            <div class="metric">{{ row.metricName }}</div>
+                            <div class="sub">{{ row.line }}</div>
+                        </td>
                         <td class="amount">${{ row.amount | number: '1.2-4' }}</td>
                         <td class="amount">{{ row.usage }}</td>
                         <td>
@@ -52,7 +55,7 @@
                     </tr>
                 } @empty {
                     <tr>
-                        <td colspan="6" class="sub">This bill has no usage lines.</td>
+                        <td colspan="6" class="sub">This bill has no lines shared by metrics.</td>
                     </tr>
                 }
             </tbody>

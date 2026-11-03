@@ -25,9 +25,11 @@ public record BilledCostResponse(
 
     public record MonthBilling(
             @NonNull String month,
-            @Description("Whether a bill exists for the month") boolean billed,
+            @Description("Whether a bill exists for the month, for all clusters or some") boolean billed,
             @Description("The part of the range in this month") @NonNull Instant from,
             @NonNull Instant to,
-            @Description("Where the bill's amounts stop; after it, the rate card applies") Instant billedUntil) {
+            @Description("Where the bill's amounts stop, the earliest of the month's bills; after it, the rate card applies") Instant billedUntil,
+            @Description("The clusters the month's bills are for; empty when a bill covers all clusters, or none exists")
+            @NonNull List<@NonNull String> clusters) {
     }
 }
