@@ -24,6 +24,17 @@ An image you set in your values, such as `strimzi.contextOperator.image` for the
 variant, stays as you set it: a new chart moves only the images you leave unset. Bump it to the
 chart's `appVersion` yourself.
 
+## Upgrading to 0.9.6
+
+The images move from release 0.15.0 to 0.16.0. Bills become lines, each shared by the usage of the
+metrics you pick, and a bill can be for one cluster (`strimzi.clusterName`): a self-hosted cluster's
+bill can now be shared, e.g. storage by `kafka_log_log_size` and network by bytes in and out. Bills
+saved before are read as lines with Confluent's metrics and give the same costs.
+
+- The bill schema gets a new version: a registry that doesn't let clients register schemas needs it
+  added first, from `aggregator/src/main/avro/bill.avsc`.
+- Bills saved with 0.16.0 read as empty in older versions: going back means entering them again.
+
 ## Upgrading to 0.9.5
 
 Telegraf no longer aggregates. Its aggregators stamped each period with its end and sent a partial
