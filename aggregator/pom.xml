@@ -27,7 +27,7 @@
         <surefire-plugin.version>3.6.1</surefire-plugin.version>
         <kafka.version>4.4.0</kafka.version>
         <confluent.platform.version>8.4.0</confluent.platform.version>
-        <quarkus.langchain4j.version>1.14.2</quarkus.langchain4j.version>
+        <quarkus.langchain4j.version>1.15.0</quarkus.langchain4j.version>
     </properties>
     <dependencyManagement>
         <dependencies>
