@@ -70,6 +70,10 @@ spec:
               cpu: {{ .Values.aggregator.resources.requests.cpu }}
               memory: {{ .Values.aggregator.resources.requests.memory }}
           env:
+            # heap: 50% of the memory limit. JAVA_TOOL_OPTIONS for the Chainguard-based image (0.16.1+),
+            # JAVA_MAX_MEM_RATIO for older images that start through run-java.sh.
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=50.0"
             - name: JAVA_MAX_MEM_RATIO
               value: "50"
             {{- if .Values.aggregator.olapEnabled }}
