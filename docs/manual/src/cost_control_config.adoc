@@ -2,7 +2,7 @@
 
 Your cost control instance can be configured either by setting environment variables,
 or (if you are using one of the provided container images) by mounting an `application.properties` file at
-`/deployments/config/application.properties`:
+`/app/config/application.properties` (`/deployments/config/` for images before 0.16.1):
 
 ```
 # inside your application.properties

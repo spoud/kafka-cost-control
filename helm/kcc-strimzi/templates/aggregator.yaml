@@ -44,7 +44,9 @@ spec:
     spec:
       terminationGracePeriodSeconds: 10
       securityContext:
-        fsGroup: 185 # jboss
+        # added as a supplementary group to the container, so the data volume is writable whatever the
+        # image's user is (65532 "java" from 0.16.1, 185 before)
+        fsGroup: 65532
       volumes:
       {{- if $caCert }}
         - name: kafka-cluster-ca
@@ -193,6 +195,10 @@ spec:
               mountPath: /etc/kafka
               readOnly: true
             {{- end }}
+            # Quarkus reads config/ from the working directory: /app for images 0.16.1+ (Chainguard),
+            # /deployments for older ones (UBI). Drop the second mount once the default image is 0.16.1+.
+            - name: aggregator-config
+              mountPath: /app/config
             - name: aggregator-config
               mountPath: /deployments/config
           startupProbe:

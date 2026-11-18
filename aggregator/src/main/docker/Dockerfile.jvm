@@ -10,37 +10,42 @@
 #
 #   docker run -i --rm -p 8080:8080 spoud/kafka-cost-control
 #
-# The base is Chainguard's minimal JRE: no shell and no package manager, fewer CVEs, and a fresh JDK
-# with every digest bump (Dependabot updates the pinned digest). There is no run-java.sh, so:
-# - JVM flags: the entrypoint keeps the GC flags the previous UBI image's run-java.sh used. Pass more
-#   with JDK_JAVA_OPTIONS (read by the java launcher), e.g. -e JDK_JAVA_OPTIONS="-XX:+UseZGC".
-# - Heap size: JAVA_TOOL_OPTIONS sets -XX:MaxRAMPercentage (default 80, as before). Override the whole
-#   variable to change it, e.g. -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0".
-#   JAVA_OPTS, JAVA_OPTS_APPEND and JAVA_MAX_MEM_RATIO are no longer read.
-# - Debugging: -e JDK_JAVA_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
-#   and publish port 5005.
+# Base: Chainguard's minimal JRE (no shell, no package manager, few CVEs). The digest is pinned and
+# Dependabot bumps it, so the JDK stays current. The image is used as intended:
+# - it runs as the image's nonroot user `java` (UID/GID 65532), from the image's /app directory, so a
+#   configuration file goes to /app/config/application.yaml (or .properties);
+# - the application files stay owned by root (no --chown): the JVM can read them but not modify them;
+# - the base ENTRYPOINT (/usr/bin/java) is kept, and the arguments are the CMD.
 #
-# Runs as UID/GID 185 from /deployments, like the previous image, so existing securityContexts
-# (runAsUser/fsGroup 185), volume mounts and the mounted config/ directory keep working.
+# JVM options:
+# - Heap: JAVA_TOOL_OPTIONS sets -XX:MaxRAMPercentage (default 80). Override the whole variable,
+#   e.g. -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0".
+# - Anything else: JDK_JAVA_OPTIONS, which the java launcher reads, e.g. a debug agent:
+#   -e JDK_JAVA_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+# - JAVA_OPTS / JAVA_OPTS_APPEND / JAVA_MAX_MEM_RATIO were run-java.sh variables of the previous UBI
+#   image and are not read any more.
+# - The GC flags below are the ones run-java.sh used to add, kept so the JVM behaves as before.
+#
+# Kafka Streams (RocksDB) and DuckDB extract native libraries into /tmp: a read-only root filesystem
+# needs a writable /tmp that allows execution (a Kubernetes emptyDir does; with `docker run --tmpfs`
+# add `:exec`).
 ###
 FROM cgr.dev/chainguard/jre:latest@sha256:cb0441ab64307b684825a6a3b13caed5bbe13c5684c840b3c90ecab117d3ee1f
 
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en'
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=80.0"
 
-WORKDIR /deployments
+WORKDIR /app
 
-# We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --chown=185:185 target/quarkus-app/lib/ /deployments/lib/
-COPY --chown=185:185 target/quarkus-app/*.jar /deployments/
-COPY --chown=185:185 target/quarkus-app/app/ /deployments/app/
-COPY --chown=185:185 target/quarkus-app/quarkus/ /deployments/quarkus/
+# Four layers, so the library layers are reused when only the application changes
+COPY target/quarkus-app/lib/ /app/lib/
+COPY target/quarkus-app/*.jar /app/
+COPY target/quarkus-app/app/ /app/app/
+COPY target/quarkus-app/quarkus/ /app/quarkus/
 
 EXPOSE 8080
-USER 185
 
-ENTRYPOINT [ "java", \
-  "-XX:+UseParallelGC", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=20", "-XX:GCTimeRatio=4", \
+CMD [ "-XX:+UseParallelGC", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=20", "-XX:GCTimeRatio=4", \
   "-XX:AdaptiveSizePolicyWeight=90", "-XX:+ExitOnOutOfMemoryError", \
   "-Dquarkus.http.host=0.0.0.0", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", \
-  "-jar", "/deployments/quarkus-run.jar" ]
+  "-jar", "/app/quarkus-run.jar" ]
