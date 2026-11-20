@@ -143,6 +143,12 @@ aggregator:
       # contains nobody but your own users (not Google or Microsoft)
       allowedDomains: ""
   image: spoud/kafka-cost-control:0.16.0
+  # Additional environment variables for the aggregator container, appended after the chart's own.
+  # Example:
+  # extraEnv:
+  #   - name: JDK_JAVA_OPTIONS
+  #     value: "-XX:+UseZGC"
+  extraEnv: [ ]
   # Labels that will be added to the pod
   labels: { }
   annotations: { }

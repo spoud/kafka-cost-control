@@ -175,6 +175,9 @@ spec:
               value: SASL_PLAINTEXT
             {{ end }} {{/* if .Values.strimzi.scramOverTls */}}
             {{ end }} {{/* if eq .Values.strimzi.auth "scram-sha-512" */}}
+            {{- with .Values.aggregator.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           ports:
             - containerPort: 8080
               name: http
