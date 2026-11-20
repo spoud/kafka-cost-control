@@ -122,8 +122,8 @@ aggregator:
   securityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
-    runAsUser: 185
-    runAsGroup: 185
+    # No runAsUser/runAsGroup: the container runs as its image's nonroot user (65532 "java" from 0.16.1,
+    # 185 before). The pod's fsGroup (65532) makes the data volume writable for either.
     readOnlyRootFilesystem: true
     capabilities:
       drop: [ "ALL" ]
